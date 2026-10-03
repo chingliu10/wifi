@@ -72,6 +72,8 @@ app.get('/packages', async (req, res) => {
 });
 
 app.get('/portal', async (req, res) => {
+  console.log('PORTAL QUERY:', req.query);
+
   try {
     const result = await pool.query(`
       SELECT
@@ -89,6 +91,8 @@ app.get('/portal', async (req, res) => {
       packages: result.rows
     });
   } catch (error) {
+    console.error('PORTAL ERROR:', error);
+
     res.status(500).render('portal/index', {
       title: 'Small Garden WiFi',
       packages: [],
