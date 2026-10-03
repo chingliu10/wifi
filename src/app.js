@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const { engine } = require('express-handlebars');
 const pool = require('./config/database');
 const { getOrCreateDevice } = require('./services/device-service');
 const { getDeviceAccessStatus } = require('./services/subscription-service');
@@ -6,7 +8,18 @@ const { activatePackageForDevice } = require('./services/subscription-service');
 
 const app = express();
 
+app.engine('hbs', engine({
+  extname: '.hbs',
+  defaultLayout: 'main',
+  helpers: {
+    formatTzs: (amount) => Number(amount).toLocaleString('en-US')
+  }
+}));
+app.set('view engine', 'hbs');
+app.set('views', path.join(__dirname, '..', 'views'));
+
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/', (req, res) => {
   res.json({
@@ -54,6 +67,32 @@ app.get('/packages', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+app.get('/portal', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        name,
+        price_tzs,
+        duration_seconds
+      FROM packages
+      WHERE active = true
+      ORDER BY sort_order
+    `);
+
+    res.render('portal/index', {
+      title: 'Small Garden WiFi',
+      packages: result.rows
+    });
+  } catch (error) {
+    res.status(500).render('portal/index', {
+      title: 'Small Garden WiFi',
+      packages: [],
+      error: 'Unable to load packages. Please try again later.'
     });
   }
 });

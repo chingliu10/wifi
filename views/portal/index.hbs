@@ -1,0 +1,31 @@
+<main class="portal">
+  <section class="portal-panel" aria-labelledby="portal-title">
+    <h1 id="portal-title">Small Garden WiFi</h1>
+
+    <form class="portal-form" method="post" action="#">
+      <label for="phone-number">Phone number</label>
+      <input
+        id="phone-number"
+        name="phoneNumber"
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel"
+        placeholder="Enter phone number"
+      >
+
+      <label for="package-id">Package</label>
+      <select id="package-id" name="packageId">
+        <option value="">Select package</option>
+        {{#each packages}}
+          <option value="{{id}}">{{name}} - {{formatTzs price_tzs}} TZS</option>
+        {{/each}}
+      </select>
+
+      {{#if error}}
+        <p class="portal-error">{{error}}</p>
+      {{/if}}
+
+      <button type="button">LIPA SASA</button>
+    </form>
+  </section>
+</main>
