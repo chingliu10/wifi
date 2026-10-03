@@ -75,6 +75,15 @@ app.get('/portal', async (req, res) => {
   console.log('PORTAL QUERY:', req.query);
 
   try {
+    const {
+      clientMac,
+      site,
+      apMac,
+      ssidName,
+      redirectUrl,
+      radioId
+    } = req.query;
+
     const result = await pool.query(`
       SELECT
         id,
@@ -86,9 +95,33 @@ app.get('/portal', async (req, res) => {
       ORDER BY sort_order
     `);
 
+    const portalContext = {
+      site,
+      apMac,
+      ssidName,
+      redirectUrl,
+      radioId
+    };
+
+    if (!clientMac) {
+      return res.status(400).render('portal/index', {
+        title: 'Small Garden WiFi',
+        packages: result.rows,
+        portal: portalContext,
+        error: 'Missing client MAC address from portal request.'
+      });
+    }
+
+    const device = await getOrCreateDevice(clientMac);
+
     res.render('portal/index', {
       title: 'Small Garden WiFi',
-      packages: result.rows
+      packages: result.rows,
+      device,
+      portal: {
+        ...portalContext,
+        clientMac
+      }
     });
   } catch (error) {
     console.error('PORTAL ERROR:', error);

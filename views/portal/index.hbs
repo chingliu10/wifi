@@ -3,6 +3,14 @@
     <h1 id="portal-title">Small Garden WiFi</h1>
 
     <form class="portal-form" method="post" action="#">
+      <input type="hidden" name="deviceId" value="{{device.id}}">
+      <input type="hidden" name="clientMac" value="{{device.mac_address}}">
+      <input type="hidden" name="site" value="{{portal.site}}">
+      <input type="hidden" name="apMac" value="{{portal.apMac}}">
+      <input type="hidden" name="ssidName" value="{{portal.ssidName}}">
+      <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
+      <input type="hidden" name="radioId" value="{{portal.radioId}}">
+
       <label for="phone-number">Phone number</label>
       <input
         id="phone-number"
