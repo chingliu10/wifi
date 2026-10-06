@@ -2,7 +2,7 @@
   <section class="portal-panel" aria-labelledby="portal-title">
     <h1 id="portal-title">Small Garden WiFi</h1>
 
-    <form class="portal-form" method="post" action="#">
+    <form class="portal-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
       <input type="hidden" name="site" value="{{portal.site}}">
@@ -14,7 +14,7 @@
       <label for="phone-number">Phone number</label>
       <input
         id="phone-number"
-        name="phoneNumber"
+        name="phone"
         type="tel"
         inputmode="tel"
         autocomplete="tel"
@@ -33,7 +33,7 @@
         <p class="portal-error">{{error}}</p>
       {{/if}}
 
-      <button type="button">LIPA SASA</button>
+      <button type="submit">LIPA SASA</button>
     </form>
   </section>
 </main>

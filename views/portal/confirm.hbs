@@ -1,0 +1,66 @@
+<main class="portal">
+  <section class="portal-panel" aria-labelledby="confirm-title">
+    <h1 id="confirm-title">{{title}}</h1>
+
+    {{#if error}}
+      <p class="portal-error">{{error}}</p>
+    {{else}}
+      <dl class="portal-summary">
+        <div>
+          <dt>Reference</dt>
+          <dd>{{transaction.reference}}</dd>
+        </div>
+        <div>
+          <dt>Phone number</dt>
+          <dd>{{transaction.phone}}</dd>
+        </div>
+        <div>
+          <dt>Client MAC</dt>
+          <dd>{{transaction.client_mac}}</dd>
+        </div>
+        <div>
+          <dt>Package</dt>
+          <dd>{{package.name}}</dd>
+        </div>
+        <div>
+          <dt>Price</dt>
+          <dd>{{formatTzs package.price_tzs}} TZS</dd>
+        </div>
+        <div>
+          <dt>Duration</dt>
+          <dd>{{package.duration_seconds}} seconds</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{{transaction.status}}</dd>
+        </div>
+        {{#if subscription}}
+          <div>
+            <dt>Access</dt>
+            <dd>{{subscription.status}}</dd>
+          </div>
+          <div>
+            <dt>Activated</dt>
+            <dd>{{subscription.starts_at}}</dd>
+          </div>
+          <div>
+            <dt>Expires</dt>
+            <dd>{{subscription.expires_at}}</dd>
+          </div>
+        {{/if}}
+      </dl>
+
+      <p class="portal-message">{{message}}</p>
+
+      {{#if showPayNow}}
+        <form class="portal-action" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
+          <button type="submit">Pay now</button>
+        </form>
+      {{/if}}
+
+      {{#if paymentInitiated}}
+        <p class="portal-note">Payment request sent. Check your phone to complete the payment.</p>
+      {{/if}}
+    {{/if}}
+  </section>
+</main>

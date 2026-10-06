@@ -7,15 +7,19 @@ const pool = require('../config/database');
 
 const runMigration = async () => {
   try {
-    const filePath = path.join(
-      __dirname,
-      'migrations',
-      '001_initial_schema.sql'
-    );
+    const migrationsPath = path.join(__dirname, 'migrations');
+    const migrationFiles = fs
+      .readdirSync(migrationsPath)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
 
-    const sql = fs.readFileSync(filePath, 'utf8');
+    for (const file of migrationFiles) {
+      const filePath = path.join(migrationsPath, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
 
-    await pool.query(sql);
+      await pool.query(sql);
+      console.log(`Migration applied: ${file}`);
+    }
 
     console.log('Migration completed successfully');
   } catch (error) {

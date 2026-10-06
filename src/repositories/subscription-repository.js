@@ -1,5 +1,9 @@
 const pool = require('../config/database');
 
+const query = (db, sql, params) => {
+  return (db || pool).query(sql, params);
+};
+
 const findActiveSubscriptionByDeviceId = async (deviceId) => {
   const result = await pool.query(
     `
@@ -24,6 +28,83 @@ const findActiveSubscriptionByDeviceId = async (deviceId) => {
   );
 
   return result.rows[0] || null;
+};
+
+const findSubscriptionByPaymentTransactionId = async ({
+  db,
+  paymentTransactionId
+}) => {
+  const result = await query(
+    db,
+    `
+      SELECT
+        id,
+        site_id,
+        device_id,
+        package_id,
+        payment_id,
+        payment_transaction_id,
+        client_mac,
+        starts_at,
+        expires_at,
+        status,
+        created_at,
+        updated_at
+      FROM subscriptions
+      WHERE payment_transaction_id = $1
+      LIMIT 1
+    `,
+    [paymentTransactionId]
+  );
+
+  return result.rows[0] || null;
+};
+
+const createSubscriptionForPayment = async ({
+  db,
+  siteId,
+  deviceId,
+  packageId,
+  paymentTransactionId,
+  clientMac,
+  durationSeconds
+}) => {
+  const result = await query(
+    db,
+    `
+      INSERT INTO subscriptions (
+        site_id,
+        device_id,
+        package_id,
+        payment_transaction_id,
+        client_mac,
+        starts_at,
+        expires_at,
+        status
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        NOW(),
+        NOW() + ($6 * INTERVAL '1 second'),
+        'active'
+      )
+      RETURNING *
+    `,
+    [
+      siteId,
+      deviceId,
+      packageId,
+      paymentTransactionId,
+      clientMac,
+      durationSeconds
+    ]
+  );
+
+  return result.rows[0];
 };
 
 
@@ -86,5 +167,7 @@ const createOrExtendSubscription = async ({
 
 module.exports = {
   findActiveSubscriptionByDeviceId,
-    createOrExtendSubscription
+  findSubscriptionByPaymentTransactionId,
+  createSubscriptionForPayment,
+  createOrExtendSubscription
 };

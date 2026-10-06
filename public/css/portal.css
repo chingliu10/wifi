@@ -56,7 +56,56 @@ body {
   cursor: pointer;
 }
 
+.portal-action {
+  margin-top: 20px;
+}
+
+.portal-action button {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  background: #1f7a4d;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .portal-error {
   margin: 0;
   color: #a52714;
+}
+
+.portal-summary {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.portal-summary div {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d9e0d4;
+}
+
+.portal-summary dt {
+  font-weight: 700;
+}
+
+.portal-summary dd {
+  margin: 0;
+}
+
+.portal-message {
+  margin: 24px 0 0;
+  font-weight: 700;
+  color: #1f7a4d;
+}
+
+.portal-note {
+  margin: 12px 0 0;
+  color: #44524a;
 }
