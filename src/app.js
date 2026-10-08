@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const crypto = require('crypto');
 const { engine } = require('express-handlebars');
 const pool = require('./config/database');
 const { getOrCreateDevice } = require('./services/device-service');
@@ -26,106 +25,6 @@ const {
 const app = express();
 
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
-
-const getHeaderValue = (req, name) => {
-  const value = req.headers[String(name || '').toLowerCase()];
-  return Array.isArray(value) ? value[0] : value;
-};
-
-const secureHexEqual = (left, right) => {
-  if (!left || !right) {
-    return false;
-  }
-
-  const cleanLeft = String(left).replace(/^sha256=/i, '').trim().toLowerCase();
-  const cleanRight = String(right).replace(/^sha256=/i, '').trim().toLowerCase();
-
-  if (!/^[a-f0-9]+$/i.test(cleanLeft) || !/^[a-f0-9]+$/i.test(cleanRight)) {
-    return false;
-  }
-
-  const leftBuffer = Buffer.from(cleanLeft, 'hex');
-  const rightBuffer = Buffer.from(cleanRight, 'hex');
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
-};
-
-const verifySplashPayWebhook = (req) => {
-  const secret = process.env.SPLASHPAY_WEBHOOK_SECRET;
-
-  if (!secret) {
-    throw new Error('SPLASHPAY_WEBHOOK_SECRET is not configured');
-  }
-
-  if (!req.rawBody) {
-    return false;
-  }
-
-  const signatureHeader =
-    process.env.SPLASHPAY_WEBHOOK_SIGNATURE_HEADER || 'x-splashpay-signature';
-  const timestampHeader =
-    process.env.SPLASHPAY_WEBHOOK_TIMESTAMP_HEADER || 'x-splashpay-timestamp';
-
-  const signature = getHeaderValue(req, signatureHeader);
-  const timestamp = getHeaderValue(req, timestampHeader);
-
-  if (!signature) {
-    return false;
-  }
-
-  const rawBody = req.rawBody.toString('utf8');
-  const candidates = [
-    crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex')
-  ];
-
-  if (timestamp) {
-    candidates.push(
-      crypto
-        .createHmac('sha256', secret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex')
-    );
-  }
-
-  return candidates.some((expected) => secureHexEqual(signature, expected));
-};
-
-const mapSplashPayStatus = (payload) => {
-  const event = String(payload.event || '').toLowerCase();
-  const data = payload.data || payload;
-  const rawStatus = String(data.status || payload.status || '').toLowerCase();
-
-  if (
-    rawStatus === 'success' ||
-    rawStatus === 'paid' ||
-    rawStatus === 'completed' ||
-    event.endsWith('.success') ||
-    event.endsWith('.paid') ||
-    event.endsWith('.completed')
-  ) {
-    return 'paid';
-  }
-
-  if (rawStatus === 'failed' || event.endsWith('.failed')) {
-    return 'failed';
-  }
-
-  if (
-    rawStatus === 'cancelled' ||
-    rawStatus === 'canceled' ||
-    event.endsWith('.cancelled') ||
-    event.endsWith('.canceled')
-  ) {
-    return 'cancelled';
-  }
-
-  return null;
-};
-
 
 const buildPackageView = (transaction) => ({
   id: transaction.package_id,
@@ -461,6 +360,10 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
       providerReference: providerResult.providerReference
     });
 
+    if (providerResult.redirectUrl) {
+      return res.redirect(303, providerResult.redirectUrl);
+    }
+
     const currentTransaction = updatedTransaction
       ? await findPaymentTransactionByReference(transaction.reference)
       : await findPaymentTransactionByReference(transaction.reference);
@@ -476,156 +379,6 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
   }
 });
 
-
-app.post('/api/payments/splashpay/webhook', async (req, res) => {
-  try {
-    if (!verifySplashPayWebhook(req)) {
-      console.warn('SPLASHPAY WEBHOOK REJECTED: invalid signature');
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid webhook signature'
-      });
-    }
-
-    const payload = req.body || {};
-    const data = payload.data || payload;
-
-    const reference = data.reference || payload.reference;
-    const providerReference =
-      data.provider_reference ||
-      data.providerReference ||
-      payload.provider_reference ||
-      payload.providerReference;
-
-    const mappedStatus = mapSplashPayStatus(payload);
-
-    if (!reference && !providerReference) {
-      return res.status(400).json({
-        success: false,
-        error: 'Webhook does not contain a payment reference'
-      });
-    }
-
-    let transaction = null;
-
-    if (providerReference) {
-      transaction = await findPaymentTransactionByProviderReference(providerReference);
-    }
-
-    if (!transaction && reference) {
-      transaction = await findPaymentTransactionByReference(reference);
-    }
-
-    if (!transaction) {
-      console.warn('SPLASHPAY WEBHOOK: transaction not found', {
-        reference,
-        providerReference
-      });
-
-      return res.status(404).json({
-        success: false,
-        error: 'Payment transaction was not found'
-      });
-    }
-
-    if (transaction.provider && transaction.provider !== 'splashpay') {
-      return res.status(400).json({
-        success: false,
-        error: 'Payment provider mismatch'
-      });
-    }
-
-    if (
-      providerReference &&
-      transaction.provider_reference &&
-      providerReference !== transaction.provider_reference
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: 'Provider reference mismatch'
-      });
-    }
-
-    if (reference && reference !== transaction.reference) {
-      return res.status(400).json({
-        success: false,
-        error: 'Merchant reference mismatch'
-      });
-    }
-
-    if (data.currency && String(data.currency).toUpperCase() !== 'TZS') {
-      return res.status(400).json({
-        success: false,
-        error: 'Currency mismatch'
-      });
-    }
-
-    if (
-      data.amount !== undefined &&
-      Number(data.amount) !== Number(transaction.amount_tzs)
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: 'Payment amount mismatch'
-      });
-    }
-
-    if (!mappedStatus) {
-      return res.status(200).json({
-        success: true,
-        ignored: true,
-        message: 'Payment is still pending or processing'
-      });
-    }
-
-    if (transaction.status !== 'pending') {
-      if (transaction.status === 'paid') {
-        try {
-          await activateSubscriptionForPayment(transaction);
-        } catch (error) {
-          console.error('SPLASHPAY PROVISIONING RETRY ERROR:', error);
-        }
-      }
-
-      return res.status(200).json({
-        success: true,
-        ignored: true,
-        status: transaction.status
-      });
-    }
-
-    const updatedTransaction = await updatePaymentStatus({
-      providerReference: transaction.provider_reference,
-      status: mappedStatus
-    });
-
-    if (!updatedTransaction) {
-      throw new Error('Unable to update payment status');
-    }
-
-    if (updatedTransaction.status === 'paid') {
-      await activateSubscriptionForPayment(updatedTransaction);
-    }
-
-    console.log('SPLASHPAY WEBHOOK PROCESSED:', {
-      reference: transaction.reference,
-      providerReference: transaction.provider_reference,
-      status: updatedTransaction.status
-    });
-
-    return res.status(200).json({
-      success: true,
-      status: updatedTransaction.status
-    });
-  } catch (error) {
-    console.error('SPLASHPAY WEBHOOK ERROR:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Unable to process SplashPay webhook'
-    });
-  }
-});
 
 app.post('/api/payments/mock/callback', async (req, res) => {
   try {
