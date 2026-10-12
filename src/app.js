@@ -25,6 +25,9 @@ const {
 
 const app = express();
 
+// Must mount the raw-body signed webhook before express.json().
+app.use(require('./routes/fastlipa-webhook'));
+
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
 
 
