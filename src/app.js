@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const { engine } = require('express-handlebars');
 const pool = require('./config/database');
 const { getOrCreateDevice } = require('./services/device-service');
@@ -25,6 +26,68 @@ const {
 const app = express();
 
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
+
+
+const verifySnippeWebhook = (req) => {
+  const secret = process.env.SNIPPE_WEBHOOK_SECRET;
+
+  if (!secret) {
+    throw new Error('SNIPPE_WEBHOOK_SECRET is not configured');
+  }
+
+  if (!req.rawBody) {
+    return false;
+  }
+
+  const timestamp = req.headers['x-webhook-timestamp'];
+  const signature = req.headers['x-webhook-signature'];
+
+  if (!timestamp || !signature) {
+    return false;
+  }
+
+  const eventTime = Number.parseInt(timestamp, 10);
+  const now = Math.floor(Date.now() / 1000);
+
+  if (!Number.isFinite(eventTime) || Math.abs(now - eventTime) > 300) {
+    return false;
+  }
+
+  const message = `${timestamp}.${req.rawBody.toString('utf8')}`;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+
+  const left = Buffer.from(String(signature));
+  const right = Buffer.from(expected);
+
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+};
+
+const mapSnippeStatus = (payload) => {
+  const type = String(payload.type || '').toLowerCase();
+  const status = String(payload.data?.status || '').toLowerCase();
+
+  if (type === 'payment.completed' || status === 'completed') {
+    return 'paid';
+  }
+
+  if (type === 'payment.failed' || status === 'failed') {
+    return 'failed';
+  }
+
+  if (
+    type === 'payment.voided' ||
+    type === 'payment.expired' ||
+    status === 'voided' ||
+    status === 'expired'
+  ) {
+    return 'cancelled';
+  }
+
+  return null;
+};
 
 const buildPackageView = (transaction) => ({
   id: transaction.package_id,
@@ -360,10 +423,6 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
       providerReference: providerResult.providerReference
     });
 
-    if (providerResult.redirectUrl) {
-      return res.redirect(303, providerResult.redirectUrl);
-    }
-
     const currentTransaction = updatedTransaction
       ? await findPaymentTransactionByReference(transaction.reference)
       : await findPaymentTransactionByReference(transaction.reference);
@@ -379,6 +438,130 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
   }
 });
 
+
+
+app.post('/api/payments/snippe/webhook', async (req, res) => {
+  try {
+    if (!verifySnippeWebhook(req)) {
+      console.warn('SNIPPE WEBHOOK REJECTED: invalid signature');
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid webhook signature'
+      });
+    }
+
+    const payload = req.body || {};
+    const data = payload.data || {};
+    const providerReference = data.reference;
+    const mappedStatus = mapSnippeStatus(payload);
+
+    if (!providerReference) {
+      return res.status(400).json({
+        success: false,
+        error: 'Webhook does not contain a payment reference'
+      });
+    }
+
+    const transaction = await findPaymentTransactionByProviderReference(
+      providerReference
+    );
+
+    if (!transaction) {
+      console.warn('SNIPPE WEBHOOK: transaction not found', {
+        providerReference
+      });
+
+      return res.status(404).json({
+        success: false,
+        error: 'Payment transaction was not found'
+      });
+    }
+
+    if (transaction.provider && transaction.provider !== 'snippe') {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment provider mismatch'
+      });
+    }
+
+    const webhookAmount = data.amount?.value;
+    const webhookCurrency = data.amount?.currency;
+
+    if (
+      webhookCurrency &&
+      String(webhookCurrency).toUpperCase() !== 'TZS'
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Currency mismatch'
+      });
+    }
+
+    if (
+      webhookAmount !== undefined &&
+      Number(webhookAmount) !== Number(transaction.amount_tzs)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment amount mismatch'
+      });
+    }
+
+    if (!mappedStatus) {
+      return res.status(200).json({
+        success: true,
+        ignored: true,
+        message: 'Payment is still pending'
+      });
+    }
+
+    if (transaction.status !== 'pending') {
+      if (transaction.status === 'paid') {
+        try {
+          await activateSubscriptionForPayment(transaction);
+        } catch (error) {
+          console.error('SNIPPE PROVISIONING RETRY ERROR:', error);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        ignored: true,
+        status: transaction.status
+      });
+    }
+
+    const updatedTransaction = await updatePaymentStatus({
+      providerReference,
+      status: mappedStatus
+    });
+
+    if (!updatedTransaction) {
+      throw new Error('Unable to update payment status');
+    }
+
+    if (updatedTransaction.status === 'paid') {
+      await activateSubscriptionForPayment(updatedTransaction);
+    }
+
+    console.log('SNIPPE WEBHOOK PROCESSED:', {
+      providerReference,
+      status: updatedTransaction.status
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: updatedTransaction.status
+    });
+  } catch (error) {
+    console.error('SNIPPE WEBHOOK ERROR:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to process Snippe webhook'
+    });
+  }
+});
 
 app.post('/api/payments/mock/callback', async (req, res) => {
   try {
