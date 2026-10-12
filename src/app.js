@@ -28,66 +28,105 @@ const app = express();
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
 
 
-const verifySnippeWebhook = (req) => {
-  const secret = process.env.SNIPPE_WEBHOOK_SECRET;
+const getHeaderValue = (req, name) => {
+  const value = req.headers[String(name || '').toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const secureHexEqual = (left, right) => {
+  if (!left || !right) {
+    return false;
+  }
+
+  const cleanLeft = String(left).replace(/^sha256=/i, '').trim().toLowerCase();
+  const cleanRight = String(right).replace(/^sha256=/i, '').trim().toLowerCase();
+
+  if (!/^[a-f0-9]+$/i.test(cleanLeft) || !/^[a-f0-9]+$/i.test(cleanRight)) {
+    return false;
+  }
+
+  const leftBuffer = Buffer.from(cleanLeft, 'hex');
+  const rightBuffer = Buffer.from(cleanRight, 'hex');
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+const verifySplashPayWebhook = (req) => {
+  const secret = process.env.SPLASHPAY_WEBHOOK_SECRET;
 
   if (!secret) {
-    throw new Error('SNIPPE_WEBHOOK_SECRET is not configured');
+    throw new Error('SPLASHPAY_WEBHOOK_SECRET is not configured');
   }
 
   if (!req.rawBody) {
     return false;
   }
 
-  const timestamp = req.headers['x-webhook-timestamp'];
-  const signature = req.headers['x-webhook-signature'];
+  const signatureHeader =
+    process.env.SPLASHPAY_WEBHOOK_SIGNATURE_HEADER || 'x-splashpay-signature';
+  const timestampHeader =
+    process.env.SPLASHPAY_WEBHOOK_TIMESTAMP_HEADER || 'x-splashpay-timestamp';
 
-  if (!timestamp || !signature) {
+  const signature = getHeaderValue(req, signatureHeader);
+  const timestamp = getHeaderValue(req, timestampHeader);
+
+  if (!signature) {
     return false;
   }
 
-  const eventTime = Number.parseInt(timestamp, 10);
-  const now = Math.floor(Date.now() / 1000);
+  const rawBody = req.rawBody.toString('utf8');
+  const candidates = [
+    crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex')
+  ];
 
-  if (!Number.isFinite(eventTime) || Math.abs(now - eventTime) > 300) {
-    return false;
+  if (timestamp) {
+    candidates.push(
+      crypto
+        .createHmac('sha256', secret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest('hex')
+    );
   }
 
-  const message = `${timestamp}.${req.rawBody.toString('utf8')}`;
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(message)
-    .digest('hex');
-
-  const left = Buffer.from(String(signature));
-  const right = Buffer.from(expected);
-
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
+  return candidates.some((expected) => secureHexEqual(signature, expected));
 };
 
-const mapSnippeStatus = (payload) => {
-  const type = String(payload.type || '').toLowerCase();
-  const status = String(payload.data?.status || '').toLowerCase();
+const mapSplashPayStatus = (payload) => {
+  const event = String(payload.event || '').toLowerCase();
+  const data = payload.data || payload;
+  const rawStatus = String(data.status || payload.status || '').toLowerCase();
 
-  if (type === 'payment.completed' || status === 'completed') {
+  if (
+    rawStatus === 'success' ||
+    rawStatus === 'paid' ||
+    rawStatus === 'completed' ||
+    event.endsWith('.success') ||
+    event.endsWith('.paid') ||
+    event.endsWith('.completed')
+  ) {
     return 'paid';
   }
 
-  if (type === 'payment.failed' || status === 'failed') {
+  if (rawStatus === 'failed' || event.endsWith('.failed')) {
     return 'failed';
   }
 
   if (
-    type === 'payment.voided' ||
-    type === 'payment.expired' ||
-    status === 'voided' ||
-    status === 'expired'
+    rawStatus === 'cancelled' ||
+    rawStatus === 'canceled' ||
+    event.endsWith('.cancelled') ||
+    event.endsWith('.canceled')
   ) {
     return 'cancelled';
   }
 
   return null;
 };
+
 
 const buildPackageView = (transaction) => ({
   id: transaction.package_id,
@@ -440,10 +479,10 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
 
 
 
-app.post('/api/payments/snippe/webhook', async (req, res) => {
+app.post('/api/payments/splashpay/webhook', async (req, res) => {
   try {
-    if (!verifySnippeWebhook(req)) {
-      console.warn('SNIPPE WEBHOOK REJECTED: invalid signature');
+    if (!verifySplashPayWebhook(req)) {
+      console.warn('SPLASHPAY WEBHOOK REJECTED: invalid signature');
       return res.status(401).json({
         success: false,
         error: 'Invalid webhook signature'
@@ -451,23 +490,37 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
     }
 
     const payload = req.body || {};
-    const data = payload.data || {};
-    const providerReference = data.reference;
-    const mappedStatus = mapSnippeStatus(payload);
+    const data = payload.data || payload;
 
-    if (!providerReference) {
+    const reference = data.reference || payload.reference;
+    const providerReference =
+      data.provider_reference ||
+      data.providerReference ||
+      payload.provider_reference ||
+      payload.providerReference;
+
+    const mappedStatus = mapSplashPayStatus(payload);
+
+    if (!reference && !providerReference) {
       return res.status(400).json({
         success: false,
         error: 'Webhook does not contain a payment reference'
       });
     }
 
-    const transaction = await findPaymentTransactionByProviderReference(
-      providerReference
-    );
+    let transaction = null;
+
+    if (providerReference) {
+      transaction = await findPaymentTransactionByProviderReference(providerReference);
+    }
+
+    if (!transaction && reference) {
+      transaction = await findPaymentTransactionByReference(reference);
+    }
 
     if (!transaction) {
-      console.warn('SNIPPE WEBHOOK: transaction not found', {
+      console.warn('SPLASHPAY WEBHOOK: transaction not found', {
+        reference,
         providerReference
       });
 
@@ -477,20 +530,32 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
       });
     }
 
-    if (transaction.provider && transaction.provider !== 'snippe') {
+    if (transaction.provider && transaction.provider !== 'splashpay') {
       return res.status(400).json({
         success: false,
         error: 'Payment provider mismatch'
       });
     }
 
-    const webhookAmount = data.amount?.value;
-    const webhookCurrency = data.amount?.currency;
-
     if (
-      webhookCurrency &&
-      String(webhookCurrency).toUpperCase() !== 'TZS'
+      providerReference &&
+      transaction.provider_reference &&
+      providerReference !== transaction.provider_reference
     ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Provider reference mismatch'
+      });
+    }
+
+    if (reference && reference !== transaction.reference) {
+      return res.status(400).json({
+        success: false,
+        error: 'Merchant reference mismatch'
+      });
+    }
+
+    if (data.currency && String(data.currency).toUpperCase() !== 'TZS') {
       return res.status(400).json({
         success: false,
         error: 'Currency mismatch'
@@ -498,8 +563,8 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
     }
 
     if (
-      webhookAmount !== undefined &&
-      Number(webhookAmount) !== Number(transaction.amount_tzs)
+      data.amount !== undefined &&
+      Number(data.amount) !== Number(transaction.amount_tzs)
     ) {
       return res.status(400).json({
         success: false,
@@ -511,7 +576,7 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
       return res.status(200).json({
         success: true,
         ignored: true,
-        message: 'Payment is still pending'
+        message: 'Payment is still pending or processing'
       });
     }
 
@@ -520,7 +585,7 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
         try {
           await activateSubscriptionForPayment(transaction);
         } catch (error) {
-          console.error('SNIPPE PROVISIONING RETRY ERROR:', error);
+          console.error('SPLASHPAY PROVISIONING RETRY ERROR:', error);
         }
       }
 
@@ -532,7 +597,7 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
     }
 
     const updatedTransaction = await updatePaymentStatus({
-      providerReference,
+      providerReference: transaction.provider_reference,
       status: mappedStatus
     });
 
@@ -544,8 +609,9 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
       await activateSubscriptionForPayment(updatedTransaction);
     }
 
-    console.log('SNIPPE WEBHOOK PROCESSED:', {
-      providerReference,
+    console.log('SPLASHPAY WEBHOOK PROCESSED:', {
+      reference: transaction.reference,
+      providerReference: transaction.provider_reference,
       status: updatedTransaction.status
     });
 
@@ -554,11 +620,11 @@ app.post('/api/payments/snippe/webhook', async (req, res) => {
       status: updatedTransaction.status
     });
   } catch (error) {
-    console.error('SNIPPE WEBHOOK ERROR:', error);
+    console.error('SPLASHPAY WEBHOOK ERROR:', error);
 
     return res.status(500).json({
       success: false,
-      error: 'Unable to process Snippe webhook'
+      error: 'Unable to process SplashPay webhook'
     });
   }
 });
