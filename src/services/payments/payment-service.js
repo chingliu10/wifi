@@ -1,11 +1,16 @@
 const mockProvider = require('./providers/mock-provider');
 const splashpayProvider = require('./providers/splashpay-provider');
+const fastlipaProvider = require('./providers/fastlipa-provider');
 
 const getProvider = () => {
   const provider = (process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
 
   if (provider === 'mock') {
     return mockProvider;
+  }
+
+  if (provider === 'fastlipa') {
+    return fastlipaProvider;
   }
 
   if (provider === 'splashpay') {
