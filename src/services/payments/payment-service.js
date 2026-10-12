@@ -1,5 +1,5 @@
 const mockProvider = require('./providers/mock-provider');
-const snippeProvider = require('./providers/snippe-provider');
+const splashpayProvider = require('./providers/splashpay-provider');
 
 const getProvider = () => {
   const provider = (process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
@@ -8,8 +8,8 @@ const getProvider = () => {
     return mockProvider;
   }
 
-  if (provider === 'snippe') {
-    return snippeProvider;
+  if (provider === 'splashpay') {
+    return splashpayProvider;
   }
 
   throw new Error(`Unsupported payment provider: ${provider}`);
