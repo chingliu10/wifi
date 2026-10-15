@@ -32,6 +32,9 @@
         <a href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Packages</a>
         <a href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Sites & devices</a>
         <a href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Wallet & payouts</a>
+        {{#if isSuperAdmin}}
+          <a href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Omada integration</a>
+        {{/if}}
       </nav>
 
       <div class="sidebar-footer">
