@@ -461,6 +461,15 @@ app.post('/portal/pay', async (req, res) => {
       });
     }
 
+    const normalizedPhoneInput = String(phone).trim();
+
+    if (!/^0[67][0-9]{8}$/.test(normalizedPhoneInput)) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Malipo',
+        error: 'Weka namba sahihi ya simu. Mfano: 0652992922'
+      });
+    }
+
     const normalizedClientMac = normalizeMacAddress(clientMac);
 
     if (!normalizedClientMac) {
@@ -497,7 +506,7 @@ app.post('/portal/pay', async (req, res) => {
     const reference = generatePaymentReference();
     const transaction = await createPaymentTransaction({
       reference,
-      phone,
+      phone: normalizedPhoneInput,
       packageId: packageData.id,
       clientMac: normalizedClientMac,
       deviceId,
