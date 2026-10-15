@@ -2,52 +2,17 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/database');
 const { normalizeMacAddress } = require('../utils/mac-address');
+const {
+  authenticateUser,
+  createSession,
+  destroySession,
+  getUserFromRequest,
+  setSessionCookie,
+  clearSessionCookie,
+  createClientOwner
+} = require('../services/auth-service');
 
 const router = express.Router();
-
-const safeCompare = (left, right) => {
-  const a = Buffer.from(String(left || ''));
-  const b = Buffer.from(String(right || ''));
-
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(a, b);
-};
-
-const requireAdmin = (req, res, next) => {
-  const username = process.env.ADMIN_USERNAME;
-  const password = process.env.ADMIN_PASSWORD;
-
-  if (!username || !password) {
-    return res.status(503).send('Admin dashboard is not configured.');
-  }
-
-  const header = req.headers.authorization || '';
-
-  if (!header.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Solidus WiFi"');
-    return res.status(401).send('Authentication required.');
-  }
-
-  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-  const separator = decoded.indexOf(':');
-  const suppliedUser = separator === -1 ? decoded : decoded.slice(0, separator);
-  const suppliedPassword = separator === -1 ? '' : decoded.slice(separator + 1);
-
-  if (
-    !safeCompare(suppliedUser, username) ||
-    !safeCompare(suppliedPassword, password)
-  ) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Solidus WiFi"');
-    return res.status(401).send('Invalid credentials.');
-  }
-
-  next();
-};
-
-router.use(requireAdmin);
 
 const slugify = (value) =>
   String(value || '')
@@ -57,7 +22,53 @@ const slugify = (value) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 100);
 
-const getOrganizations = async () => {
+const requireAuth = async (req, res, next) => {
+  try {
+    const user = await getUserFromRequest(req);
+
+    if (!user) {
+      return res.redirect('/admin/login');
+    }
+
+    req.authUser = user;
+    next();
+  } catch (error) {
+    console.error('ADMIN AUTH ERROR:', error);
+    res.status(500).send('Unable to authenticate.');
+  }
+};
+
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.authUser || req.authUser.role !== 'super_admin') {
+    return res.status(403).send('Super admin access is required.');
+  }
+
+  next();
+};
+
+const getOrganizations = async (user) => {
+  if (user.role === 'client_owner') {
+    const result = await pool.query(
+      `
+        SELECT
+          id,
+          name,
+          slug,
+          owner_name,
+          owner_phone,
+          active,
+          created_at
+        FROM organizations
+        WHERE id = $1
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [user.organization_id]
+    );
+
+    return result.rows;
+  }
+
   const result = await pool.query(`
     SELECT
       id,
@@ -75,13 +86,24 @@ const getOrganizations = async () => {
 };
 
 const getSelectedOrganization = async (req) => {
-  const organizations = await getOrganizations();
+  const organizations = await getOrganizations(req.authUser);
 
   if (!organizations.length) {
     return { organizations, selectedOrg: null };
   }
 
-  const requestedId = Number(req.query.org || req.body?.organizationId);
+  if (req.authUser.role === 'client_owner') {
+    return {
+      organizations: [{ ...organizations[0], selected: true }],
+      selectedOrg: organizations[0]
+    };
+  }
+
+  const requestedId = Number(
+    req.query.org ||
+    req.body?.organizationId
+  );
+
   const selectedOrg =
     organizations.find((org) => Number(org.id) === requestedId) ||
     organizations[0];
@@ -94,19 +116,88 @@ const getSelectedOrganization = async (req) => {
   return { organizations: options, selectedOrg };
 };
 
-const renderAdmin = (res, view, data) =>
+const renderAdmin = (req, res, view, data) =>
   res.render(view, {
     layout: 'admin',
     title: data.title || 'Solidus WiFi',
+    currentUser: req.authUser,
+    isSuperAdmin: req.authUser?.role === 'super_admin',
+    isClientOwner: req.authUser?.role === 'client_owner',
     ...data
   });
+
+router.get('/login', async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+
+    if (user) {
+      return res.redirect('/admin');
+    }
+  } catch (error) {
+    console.error('LOGIN SESSION CHECK ERROR:', error);
+  }
+
+  res.render('admin/login', {
+    layout: 'auth',
+    title: 'Sign in'
+  });
+});
+
+router.post('/login', async (req, res) => {
+  try {
+    const user = await authenticateUser({
+      username: req.body.username,
+      password: req.body.password
+    });
+
+    if (!user) {
+      return res.status(401).render('admin/login', {
+        layout: 'auth',
+        title: 'Sign in',
+        username: String(req.body.username || '').trim(),
+        error: 'Username or password is incorrect.'
+      });
+    }
+
+    const token = await createSession(user.id);
+    setSessionCookie(req, res, token);
+
+    res.redirect('/admin');
+  } catch (error) {
+    console.error('ADMIN LOGIN ERROR:', error);
+
+    res.status(500).render('admin/login', {
+      layout: 'auth',
+      title: 'Sign in',
+      username: String(req.body.username || '').trim(),
+      error: 'Unable to sign in right now.'
+    });
+  }
+});
+
+router.post('/logout', async (req, res) => {
+  try {
+    const cookieHeader = String(req.headers.cookie || '');
+    const match = cookieHeader.match(/(?:^|;\s*)solidus_session=([^;]+)/);
+    const token = match ? decodeURIComponent(match[1]) : null;
+
+    await destroySession(token);
+  } catch (error) {
+    console.error('ADMIN LOGOUT ERROR:', error);
+  }
+
+  clearSessionCookie(req, res);
+  res.redirect('/admin/login');
+});
+
+router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
 
     if (!selectedOrg) {
-      return renderAdmin(res, 'admin/dashboard', {
+      return renderAdmin(req, res, 'admin/dashboard', {
         title: 'Dashboard',
         organizations,
         selectedOrg: null,
@@ -125,13 +216,18 @@ router.get('/', async (req, res) => {
       pool.query(
         `
           SELECT
-            (SELECT COUNT(*) FROM sites WHERE organization_id = $1 AND active = true)::INTEGER AS sites,
+            (
+              SELECT COUNT(*)
+              FROM sites
+              WHERE organization_id = $1
+                AND active = TRUE
+            )::INTEGER AS sites,
             (
               SELECT COUNT(*)
               FROM network_devices nd
               JOIN sites s ON s.id = nd.site_id
               WHERE s.organization_id = $1
-                AND nd.active = true
+                AND nd.active = TRUE
             )::INTEGER AS devices,
             (
               SELECT COUNT(DISTINCT pt.device_id)
@@ -194,7 +290,9 @@ router.get('/', async (req, res) => {
         `
           SELECT
             EXISTS(
-              SELECT 1 FROM sites WHERE organization_id = $1
+              SELECT 1
+              FROM sites
+              WHERE organization_id = $1
             ) AS has_site,
             EXISTS(
               SELECT 1
@@ -207,7 +305,7 @@ router.get('/', async (req, res) => {
               FROM packages p
               JOIN sites s ON s.id = p.site_id
               WHERE s.organization_id = $1
-                AND p.active = true
+                AND p.active = TRUE
             ) AS has_package,
             EXISTS(
               SELECT 1
@@ -237,7 +335,7 @@ router.get('/', async (req, res) => {
 
     const setup = setupResult.rows[0];
 
-    return renderAdmin(res, 'admin/dashboard', {
+    return renderAdmin(req, res, 'admin/dashboard', {
       title: 'Dashboard',
       organizations,
       selectedOrg,
@@ -260,17 +358,17 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/clients/new', async (req, res) => {
-  const organizations = await getOrganizations();
+router.get('/clients/new', requireSuperAdmin, async (req, res) => {
+  const organizations = await getOrganizations(req.authUser);
 
-  return renderAdmin(res, 'admin/client-new', {
+  return renderAdmin(req, res, 'admin/client-new', {
     title: 'Add client',
     organizations,
     selectedOrg: null
   });
 });
 
-router.post('/clients', async (req, res) => {
+router.post('/clients', requireSuperAdmin, async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -278,22 +376,26 @@ router.post('/clients', async (req, res) => {
       organizationName,
       ownerName,
       ownerPhone,
-      siteName,
-      supportPhone,
-      primaryColor
+      ownerUsername,
+      ownerPassword
     } = req.body;
 
     const orgName = String(organizationName || '').trim();
-    const site = String(siteName || '').trim();
+    const contactName = String(ownerName || '').trim();
 
-    if (!orgName || !site) {
-      return res.status(400).send('Client name and site name are required.');
+    if (!orgName || !contactName || !ownerUsername || !ownerPassword) {
+      return res.status(400).send(
+        'Business name, owner name, owner username and owner password are required.'
+      );
+    }
+
+    if (String(ownerPassword).length < 8) {
+      return res.status(400).send('Owner password must be at least 8 characters.');
     }
 
     const baseSlug = slugify(orgName) || 'client';
     const suffix = crypto.randomBytes(2).toString('hex');
     const orgSlug = `${baseSlug}-${suffix}`;
-    const siteSlug = `${slugify(site) || 'site'}-${suffix}`;
 
     await client.query('BEGIN');
 
@@ -308,52 +410,18 @@ router.post('/clients', async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *
       `,
-      [orgName, orgSlug, ownerName || null, ownerPhone || null]
+      [orgName, orgSlug, contactName, ownerPhone || null]
     );
 
     const organization = orgResult.rows[0];
 
-    const siteResult = await client.query(
-      `
-        INSERT INTO sites (
-          organization_id,
-          name,
-          slug,
-          brand_name,
-          support_phone,
-          primary_color
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
-      `,
-      [
-        organization.id,
-        site,
-        siteSlug,
-        orgName + ' WiFi',
-        supportPhone || ownerPhone || null,
-        primaryColor || '#0B6B47'
-      ]
-    );
-
-    const createdSite = siteResult.rows[0];
-
-    await client.query(
-      `
-        INSERT INTO packages (
-          site_id,
-          name,
-          price_tzs,
-          duration_seconds,
-          sort_order
-        )
-        VALUES
-          ($1, '7 Hours', 500, 25200, 1),
-          ($1, '24 Hours', 1000, 86400, 2),
-          ($1, '30 Days', 9000, 2592000, 3)
-      `,
-      [createdSite.id]
-    );
+    await createClientOwner({
+      db: client,
+      organizationId: organization.id,
+      fullName: contactName,
+      username: ownerUsername,
+      password: ownerPassword
+    });
 
     await client.query('COMMIT');
 
@@ -361,6 +429,11 @@ router.post('/clients', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('ADMIN CREATE CLIENT ERROR:', error);
+
+    if (error.code === '23505') {
+      return res.status(409).send('That owner username is already in use.');
+    }
+
     res.status(500).send('Unable to create client.');
   } finally {
     client.release();
@@ -422,7 +495,7 @@ router.get('/sites', async (req, res) => {
         ).rows
       : [];
 
-    return renderAdmin(res, 'admin/sites', {
+    return renderAdmin(req, res, 'admin/sites', {
       title: 'Sites & devices',
       organizations,
       selectedOrg,
@@ -435,10 +508,74 @@ router.get('/sites', async (req, res) => {
   }
 });
 
+router.post('/sites', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Create or select a client first.');
+    }
+
+    const siteName = String(req.body.siteName || '').trim();
+    const brandName = String(req.body.brandName || '').trim();
+    const supportPhone = String(req.body.supportPhone || '').trim();
+    const primaryColor = String(req.body.primaryColor || '#0B6B47').trim();
+    const externalPortalSiteId = String(
+      req.body.externalPortalSiteId || ''
+    ).trim();
+
+    if (!siteName) {
+      return res.status(400).send('Site name is required.');
+    }
+
+    const suffix = crypto.randomBytes(2).toString('hex');
+    const siteSlug = `${slugify(siteName) || 'site'}-${suffix}`;
+
+    await pool.query(
+      `
+        INSERT INTO sites (
+          organization_id,
+          name,
+          slug,
+          brand_name,
+          support_phone,
+          primary_color,
+          external_portal_site_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
+      `,
+      [
+        selectedOrg.id,
+        siteName,
+        siteSlug,
+        brandName || siteName + ' WiFi',
+        supportPhone || null,
+        primaryColor || '#0B6B47',
+        externalPortalSiteId
+      ]
+    );
+
+    res.redirect('/admin/sites?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('ADMIN SITE CREATE ERROR:', error);
+
+    if (error.code === '23505') {
+      return res.status(409).send('That controller site ID is already registered.');
+    }
+
+    res.status(500).send('Unable to create site.');
+  }
+});
+
 router.post('/devices', async (req, res) => {
   try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Create or select a client first.');
+    }
+
     const {
-      organizationId,
       siteId,
       name,
       brand,
@@ -449,12 +586,13 @@ router.post('/devices', async (req, res) => {
       deviceType
     } = req.body;
 
-    const orgId = Number(organizationId);
     const selectedSiteId = Number(siteId);
     const normalizedApMac = normalizeMacAddress(apMac);
 
-    if (!orgId || !selectedSiteId || !name || !normalizedApMac) {
-      return res.status(400).send('Site, device name and valid AP MAC are required.');
+    if (!selectedSiteId || !name || !normalizedApMac) {
+      return res.status(400).send(
+        'Site, device name and valid AP MAC are required.'
+      );
     }
 
     const siteResult = await pool.query(
@@ -463,14 +601,16 @@ router.post('/devices', async (req, res) => {
         FROM sites
         WHERE id = $1
           AND organization_id = $2
-          AND active = true
+          AND active = TRUE
         LIMIT 1
       `,
-      [selectedSiteId, orgId]
+      [selectedSiteId, selectedOrg.id]
     );
 
     if (!siteResult.rows[0]) {
-      return res.status(400).send('The selected site does not belong to this client.');
+      return res.status(400).send(
+        'The selected site does not belong to this client.'
+      );
     }
 
     await pool.query(
@@ -510,7 +650,7 @@ router.post('/devices', async (req, res) => {
       ]
     );
 
-    res.redirect('/admin/sites?org=' + orgId);
+    res.redirect('/admin/sites?org=' + selectedOrg.id);
   } catch (error) {
     console.error('ADMIN DEVICE CREATE ERROR:', error);
 
@@ -526,9 +666,51 @@ router.post('/devices', async (req, res) => {
   }
 });
 
+router.post('/devices/:id/delete', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const deviceId = Number(req.params.id);
+
+    if (!selectedOrg || !deviceId) {
+      return res.status(400).send('Invalid device.');
+    }
+
+    await pool.query(
+      `
+        DELETE FROM network_devices nd
+        USING sites s
+        WHERE nd.id = $1
+          AND s.id = nd.site_id
+          AND s.organization_id = $2
+      `,
+      [deviceId, selectedOrg.id]
+    );
+
+    res.redirect('/admin/sites?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('ADMIN DEVICE DELETE ERROR:', error);
+    res.status(500).send('Unable to remove network device.');
+  }
+});
+
 router.get('/packages', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    const sites = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT id, name
+              FROM sites
+              WHERE organization_id = $1
+                AND active = TRUE
+              ORDER BY name
+            `,
+            [selectedOrg.id]
+          )
+        ).rows
+      : [];
 
     const packages = selectedOrg
       ? (
@@ -551,10 +733,11 @@ router.get('/packages', async (req, res) => {
         ).rows
       : [];
 
-    return renderAdmin(res, 'admin/packages', {
+    return renderAdmin(req, res, 'admin/packages', {
       title: 'Packages',
       organizations,
       selectedOrg,
+      sites,
       packages
     });
   } catch (error) {
@@ -563,14 +746,103 @@ router.get('/packages', async (req, res) => {
   }
 });
 
+router.post('/packages', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Create or select a client first.');
+    }
+
+    const siteId = Number(req.body.siteId);
+    const packageName = String(req.body.packageName || '').trim();
+    const priceTzs = Number(req.body.priceTzs);
+    const durationValue = Number(req.body.durationValue);
+    const durationUnit = String(req.body.durationUnit || 'hours');
+
+    const multipliers = {
+      hours: 3600,
+      days: 86400
+    };
+
+    const multiplier = multipliers[durationUnit];
+    const durationSeconds = durationValue * multiplier;
+
+    if (
+      !siteId ||
+      !packageName ||
+      !Number.isInteger(priceTzs) ||
+      priceTzs <= 0 ||
+      !Number.isFinite(durationValue) ||
+      durationValue <= 0 ||
+      !multiplier
+    ) {
+      return res.status(400).send('Invalid package details.');
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    if (!siteResult.rows[0]) {
+      return res.status(400).send(
+        'The selected site does not belong to this client.'
+      );
+    }
+
+    await pool.query(
+      `
+        INSERT INTO packages (
+          site_id,
+          name,
+          price_tzs,
+          duration_seconds,
+          sort_order,
+          active
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          COALESCE(
+            (SELECT MAX(sort_order) + 1 FROM packages WHERE site_id = $1),
+            1
+          ),
+          TRUE
+        )
+      `,
+      [siteId, packageName, priceTzs, Math.round(durationSeconds)]
+    );
+
+    res.redirect('/admin/packages?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('ADMIN PACKAGE CREATE ERROR:', error);
+    res.status(500).send('Unable to create package.');
+  }
+});
+
 router.post('/packages/:id', async (req, res) => {
   try {
+    const { selectedOrg } = await getSelectedOrganization(req);
     const packageId = Number(req.params.id);
-    const organizationId = Number(req.body.organizationId);
     const priceTzs = Number(req.body.priceTzs);
     const active = req.body.active === 'on';
 
-    if (!packageId || !organizationId || !Number.isInteger(priceTzs) || priceTzs <= 0) {
+    if (
+      !selectedOrg ||
+      !packageId ||
+      !Number.isInteger(priceTzs) ||
+      priceTzs <= 0
+    ) {
       return res.status(400).send('Invalid package update.');
     }
 
@@ -586,10 +858,10 @@ router.post('/packages/:id', async (req, res) => {
           AND s.id = p.site_id
           AND s.organization_id = $4
       `,
-      [priceTzs, active, packageId, organizationId]
+      [priceTzs, active, packageId, selectedOrg.id]
     );
 
-    res.redirect('/admin/packages?org=' + organizationId);
+    res.redirect('/admin/packages?org=' + selectedOrg.id);
   } catch (error) {
     console.error('ADMIN PACKAGE UPDATE ERROR:', error);
     res.status(500).send('Unable to update package.');
@@ -627,7 +899,7 @@ router.get('/payments', async (req, res) => {
         ).rows
       : [];
 
-    return renderAdmin(res, 'admin/payments', {
+    return renderAdmin(req, res, 'admin/payments', {
       title: 'Payments',
       organizations,
       selectedOrg,
@@ -649,10 +921,19 @@ router.get('/customers', async (req, res) => {
             `
               SELECT
                 pt.device_id,
-                MAX(pt.customer_name) FILTER (WHERE pt.customer_name IS NOT NULL) AS customer_name,
+                MAX(pt.customer_name) FILTER (
+                  WHERE pt.customer_name IS NOT NULL
+                ) AS customer_name,
                 MAX(pt.phone) AS phone,
-                COUNT(*) FILTER (WHERE pt.status = 'paid')::INTEGER AS paid_orders,
-                COALESCE(SUM(pt.amount_tzs) FILTER (WHERE pt.status = 'paid'), 0)::BIGINT AS total_spent,
+                COUNT(*) FILTER (
+                  WHERE pt.status = 'paid'
+                )::INTEGER AS paid_orders,
+                COALESCE(
+                  SUM(pt.amount_tzs) FILTER (
+                    WHERE pt.status = 'paid'
+                  ),
+                  0
+                )::BIGINT AS total_spent,
                 MAX(pt.created_at) AS last_seen
               FROM payment_transactions pt
               WHERE pt.organization_id = $1
@@ -665,7 +946,7 @@ router.get('/customers', async (req, res) => {
         ).rows
       : [];
 
-    return renderAdmin(res, 'admin/customers', {
+    return renderAdmin(req, res, 'admin/customers', {
       title: 'Customers',
       organizations,
       selectedOrg,
@@ -710,7 +991,7 @@ router.get('/wallet', async (req, res) => {
         ).rows[0].total
       : 0;
 
-    return renderAdmin(res, 'admin/wallet', {
+    return renderAdmin(req, res, 'admin/wallet', {
       title: 'Wallet & payouts',
       organizations,
       selectedOrg,
