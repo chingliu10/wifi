@@ -494,3 +494,48 @@ input {
     animation-duration: 1.8s;
   }
 }
+
+
+.payment-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 30, 21, 0.45);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.payment-loading.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.payment-loading-card {
+  width: min(100%, 320px);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.payment-loading-card .state-spinner {
+  margin-bottom: 6px;
+}
+
+.payment-loading-card strong {
+  font-size: 17px;
+}
+
+.payment-loading-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
