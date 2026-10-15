@@ -23,6 +23,7 @@ const { initiatePayment, checkPaymentStatus } = require('./services/payments/pay
 const {
   activateSubscriptionForPayment
 } = require('./services/subscriptions/subscription-service');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 const devRoutesEnabled = process.env.ALLOW_DEV_ROUTES === 'true';
@@ -146,6 +147,58 @@ const mapSplashPayStatus = (payload) => {
   return null;
 };
 
+
+const resolvePortalSite = async ({ externalSiteId, apMac }) => {
+  const normalizedApMac = normalizeMacAddress(apMac);
+
+  if (externalSiteId || normalizedApMac) {
+    const result = await pool.query(
+      `
+        SELECT DISTINCT
+          s.id,
+          s.organization_id,
+          s.name,
+          s.slug,
+          COALESCE(s.brand_name, s.name || ' WiFi') AS brand_name,
+          s.support_phone,
+          s.primary_color,
+          s.external_portal_site_id
+        FROM sites s
+        LEFT JOIN network_devices nd ON nd.site_id = s.id
+        WHERE s.active = true
+          AND (
+            ($1::text IS NOT NULL AND s.external_portal_site_id = $1)
+            OR
+            ($2::text IS NOT NULL AND nd.ap_mac = $2)
+          )
+        LIMIT 1
+      `,
+      [externalSiteId || null, normalizedApMac || null]
+    );
+
+    if (result.rows[0]) {
+      return result.rows[0];
+    }
+  }
+
+  const fallback = await pool.query(`
+    SELECT
+      id,
+      organization_id,
+      name,
+      slug,
+      COALESCE(brand_name, name || ' WiFi') AS brand_name,
+      support_phone,
+      primary_color,
+      external_portal_site_id
+    FROM sites
+    WHERE slug = 'small-garden'
+      AND active = true
+    LIMIT 1
+  `);
+
+  return fallback.rows[0] || null;
+};
 
 const buildPackageView = (transaction) => ({
   id: transaction.package_id,
@@ -340,6 +393,7 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/admin', adminRouter);
 
 app.get('/', (req, res) => {
   res.json({
@@ -404,16 +458,29 @@ app.get('/portal', async (req, res) => {
       radioId
     } = req.query;
 
-    const result = await pool.query(`
-      SELECT
-        id,
-        name,
-        price_tzs,
-        duration_seconds
-      FROM packages
-      WHERE active = true
-      ORDER BY sort_order
-    `);
+    const siteConfig = await resolvePortalSite({
+      externalSiteId: site,
+      apMac
+    });
+
+    if (!siteConfig) {
+      throw new Error('No active WiFi site is configured');
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          id,
+          name,
+          price_tzs,
+          duration_seconds
+        FROM packages
+        WHERE site_id = $1
+          AND active = true
+        ORDER BY sort_order
+      `,
+      [siteConfig.id]
+    );
 
     const portalContext = {
       site,
@@ -427,6 +494,7 @@ app.get('/portal', async (req, res) => {
       return res.status(400).render('portal/index', {
         title: 'Small Garden WiFi',
         packages: result.rows,
+        siteConfig,
         portal: portalContext,
         error: 'Imeshindikana kutambua kifaa chako. Tafadhali unganisha kwenye WiFi ya Small Garden kisha ujaribu tena.'
       });
@@ -440,6 +508,7 @@ app.get('/portal', async (req, res) => {
       packages: result.rows,
       device,
       savedCustomer,
+      siteConfig,
       portal: {
         ...portalContext,
         clientMac
@@ -505,6 +574,18 @@ app.post('/portal/pay', async (req, res) => {
       });
     }
 
+    const siteConfig = await resolvePortalSite({
+      externalSiteId: site,
+      apMac
+    });
+
+    if (!siteConfig) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Malipo',
+        error: 'Mtandao huu haujasanidiwa bado.'
+      });
+    }
+
     const result = await pool.query(
       `
         SELECT
@@ -514,10 +595,11 @@ app.post('/portal/pay', async (req, res) => {
           duration_seconds
         FROM packages
         WHERE id = $1
+          AND site_id = $2
           AND active = true
         LIMIT 1
       `,
-      [packageId]
+      [packageId, siteConfig.id]
     );
 
     const packageData = result.rows[0];
