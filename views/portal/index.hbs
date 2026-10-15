@@ -1,8 +1,20 @@
 <main class="portal">
-  <section class="portal-panel" aria-labelledby="portal-title">
-    <h1 id="portal-title">Small Garden WiFi</h1>
+  <section class="portal-shell" aria-labelledby="portal-title">
+    <header class="portal-brand">
+      <div class="brand-mark" aria-hidden="true">SG</div>
+      <div>
+        <strong>Small Garden</strong>
+        <span>WiFi</span>
+      </div>
+    </header>
 
-    <form class="portal-form" method="POST" action="/portal/pay">
+    <section class="portal-intro">
+      <p class="eyebrow">FAST • SIMPLE • MOBILE MONEY</p>
+      <h1 id="portal-title">Get online in seconds</h1>
+      <p>Choose a plan, enter your mobile-money number and approve the payment prompt on your phone.</p>
+    </section>
+
+    <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
       <input type="hidden" name="site" value="{{portal.site}}">
@@ -11,29 +23,63 @@
       <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
 
-      <label for="phone-number">Phone number</label>
-      <input
-        id="phone-number"
-        name="phone"
-        type="tel"
-        inputmode="tel"
-        autocomplete="tel"
-        placeholder="Enter phone number"
-      >
+      <div class="field">
+        <label for="phone-number">Mobile-money number</label>
+        <input
+          id="phone-number"
+          name="phone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          placeholder="e.g. 0652 992 922"
+          minlength="9"
+          maxlength="18"
+          required
+        >
+        <p class="field-hint">Use the number that should receive the payment prompt.</p>
+      </div>
 
-      <label for="package-id">Package</label>
-      <select id="package-id" name="packageId">
-        <option value="">Select package</option>
-        {{#each packages}}
-          <option value="{{id}}">{{name}} - {{formatTzs price_tzs}} TZS</option>
-        {{/each}}
-      </select>
+      <fieldset class="package-fieldset">
+        <legend>Choose your plan</legend>
+        <div class="package-grid">
+          {{#each packages}}
+            <label class="package-card">
+              <input type="radio" name="packageId" value="{{id}}" {{#if @first}}checked{{/if}} required>
+              <span class="package-card-body">
+                <span class="package-name">{{name}}</span>
+                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
+              </span>
+              <span class="package-check" aria-hidden="true">✓</span>
+            </label>
+          {{/each}}
+        </div>
+      </fieldset>
 
       {{#if error}}
-        <p class="portal-error">{{error}}</p>
+        <div class="status-box status-box-error" role="alert">{{error}}</div>
       {{/if}}
 
-      <button type="submit">LIPA SASA</button>
+      <button class="primary-button" id="continue-button" type="submit">
+        <span class="button-text">Continue to payment</span>
+        <span class="button-arrow" aria-hidden="true">→</span>
+      </button>
+
+      <p class="portal-footnote">Your plan starts after payment is confirmed.</p>
     </form>
   </section>
 </main>
+
+<script>
+  (() => {
+    const form = document.getElementById('portal-payment-form');
+    const button = document.getElementById('continue-button');
+
+    if (!form || !button) return;
+
+    form.addEventListener('submit', () => {
+      button.disabled = true;
+      button.querySelector('.button-text').textContent = 'Preparing payment...';
+      button.querySelector('.button-arrow').textContent = '';
+    });
+  })();
+</script>
