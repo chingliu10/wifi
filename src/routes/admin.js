@@ -85,7 +85,12 @@ const getSelectedOrganization = async (req) => {
     organizations.find((org) => Number(org.id) === requestedId) ||
     organizations[0];
 
-  return { organizations, selectedOrg };
+  const options = organizations.map((org) => ({
+    ...org,
+    selected: Number(org.id) === Number(selectedOrg.id)
+  }));
+
+  return { organizations: options, selectedOrg };
 };
 
 const renderAdmin = (res, view, data) =>
