@@ -1,0 +1,32 @@
+<section class="page-head">
+  <div>
+    <h2>Wallet & payouts</h2>
+    <p>Financial summary for {{#if selectedOrg}}{{selectedOrg.name}}{{/if}}.</p>
+  </div>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card">
+    <span>Collected in total</span>
+    <strong>{{formatTzs collected}} TZS</strong>
+    <small>successful customer payments</small>
+  </article>
+
+  <article class="stat-card">
+    <span>Ledger balance</span>
+    <strong>{{formatTzs wallet.ledger_balance}} TZS</strong>
+    <small>{{wallet.entries}} ledger entries</small>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h3>Payouts</h3>
+      <p>Gateway disbursement will connect here after the gateway's sub-merchant rules are confirmed.</p>
+    </div>
+  </div>
+  <div class="notice">
+    The wallet ledger exists now, but automatic payouts are intentionally not enabled yet.
+  </div>
+</section>
