@@ -79,6 +79,7 @@ const getOrganizations = async (user) => {
       active,
       created_at
     FROM organizations
+    WHERE active = TRUE
     ORDER BY name
   `);
 
