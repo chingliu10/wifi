@@ -2,7 +2,7 @@
   <section class="portal-shell" aria-label="Nunua bando la Small Garden WiFi">
     <header class="portal-brand">
       <div class="brand-mark" aria-hidden="true">SG</div>
-      <div>
+      <div class="brand-copy">
         <strong>Small Garden</strong>
         <span>WiFi</span>
       </div>
@@ -10,7 +10,7 @@
 
     <section class="purchase-intro">
       <h1>Unganishwa haraka</h1>
-      <p>Weka namba ya simu itakayolipia, kisha chagua kifurushi.</p>
+      <p>Chagua kifurushi na weka namba ya simu itakayolipia.</p>
     </section>
 
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
@@ -22,8 +22,33 @@
       <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
 
+      <fieldset class="package-fieldset">
+        <legend>Chagua kifurushi</legend>
+
+        <div class="package-grid">
+          {{#each packages}}
+            <label class="package-card">
+              <input
+                type="radio"
+                name="packageId"
+                value="{{id}}"
+                data-price="{{price_tzs}}"
+                required
+              >
+              <span class="package-card-body">
+                <span class="package-name">{{formatPackageName name}}</span>
+                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
+              </span>
+              <span class="package-check" aria-hidden="true">✓</span>
+            </label>
+          {{/each}}
+        </div>
+
+        <p class="field-help" id="package-error" role="status" hidden>Chagua kifurushi kwanza.</p>
+      </fieldset>
+
       <div class="field">
-        <label for="phone-number">Namba ya simu</label>
+        <label for="phone-number">Namba ya simu ya malipo</label>
         <input
           id="phone-number"
           name="phone"
@@ -34,28 +59,11 @@
           minlength="10"
           maxlength="10"
           pattern="0[67][0-9]{8}"
-          title="Weka namba sahihi ya simu yenye tarakimu 10, mfano 0655100259"
+          title="Mfano wa namba: 0655100259"
           required
         >
-        <p class="field-error field-help" id="phone-error" role="status" hidden>Mfano wa namba: 0655100259</p>
+        <p class="field-help" id="phone-error" role="status" hidden>Mfano wa namba: 0655100259</p>
       </div>
-
-      <fieldset class="package-fieldset">
-        <legend>Chagua kifurushi</legend>
-        <div class="package-grid package-grid-compact">
-          {{#each packages}}
-            <label class="package-card">
-              <input type="radio" name="packageId" value="{{id}}" required>
-              <span class="package-card-body">
-                <span class="package-name">{{formatPackageName name}}</span>
-                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
-              </span>
-              <span class="package-check" aria-hidden="true">✓</span>
-            </label>
-          {{/each}}
-        </div>
-        <p class="field-error field-help package-error" id="package-error" role="status" hidden>Chagua kifurushi kwanza.</p>
-      </fieldset>
 
       {{#if error}}
         <div class="status-box status-box-error" role="alert">{{error}}</div>
@@ -66,7 +74,7 @@
         <span class="button-arrow" aria-hidden="true">→</span>
       </button>
 
-      <p class="support-line">Kwa maulizo: <a href="tel:0655100259">0655100259</a></p>
+      <p class="support-line">Msaada / Maulizo: <a href="tel:0655100259">0655100259</a></p>
     </form>
   </section>
 </main>
@@ -75,7 +83,7 @@
   <div class="payment-loading-card">
     <div class="state-spinner" aria-hidden="true"></div>
     <strong>Inatuma ombi la malipo…</strong>
-    <span>Tafadhali usifunge ukurasa huu.</span>
+    <span>Tafadhali subiri kidogo.</span>
   </div>
 </div>
 
@@ -83,6 +91,7 @@
   (() => {
     const form = document.getElementById('portal-payment-form');
     const button = document.getElementById('continue-button');
+    const buttonText = button?.querySelector('.button-text');
     const loading = document.getElementById('payment-loading');
     const phone = document.getElementById('phone-number');
     const phoneError = document.getElementById('phone-error');
@@ -92,15 +101,24 @@
     );
     const phonePattern = /^0[67][0-9]{8}$/;
 
-    if (!form || !button || !phone) return;
+    if (!form || !button || !buttonText || !phone) return;
 
     const selectedPackage = () =>
       packageInputs.find((input) => input.checked);
 
     const phoneIsValid = () => phonePattern.test(phone.value.trim());
 
+    const formatTzs = (value) =>
+      Number(value || 0).toLocaleString('en-US');
+
     const updateButton = () => {
-      button.disabled = !(selectedPackage() && phoneIsValid());
+      const plan = selectedPackage();
+      const ready = Boolean(plan && phoneIsValid());
+
+      button.disabled = !ready;
+      buttonText.textContent = plan
+        ? 'LIPA ' + formatTzs(plan.dataset.price) + ' TZS'
+        : 'NUNUA BANDO';
     };
 
     const validatePhone = ({ showError = false } = {}) => {
@@ -123,10 +141,6 @@
       input.addEventListener('change', () => {
         if (packageError) packageError.hidden = true;
         updateButton();
-
-        if (!phone.value) {
-          phone.focus({ preventScroll: true });
-        }
       });
     });
 
@@ -145,13 +159,13 @@
     });
 
     form.addEventListener('submit', (event) => {
-      const packageSelected = Boolean(selectedPackage());
+      const plan = selectedPackage();
       const validPhone = validatePhone({ showError: true });
 
-      if (!packageSelected || !validPhone) {
+      if (!plan || !validPhone) {
         event.preventDefault();
 
-        if (!packageSelected && packageError) {
+        if (!plan && packageError) {
           packageError.hidden = false;
         }
 
@@ -164,8 +178,7 @@
       }
 
       button.disabled = true;
-      button.querySelector('.button-text').textContent = 'Inatuma ombi la malipo...';
-      button.querySelector('.button-arrow').textContent = '';
+      buttonText.textContent = 'INATUMA MALIPO…';
 
       if (loading) {
         loading.classList.add('is-visible');
