@@ -22,6 +22,62 @@ const slugify = (value) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 100);
 
+const createPortalKey = () =>
+  crypto.randomBytes(24).toString('base64url');
+
+const getPublicBaseUrl = (req) => {
+  const configured = String(process.env.PUBLIC_BASE_URL || '').trim();
+
+  if (configured) {
+    return configured.replace(/\/$/, '');
+  }
+
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const protocol = forwardedProto || req.protocol || 'https';
+
+  return `${protocol}://${req.get('host')}`;
+};
+
+const ensurePortalKeys = async (sites) => {
+  const result = [];
+
+  for (const site of sites) {
+    let portalKey = site.portal_key;
+
+    if (!portalKey) {
+      portalKey = createPortalKey();
+
+      await pool.query(
+        `
+          UPDATE sites
+          SET
+            portal_key = $2,
+            updated_at = NOW()
+          WHERE id = $1
+            AND portal_key IS NULL
+        `,
+        [site.id, portalKey]
+      );
+
+      const refreshed = await pool.query(
+        'SELECT portal_key FROM sites WHERE id = $1 LIMIT 1',
+        [site.id]
+      );
+
+      portalKey = refreshed.rows[0]?.portal_key || portalKey;
+    }
+
+    result.push({
+      ...site,
+      portal_key: portalKey
+    });
+  }
+
+  return result;
+};
+
 const requireAuth = async (req, res, next) => {
   try {
     const user = await getUserFromRequest(req);
@@ -457,6 +513,9 @@ router.get('/sites', async (req, res) => {
                 s.support_phone,
                 s.primary_color,
                 s.external_portal_site_id,
+                s.portal_key,
+                s.portal_connected_at,
+                s.last_portal_seen_at,
                 s.active,
                 COUNT(nd.id)::INTEGER AS device_count
               FROM sites s
@@ -469,6 +528,15 @@ router.get('/sites', async (req, res) => {
           )
         ).rows
       : [];
+
+    const sitesWithKeys = await ensurePortalKeys(sites);
+    const publicBaseUrl = getPublicBaseUrl(req);
+
+    const siteViews = sitesWithKeys.map((site) => ({
+      ...site,
+      setup_url: `${publicBaseUrl}/portal/setup/${site.portal_key}`,
+      omada_connected: Boolean(site.external_portal_site_id)
+    }));
 
     const devices = selectedOrg
       ? (
@@ -484,6 +552,8 @@ router.get('/sites', async (req, res) => {
                 nd.management_ip,
                 nd.ap_mac,
                 nd.device_type,
+                nd.ssid_name,
+                nd.last_seen_at,
                 nd.active,
                 s.name AS site_name
               FROM network_devices nd
@@ -500,7 +570,7 @@ router.get('/sites', async (req, res) => {
       title: 'Sites & devices',
       organizations,
       selectedOrg,
-      sites,
+      sites: siteViews,
       devices
     });
   } catch (error) {
@@ -521,9 +591,7 @@ router.post('/sites', async (req, res) => {
     const brandName = String(req.body.brandName || '').trim();
     const supportPhone = String(req.body.supportPhone || '').trim();
     const primaryColor = String(req.body.primaryColor || '#0B6B47').trim();
-    const externalPortalSiteId = String(
-      req.body.externalPortalSiteId || ''
-    ).trim();
+    const portalKey = createPortalKey();
 
     if (!siteName) {
       return res.status(400).send('Site name is required.');
@@ -541,9 +609,9 @@ router.post('/sites', async (req, res) => {
           brand_name,
           support_phone,
           primary_color,
-          external_portal_site_id
+          portal_key
         )
-        VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         selectedOrg.id,
@@ -552,7 +620,7 @@ router.post('/sites', async (req, res) => {
         brandName || siteName + ' WiFi',
         supportPhone || null,
         primaryColor || '#0B6B47',
-        externalPortalSiteId
+        portalKey
       ]
     );
 
@@ -561,7 +629,7 @@ router.post('/sites', async (req, res) => {
     console.error('ADMIN SITE CREATE ERROR:', error);
 
     if (error.code === '23505') {
-      return res.status(409).send('That controller site ID is already registered.');
+      return res.status(409).send('Unable to create a unique portal setup link. Please retry.');
     }
 
     res.status(500).send('Unable to create site.');
