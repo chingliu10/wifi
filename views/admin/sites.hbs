@@ -5,7 +5,52 @@
   </div>
 </section>
 
-<section class="card-grid">
+{{#if selectedOrg}}
+<section class="panel form-panel">
+  <div class="panel-head">
+    <div>
+      <h3>Create site</h3>
+      <p>A site is one physical WiFi location.</p>
+    </div>
+  </div>
+
+  <form method="POST" action="/admin/sites" class="admin-form">
+    <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+    <div class="form-grid">
+      <label>
+        <span>Site name</span>
+        <input name="siteName" required placeholder="e.g. Small Garden">
+      </label>
+
+      <label>
+        <span>Portal brand name</span>
+        <input name="brandName" placeholder="e.g. Small Garden WiFi">
+      </label>
+
+      <label>
+        <span>Support phone</span>
+        <input name="supportPhone" placeholder="07XXXXXXXX">
+      </label>
+
+      <label>
+        <span>Brand colour</span>
+        <input name="primaryColor" value="#0B6B47" placeholder="#0B6B47">
+      </label>
+
+      <label>
+        <span>Controller / external site ID</span>
+        <input name="externalPortalSiteId" placeholder="Optional Omada site ID">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Create site</button>
+    </div>
+  </form>
+</section>
+
+<section class="card-grid site-list">
   {{#each sites}}
     <article class="site-card">
       <div class="site-card-top">
@@ -17,20 +62,20 @@
       <dl>
         <div><dt>Devices</dt><dd>{{device_count}}</dd></div>
         <div><dt>Support</dt><dd>{{support_phone}}</dd></div>
-        <div><dt>Omada site ID</dt><dd>{{external_portal_site_id}}</dd></div>
+        <div><dt>Controller site ID</dt><dd>{{external_portal_site_id}}</dd></div>
       </dl>
     </article>
   {{else}}
-    <div class="empty-state">No sites yet.</div>
+    <div class="empty-state">No sites yet. Create the first site above.</div>
   {{/each}}
 </section>
 
-{{#if selectedOrg}}
+{{#if sites}}
 <section class="panel device-panel">
   <div class="panel-head">
     <div>
       <h3>Register network device</h3>
-      <p>Add an Omada AP now. MikroTik/OpenWrt can be added later.</p>
+      <p>Map a physical AP/router to one of this client's sites.</p>
     </div>
   </div>
 
@@ -69,7 +114,7 @@
 
       <label>
         <span>Brand</span>
-        <input name="brand" placeholder="TP-Link Omada">
+        <input name="brand" placeholder="TP-Link">
       </label>
 
       <label>
@@ -93,6 +138,7 @@
     </div>
   </form>
 </section>
+{{/if}}
 
 <section class="panel table-panel device-table-panel">
   <div class="panel-head">
@@ -113,6 +159,7 @@
           <th>Management IP</th>
           <th>NAS identifier</th>
           <th>Status</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -125,9 +172,15 @@
             <td>{{management_ip}}</td>
             <td><code>{{nas_identifier}}</code></td>
             <td><span class="status-pill status-paid">{{#if active}}active{{else}}disabled{{/if}}</span></td>
+            <td>
+              <form method="POST" action="/admin/devices/{{id}}/delete" onsubmit="return confirm('Remove this registered device?');">
+                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+                <button class="danger-button" type="submit">Remove</button>
+              </form>
+            </td>
           </tr>
         {{else}}
-          <tr><td colspan="7" class="empty">No network devices registered yet.</td></tr>
+          <tr><td colspan="8" class="empty">No network devices registered yet.</td></tr>
         {{/each}}
       </tbody>
     </table>
