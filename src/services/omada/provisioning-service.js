@@ -16,27 +16,29 @@ const generateDevicePassword = () => {
   const symbols = '!#$%&*@^';
   const all = upper + lower + digits + symbols;
 
-  const chars = [
-    upper[crypto.randomInt(upper.length)],
-    lower[crypto.randomInt(lower.length)],
-    digits[crypto.randomInt(digits.length)],
-    symbols[crypto.randomInt(symbols.length)]
-  ];
+  while (true) {
+    const chars = [
+      upper[crypto.randomInt(upper.length)],
+      lower[crypto.randomInt(lower.length)],
+      digits[crypto.randomInt(digits.length)],
+      symbols[crypto.randomInt(symbols.length)]
+    ];
 
-  while (chars.length < 20) {
-    const next = all[crypto.randomInt(all.length)];
+    while (chars.length < 20) {
+      chars.push(all[crypto.randomInt(all.length)]);
+    }
 
-    if (next !== chars[chars.length - 1]) {
-      chars.push(next);
+    for (let i = chars.length - 1; i > 0; i -= 1) {
+      const j = crypto.randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+
+    const password = chars.join('');
+
+    if (!/(.)\1/.test(password)) {
+      return password;
     }
   }
-
-  for (let i = chars.length - 1; i > 0; i -= 1) {
-    const j = crypto.randomInt(i + 1);
-    [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-
-  return chars.join('');
 };
 
 const generateDeviceUsername = (siteId) =>
@@ -229,9 +231,20 @@ const createDeviceClaim = async ({
   localPassword
 }) => {
   const normalized = normalizeMacAddress(apMac);
+  const overrideUsername = String(localUsername || '').trim();
+  const overridePassword = String(localPassword || '');
 
   if (!normalized) {
     throw new Error('Enter a valid AP MAC address');
+  }
+
+  if (
+    (overrideUsername && !overridePassword) ||
+    (!overrideUsername && overridePassword)
+  ) {
+    throw new Error(
+      'Enter both the existing EAP username and password, or leave both empty'
+    );
   }
 
   const site = await loadSite(siteId);
@@ -266,8 +279,8 @@ const createDeviceClaim = async ({
     [
       site.id,
       normalized,
-      String(localUsername || '').trim() || null,
-      localPassword ? encryptSecret(localPassword) : null
+      overrideUsername || null,
+      overridePassword ? encryptSecret(overridePassword) : null
     ]
   );
 
