@@ -3,7 +3,9 @@
     <h2>{{#if selectedOrg}}{{selectedOrg.name}}{{else}}No client yet{{/if}}</h2>
     <p>WiFi business overview</p>
   </div>
-  <a class="primary-link" href="/admin/clients/new">Add client</a>
+  {{#if isSuperAdmin}}
+    <a class="primary-link" href="/admin/clients/new">Add client</a>
+  {{/if}}
 </section>
 
 {{#if selectedOrg}}
@@ -107,7 +109,7 @@
 {{else}}
   <section class="empty-state">
     <h2>Create your first client</h2>
-    <p>Small Garden will become client #1, then you can add the remote client as client #2.</p>
+    <p>Create a client, then add its site, network device and packages.</p>
     <a class="primary-link" href="/admin/clients/new">Add client</a>
   </section>
 {{/if}}
