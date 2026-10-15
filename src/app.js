@@ -181,23 +181,7 @@ const resolvePortalSite = async ({ externalSiteId, apMac }) => {
     }
   }
 
-  const fallback = await pool.query(`
-    SELECT
-      id,
-      organization_id,
-      name,
-      slug,
-      COALESCE(brand_name, name || ' WiFi') AS brand_name,
-      support_phone,
-      primary_color,
-      external_portal_site_id
-    FROM sites
-    WHERE slug = 'small-garden'
-      AND active = true
-    LIMIT 1
-  `);
-
-  return fallback.rows[0] || null;
+  return null;
 };
 
 const buildPackageView = (transaction) => ({
