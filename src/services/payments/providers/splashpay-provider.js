@@ -14,15 +14,15 @@ const normalizePhone = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
 
   if (digits.startsWith('255') && digits.length === 12) {
-    return `+${digits}`;
+    return digits;
   }
 
   if (digits.startsWith('0') && digits.length === 10) {
-    return `+255${digits.slice(1)}`;
+    return `255${digits.slice(1)}`;
   }
 
   if (digits.length === 9) {
-    return `+255${digits}`;
+    return `255${digits}`;
   }
 
   throw new Error('Phone number must be a valid Tanzanian mobile number');
