@@ -980,3 +980,129 @@ input {
     margin-top: 6px;
   }
 }
+
+
+/* Purchase screen: expose all three packages and remove unnecessary vertical weight. */
+.portal-form {
+  margin-top: 8px;
+}
+
+.package-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.package-grid-compact .package-card-body {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.package-grid-compact .package-name,
+.package-grid-compact .package-price {
+  display: block;
+  line-height: 1.08;
+}
+
+.package-grid-compact .package-name {
+  font-size: 13px;
+}
+
+.package-grid-compact .package-price {
+  font-size: 17px;
+}
+
+.package-grid-compact .package-price small {
+  display: block;
+  margin-top: 3px;
+  font-size: 8px;
+}
+
+.package-grid-compact .package-check {
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  transform: none;
+  font-size: 10px;
+}
+
+.package-grid-compact .package-card input:checked ~ .package-check {
+  transform: none;
+}
+
+.package-error,
+.field-error {
+  margin: 7px 0 0;
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+#continue-button:disabled {
+  background: #aab7af;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+@media (max-width: 520px) {
+  .portal-shell {
+    padding-top: 18px;
+  }
+
+  .portal-brand {
+    margin-bottom: 18px;
+  }
+
+  .portal-form {
+    gap: 16px;
+    margin-top: 0;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 68px;
+    padding: 8px 5px;
+  }
+
+  .package-grid-compact .package-name {
+    font-size: 11px;
+  }
+
+  .package-grid-compact .package-price {
+    font-size: 15px;
+  }
+
+  .field input {
+    height: 50px;
+  }
+
+  .support-line {
+    margin-top: 4px;
+  }
+}
+
+@media (max-height: 650px) and (max-width: 520px) {
+  .portal-brand {
+    margin-bottom: 10px;
+  }
+
+  .portal-form {
+    gap: 10px;
+    margin-top: 0;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 58px;
+    padding: 6px 4px;
+  }
+
+  .field input,
+  .primary-button {
+    min-height: 44px;
+    height: 44px;
+  }
+}
