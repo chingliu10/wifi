@@ -1,0 +1,26 @@
+<section class="page-head">
+  <div>
+    <h2>Sites & devices</h2>
+    <p>{{#if selectedOrg}}{{selectedOrg.name}}{{/if}}</p>
+  </div>
+</section>
+
+<section class="card-grid">
+  {{#each sites}}
+    <article class="site-card">
+      <div class="site-card-top">
+        <div class="site-icon">⌂</div>
+        <span class="status-pill status-paid">{{#if active}}active{{else}}disabled{{/if}}</span>
+      </div>
+      <h3>{{name}}</h3>
+      <p>{{brand_name}}</p>
+      <dl>
+        <div><dt>Devices</dt><dd>{{device_count}}</dd></div>
+        <div><dt>Support</dt><dd>{{support_phone}}</dd></div>
+        <div><dt>Portal ID</dt><dd>{{external_portal_site_id}}</dd></div>
+      </dl>
+    </article>
+  {{else}}
+    <div class="empty-state">No sites yet.</div>
+  {{/each}}
+</section>
