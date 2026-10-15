@@ -10,7 +10,7 @@
   <div class="panel-head">
     <div>
       <h3>Create site</h3>
-      <p>Create the physical WiFi location first. Solidus will discover the Omada IDs automatically.</p>
+      <p>Create the physical WiFi location. Solidus can create the matching Omada site automatically.</p>
     </div>
   </div>
 
@@ -20,12 +20,12 @@
     <div class="form-grid">
       <label>
         <span>Site name</span>
-        <input name="siteName" required placeholder="e.g. Small Garden">
+        <input name="siteName" required placeholder="e.g. Mwanza Main Branch">
       </label>
 
       <label>
         <span>Portal brand name</span>
-        <input name="brandName" placeholder="e.g. Small Garden WiFi">
+        <input name="brandName" placeholder="e.g. Mwanza WiFi">
       </label>
 
       <label>
@@ -49,26 +49,24 @@
   {{#each sites}}
     <article class="site-connect-card">
       <div class="site-connect-head">
-        <div>
-          <div class="site-title-row">
-            <div class="site-icon">⌂</div>
-            <div>
-              <h3>{{name}}</h3>
-              <p>{{brand_name}}</p>
-            </div>
+        <div class="site-title-row">
+          <div class="site-icon">⌂</div>
+          <div>
+            <h3>{{name}}</h3>
+            <p>{{brand_name}}</p>
           </div>
         </div>
 
-        {{#if omada_connected}}
-          <span class="connection-badge connected">Omada connected</span>
+        {{#if omada_provisioned}}
+          <span class="connection-badge connected">Omada site ready</span>
         {{else}}
-          <span class="connection-badge waiting">Waiting for Omada</span>
+          <span class="connection-badge waiting">Omada not provisioned</span>
         {{/if}}
       </div>
 
       <div class="site-meta-grid">
         <div>
-          <span>Devices</span>
+          <span>Detected devices</span>
           <strong>{{device_count}}</strong>
         </div>
         <div>
@@ -76,55 +74,147 @@
           <strong>{{support_phone}}</strong>
         </div>
         <div>
-          <span>Omada site</span>
-          <strong>{{#if external_portal_site_id}}Detected{{else}}Not detected yet{{/if}}</strong>
+          <span>Controller site</span>
+          <strong>{{#if external_portal_site_id}}Linked{{else}}Not linked{{/if}}</strong>
         </div>
       </div>
 
-      <div class="connect-omada">
-        <div class="connect-copy">
-          <h4>{{#if omada_connected}}Portal URL{{else}}Connect TP-Link Omada{{/if}}</h4>
-          {{#if omada_connected}}
-            <p>Keep this URL configured as the site's External Portal Server.</p>
-          {{else}}
-            <p>Paste this URL into the Omada External Portal Server. Then connect one phone to the WiFi. Solidus will capture the Omada site ID, AP MAC and SSID automatically.</p>
+      {{#if omada_sync_error}}
+        <div class="status-box-admin error">
+          Omada provisioning error: {{omada_sync_error}}
+        </div>
+      {{/if}}
+
+      {{#unless omada_provisioned}}
+        <div class="connect-omada">
+          <div class="connect-copy">
+            <h4>Step 1 — Create the Omada site</h4>
+            {{#if ../omadaApiEnabled}}
+              <p>Solidus will create the matching site inside the central Omada Controller and generate a device account for adoption.</p>
+            {{else}}
+              <p>Omada automation has not been enabled by Solidus yet. The platform administrator must connect the controller Open API first.</p>
+            {{/if}}
+          </div>
+
+          {{#if ../omadaApiEnabled}}
+            <form method="POST" action="/admin/sites/{{id}}/omada/provision" class="inline-action-form">
+              <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+              <button type="submit" class="primary-action-button">Provision Omada site</button>
+            </form>
           {{/if}}
         </div>
+      {{else}}
+        <div class="onboarding-steps">
+          <section class="onboarding-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>Use this account on the factory-reset EAP</h4>
+              <p>When the EAP asks you to create its local administrator account, use these exact credentials. Solidus uses the same account to adopt the AP automatically.</p>
 
-        <div class="setup-url-row">
-          <input
-            id="setup-url-{{id}}"
-            type="text"
-            readonly
-            value="{{setup_url}}"
-            aria-label="Omada setup URL for {{name}}"
-          >
-          <button
-            class="copy-button"
-            type="button"
-            data-copy-target="setup-url-{{id}}"
-          >
-            Copy URL
-          </button>
+              {{#if credential_error}}
+                <div class="status-box-admin error">{{credential_error}}</div>
+              {{else}}
+                <div class="credential-grid">
+                  <label>
+                    <span>Local EAP username</span>
+                    <div class="copy-field">
+                      <input id="device-user-{{id}}" readonly value="{{device_username}}">
+                      <button type="button" data-copy-target="device-user-{{id}}">Copy</button>
+                    </div>
+                  </label>
+
+                  <label>
+                    <span>Local EAP password</span>
+                    <div class="copy-field">
+                      <input id="device-pass-{{id}}" readonly value="{{device_password}}">
+                      <button type="button" data-copy-target="device-pass-{{id}}">Copy</button>
+                    </div>
+                  </label>
+                </div>
+              {{/if}}
+            </div>
+          </section>
+
+          <section class="onboarding-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Point the EAP to Solidus Omada</h4>
+              <p>On the EAP: System → Controller Settings → Controller Inform URL. Paste the value below and save.</p>
+
+              <div class="copy-field inform-field">
+                <input id="inform-host-{{id}}" readonly value="{{inform_host}}">
+                <button type="button" data-copy-target="inform-host-{{id}}">Copy</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="onboarding-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Claim this AP</h4>
+              <p>Enter the AP MAC printed on the device label. Solidus will wait for that exact AP to appear as Pending and then adopt it into this site automatically.</p>
+
+              <form method="POST" action="/admin/sites/{{id}}/omada/claim" class="admin-form compact-form">
+                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+
+                <div class="form-grid">
+                  <label>
+                    <span>AP MAC address</span>
+                    <input name="apMac" required placeholder="10:5A:95:51:F0:C4">
+                  </label>
+                </div>
+
+                <details class="existing-credentials">
+                  <summary>I already created a different local EAP username/password</summary>
+                  <p>Only use this for an AP that was configured before Solidus generated the credentials above.</p>
+
+                  <div class="form-grid">
+                    <label>
+                      <span>Existing EAP username</span>
+                      <input name="localUsername" autocomplete="off">
+                    </label>
+                    <label>
+                      <span>Existing EAP password</span>
+                      <input name="localPassword" type="password" autocomplete="new-password">
+                    </label>
+                  </div>
+                </details>
+
+                <div class="form-actions">
+                  <button type="submit">Start automatic adoption</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="onboarding-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h4>Adoption status</h4>
+
+              <div class="claim-list">
+                {{#each claims}}
+                  <div class="claim-row">
+                    <div>
+                      <strong>{{ap_mac}}</strong>
+                      <small>Last checked: {{#if last_checked_at}}{{formatDate last_checked_at}}{{else}}waiting{{/if}}</small>
+                    </div>
+                    <span class="claim-status status-{{status}}">{{status}}</span>
+                  </div>
+
+                  {{#if last_error}}
+                    <div class="claim-error">{{last_error}}</div>
+                  {{/if}}
+                {{else}}
+                  <p class="muted-copy">No AP claimed yet.</p>
+                {{/each}}
+              </div>
+
+              <p class="worker-note">You can leave this page. Solidus checks pending AP claims automatically in the background.</p>
+            </div>
+          </section>
         </div>
-
-        {{#unless omada_connected}}
-          <ol class="setup-steps">
-            <li>Open the Omada Controller for this location.</li>
-            <li>Open the portal settings and choose <strong>External Portal Server</strong>.</li>
-            <li>Paste the URL above and save.</li>
-            <li>Connect a phone to the WiFi once.</li>
-            <li>Return here. The site and AP will appear automatically.</li>
-          </ol>
-        {{/unless}}
-
-        {{#if external_portal_site_id}}
-          <div class="detected-id">
-            <span>Detected controller site ID</span>
-            <code>{{external_portal_site_id}}</code>
-          </div>
-        {{/if}}
-      </div>
+      {{/unless}}
     </article>
   {{else}}
     <div class="empty-state">No sites yet. Create the first site above.</div>
@@ -134,8 +224,8 @@
 <section class="panel table-panel device-table-panel">
   <div class="panel-head">
     <div>
-      <h3>Detected network devices</h3>
-      <p>Omada access points appear here automatically after a device reaches the captive portal.</p>
+      <h3>Managed devices</h3>
+      <p>APs appear here after Omada adoption completes.</p>
     </div>
   </div>
 
@@ -145,26 +235,26 @@
         <tr>
           <th>Device</th>
           <th>Site</th>
-          <th>SSID</th>
           <th>AP MAC</th>
-          <th>Type</th>
-          <th>Last portal seen</th>
+          <th>Model</th>
+          <th>IP</th>
+          <th>Last seen</th>
           <th>Status</th>
         </tr>
       </thead>
       <tbody>
         {{#each devices}}
           <tr>
-            <td><strong>{{name}}</strong><small>{{brand}} {{model}}</small></td>
+            <td><strong>{{name}}</strong><small>{{brand}}</small></td>
             <td>{{site_name}}</td>
-            <td>{{ssid_name}}</td>
             <td><code>{{ap_mac}}</code></td>
-            <td>{{device_type}}</td>
+            <td>{{model}}</td>
+            <td>{{management_ip}}</td>
             <td>{{#if last_seen_at}}{{formatDate last_seen_at}}{{else}}—{{/if}}</td>
-            <td><span class="status-pill status-paid">{{#if active}}detected{{else}}disabled{{/if}}</span></td>
+            <td><span class="status-pill status-paid">{{#if active}}managed{{else}}disabled{{/if}}</span></td>
           </tr>
         {{else}}
-          <tr><td colspan="7" class="empty">No access point has been detected yet.</td></tr>
+          <tr><td colspan="7" class="empty">No managed APs yet.</td></tr>
         {{/each}}
       </tbody>
     </table>
@@ -177,21 +267,33 @@
     document.querySelectorAll('[data-copy-target]').forEach((button) => {
       button.addEventListener('click', async () => {
         const input = document.getElementById(button.dataset.copyTarget);
-
         if (!input) return;
 
         try {
           await navigator.clipboard.writeText(input.value);
-          const original = button.textContent;
-          button.textContent = 'Copied';
-          setTimeout(() => {
-            button.textContent = original;
-          }, 1400);
         } catch (error) {
           input.select();
           document.execCommand('copy');
         }
+
+        const original = button.textContent;
+        button.textContent = 'Copied';
+        setTimeout(() => {
+          button.textContent = original;
+        }, 1200);
       });
     });
+
+    const hasActiveClaim = Array.from(
+      document.querySelectorAll('.claim-status')
+    ).some((item) =>
+      ['pending', 'discovered', 'adopting', 'failed'].includes(
+        item.textContent.trim().toLowerCase()
+      )
+    );
+
+    if (hasActiveClaim) {
+      setTimeout(() => window.location.reload(), 10000);
+    }
   })();
 </script>
