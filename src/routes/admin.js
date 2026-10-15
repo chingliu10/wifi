@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/database');
+const { normalizeMacAddress } = require('../utils/mac-address');
 
 const router = express.Router();
 
@@ -395,15 +396,133 @@ router.get('/sites', async (req, res) => {
         ).rows
       : [];
 
+    const devices = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT
+                nd.id,
+                nd.site_id,
+                nd.name,
+                nd.nas_identifier,
+                nd.brand,
+                nd.model,
+                nd.management_ip,
+                nd.ap_mac,
+                nd.device_type,
+                nd.active,
+                s.name AS site_name
+              FROM network_devices nd
+              JOIN sites s ON s.id = nd.site_id
+              WHERE s.organization_id = $1
+              ORDER BY s.name, nd.name
+            `,
+            [selectedOrg.id]
+          )
+        ).rows
+      : [];
+
     return renderAdmin(res, 'admin/sites', {
-      title: 'Sites',
+      title: 'Sites & devices',
       organizations,
       selectedOrg,
-      sites
+      sites,
+      devices
     });
   } catch (error) {
     console.error('ADMIN SITES ERROR:', error);
     res.status(500).send('Unable to load sites.');
+  }
+});
+
+router.post('/devices', async (req, res) => {
+  try {
+    const {
+      organizationId,
+      siteId,
+      name,
+      brand,
+      model,
+      apMac,
+      nasIdentifier,
+      managementIp,
+      deviceType
+    } = req.body;
+
+    const orgId = Number(organizationId);
+    const selectedSiteId = Number(siteId);
+    const normalizedApMac = normalizeMacAddress(apMac);
+
+    if (!orgId || !selectedSiteId || !name || !normalizedApMac) {
+      return res.status(400).send('Site, device name and valid AP MAC are required.');
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = true
+        LIMIT 1
+      `,
+      [selectedSiteId, orgId]
+    );
+
+    if (!siteResult.rows[0]) {
+      return res.status(400).send('The selected site does not belong to this client.');
+    }
+
+    await pool.query(
+      `
+        INSERT INTO network_devices (
+          site_id,
+          name,
+          nas_identifier,
+          brand,
+          model,
+          management_ip,
+          ap_mac,
+          device_type,
+          active
+        )
+        VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::inet, $7, $8, TRUE)
+        ON CONFLICT (site_id, nas_identifier)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          brand = EXCLUDED.brand,
+          model = EXCLUDED.model,
+          management_ip = EXCLUDED.management_ip,
+          ap_mac = EXCLUDED.ap_mac,
+          device_type = EXCLUDED.device_type,
+          active = TRUE,
+          updated_at = NOW()
+      `,
+      [
+        selectedSiteId,
+        String(name).trim(),
+        String(nasIdentifier || normalizedApMac).trim(),
+        String(brand || '').trim() || null,
+        String(model || '').trim() || null,
+        String(managementIp || '').trim(),
+        normalizedApMac,
+        String(deviceType || 'omada').trim().toLowerCase()
+      ]
+    );
+
+    res.redirect('/admin/sites?org=' + orgId);
+  } catch (error) {
+    console.error('ADMIN DEVICE CREATE ERROR:', error);
+
+    if (error.code === '23505') {
+      return res.status(409).send('That AP MAC / NAS is already registered.');
+    }
+
+    if (error.code === '22P02') {
+      return res.status(400).send('Management IP address is invalid.');
+    }
+
+    res.status(500).send('Unable to register network device.');
   }
 });
 
