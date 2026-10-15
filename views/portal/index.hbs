@@ -1,18 +1,13 @@
-<main class="portal">
-  <section class="portal-shell" aria-label="Nunua bando la Small Garden WiFi">
-    <header class="portal-brand">
-      <div class="brand-mark" aria-hidden="true">SG</div>
-      <div class="brand-copy">
-        <strong>Small Garden</strong>
-        <span>WiFi</span>
-      </div>
-    </header>
+<main class="portal-app">
+  <section class="portal-hero" aria-label="Small Garden WiFi">
+    <div class="hero-inner">
+      <div class="hero-logo" aria-hidden="true">SG</div>
+      <h1>Small Garden WiFi</h1>
+      <p>Chagua bando uunganishwe</p>
+    </div>
+  </section>
 
-    <section class="purchase-intro">
-      <h1>Unganishwa haraka</h1>
-      <p>Chagua kifurushi na weka namba ya simu itakayolipia.</p>
-    </section>
-
+  <section class="purchase-card" aria-label="Nunua bando la Small Garden WiFi">
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
@@ -23,7 +18,15 @@
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
 
       <fieldset class="package-fieldset">
-        <legend>Chagua kifurushi</legend>
+        <legend>
+          <span class="section-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"></path>
+              <path d="m4 7.5 8 4.5 8-4.5M12 12v9"></path>
+            </svg>
+          </span>
+          <span>Chagua kifurushi</span>
+        </legend>
 
         <div class="package-grid">
           {{#each packages}}
@@ -35,11 +38,33 @@
                 data-price="{{price_tzs}}"
                 required
               >
+
               <span class="package-card-body">
-                <span class="package-name">{{formatPackageName name}}</span>
-                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
+                <span class="package-main">
+                  <span class="package-icon" aria-hidden="true">
+                    {{#if @last}}
+                      <svg viewBox="0 0 24 24">
+                        <rect x="4" y="5.5" width="16" height="14" rx="2"></rect>
+                        <path d="M8 3.5v4M16 3.5v4M4 10h16"></path>
+                      </svg>
+                    {{else}}
+                      <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="8"></circle>
+                        <path d="M12 7.5V12l3 2"></path>
+                      </svg>
+                    {{/if}}
+                  </span>
+
+                  <span class="package-copy">
+                    <strong>{{formatPackageName name}}</strong>
+                    <span>{{formatTzs price_tzs}} TZS</span>
+                  </span>
+                </span>
+
+                <span class="package-radio" aria-hidden="true">
+                  <span></span>
+                </span>
               </span>
-              <span class="package-check" aria-hidden="true">✓</span>
             </label>
           {{/each}}
         </div>
@@ -48,7 +73,15 @@
       </fieldset>
 
       <div class="field">
-        <label for="phone-number">Namba ya simu ya malipo</label>
+        <label for="phone-number">
+          <span class="section-icon section-icon-phone" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6.5 4.5 9 8.5 7.5 10c1 2.1 2.4 3.5 4.5 4.5l1.5-1.5 4 2.5c.5.3.7.8.6 1.4-.2 1.6-1.5 2.6-3 2.6C9.3 19.5 4.5 14.7 4.5 8.9c0-1.5 1-2.8 2.6-3 .6-.1 1.1.1 1.4.6Z"></path>
+            </svg>
+          </span>
+          <span>Namba ya simu</span>
+        </label>
+
         <input
           id="phone-number"
           name="phone"
@@ -62,7 +95,11 @@
           title="Mfano wa namba: 0655100259"
           required
         >
-        <p class="field-help" id="phone-error" role="status" hidden>Mfano wa namba: 0655100259</p>
+
+        <p class="phone-example" id="phone-example">
+          <span aria-hidden="true">i</span>
+          Mfano wa namba: 0655100259
+        </p>
       </div>
 
       {{#if error}}
@@ -71,10 +108,20 @@
 
       <button class="primary-button" id="continue-button" type="submit" disabled>
         <span class="button-text">NUNUA BANDO</span>
-        <span class="button-arrow" aria-hidden="true">→</span>
+        <span class="button-arrow" aria-hidden="true">›</span>
       </button>
 
-      <p class="support-line">Msaada / Maulizo: <a href="tel:0655100259">0655100259</a></p>
+      <p class="support-line">
+        <span class="support-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 13v-2a8 8 0 0 1 16 0v2"></path>
+            <path d="M5.5 12H8v6H6.5A2.5 2.5 0 0 1 4 15.5v-1A2.5 2.5 0 0 1 6.5 12Zm12.5 0h.5a2.5 2.5 0 0 1 2.5 2.5v1a2.5 2.5 0 0 1-2.5 2.5H16v-6h2Z"></path>
+            <path d="M16 18c0 1.1-.9 2-2 2h-2"></path>
+          </svg>
+        </span>
+        <span>Msaada / Maulizo:</span>
+        <a href="tel:0655100259">0655100259</a>
+      </p>
     </form>
   </section>
 </main>
@@ -94,7 +141,7 @@
     const buttonText = button?.querySelector('.button-text');
     const loading = document.getElementById('payment-loading');
     const phone = document.getElementById('phone-number');
-    const phoneError = document.getElementById('phone-error');
+    const phoneExample = document.getElementById('phone-example');
     const packageError = document.getElementById('package-error');
     const packageInputs = Array.from(
       document.querySelectorAll('input[name="packageId"]')
@@ -121,16 +168,20 @@
         : 'NUNUA BANDO';
     };
 
-    const validatePhone = ({ showError = false } = {}) => {
-      const value = phone.value.trim();
+    const validatePhone = () => {
       const valid = phoneIsValid();
 
       phone.setCustomValidity(
-        valid ? '' : 'Mfano wa namba: 0655100259'
+        valid || phone.value.length === 0
+          ? ''
+          : 'Mfano wa namba: 0655100259'
       );
 
-      if (phoneError) {
-        phoneError.hidden = !showError || valid || value.length === 0;
+      if (phoneExample) {
+        phoneExample.classList.toggle(
+          'is-warning',
+          phone.value.length > 0 && !valid
+        );
       }
 
       updateButton();
@@ -146,21 +197,12 @@
 
     phone.addEventListener('input', () => {
       phone.value = phone.value.replace(/\D/g, '').slice(0, 10);
-
-      if (phoneError) {
-        phoneError.hidden = true;
-      }
-
       validatePhone();
-    });
-
-    phone.addEventListener('blur', () => {
-      validatePhone({ showError: phone.value.length > 0 });
     });
 
     form.addEventListener('submit', (event) => {
       const plan = selectedPackage();
-      const validPhone = validatePhone({ showError: true });
+      const validPhone = validatePhone();
 
       if (!plan || !validPhone) {
         event.preventDefault();
@@ -170,7 +212,6 @@
         }
 
         if (!validPhone) {
-          phone.reportValidity();
           phone.focus();
         }
 
