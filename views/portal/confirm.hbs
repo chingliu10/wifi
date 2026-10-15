@@ -1,37 +1,34 @@
 <main class="portal">
-  <section class="portal-shell" aria-labelledby="confirm-title">
-    <header class="portal-brand">
+  <section class="portal-shell portal-shell-state" aria-labelledby="confirm-title">
+    <header class="portal-brand portal-brand-state">
       <div class="brand-mark" aria-hidden="true">SG</div>
-      <div>
+      <div class="brand-copy">
         <strong>Small Garden</strong>
         <span>WiFi</span>
       </div>
     </header>
 
     {{#if error}}
-      <section class="payment-state payment-state-error">
+      <section class="state-card payment-state payment-state-error">
         <div class="state-icon state-icon-error" aria-hidden="true">!</div>
-        <p class="eyebrow">MALIPO</p>
         <h1 id="confirm-title">{{title}}</h1>
-        <div class="status-box status-box-error" role="alert">{{error}}</div>
-        <button class="secondary-button" type="button" onclick="history.back()">Rudi nyuma</button>
+        <p class="state-copy">{{error}}</p>
+
+        <button class="secondary-button" type="button" onclick="history.back()">
+          Rudi nyuma
+        </button>
       </section>
     {{else}}
       {{#if paymentActive}}
-        <section class="payment-state payment-state-success">
+        <section class="state-card payment-state payment-state-success">
           <div class="state-icon state-icon-success" aria-hidden="true">✓</div>
-          <p class="eyebrow">INTERNET IMEWASHWA</p>
           <h1 id="confirm-title">Umeunganishwa</h1>
-          <p class="state-copy">Malipo yamethibitishwa na kifaa hiki sasa kina internet.</p>
+          <p class="state-copy">Internet yako imewashwa.</p>
 
-          <div class="receipt-card">
+          <div class="state-summary">
             <div>
               <span>Kifurushi</span>
               <strong>{{formatPackageName package.name}}</strong>
-            </div>
-            <div>
-              <span>Ulicholipa</span>
-              <strong>{{formatTzs package.price_tzs}} TZS</strong>
             </div>
             {{#if subscription}}
               <div>
@@ -41,66 +38,62 @@
             {{/if}}
           </div>
 
-          <div class="status-box status-box-success">{{message}}</div>
-          <p class="portal-footnote">Kama internet haijaanza mara moja, zima Wi-Fi kisha washa tena mara moja.</p>
+          <p class="state-note">Kama internet haijaanza, zima Wi-Fi kisha washa tena mara moja.</p>
         </section>
       {{else}}
-        <section class="payment-state">
+        <section class="state-card payment-state">
           {{#if paymentInitiated}}
             <div class="state-spinner" aria-hidden="true"></div>
-            <p class="eyebrow">TUNASUBIRI MALIPO</p>
             <h1 id="confirm-title">Angalia simu yako</h1>
-            <p class="state-copy">Thibitisha ombi la malipo kwenye simu yako. Ukurasa huu utabadilika wenyewe baada ya malipo kuthibitishwa.</p>
-          {{else}}
-            <div class="state-icon state-icon-ready" aria-hidden="true">→</div>
-            <p class="eyebrow">TAYARI KULIPA</p>
-            <h1 id="confirm-title">Thibitisha kifurushi</h1>
-            <p class="state-copy">Tutakutumia ombi la malipo kwenye namba iliyo hapa chini.</p>
-          {{/if}}
+            <p class="state-copy">
+              Thibitisha malipo ya <strong>{{formatTzs package.price_tzs}} TZS</strong> kwenye simu yako.
+            </p>
 
-          <div class="receipt-card">
-            <div>
-              <span>Kifurushi</span>
-              <strong>{{formatPackageName package.name}}</strong>
+            <div class="state-summary state-summary-compact">
+              <div>
+                <span>Kifurushi</span>
+                <strong>{{formatPackageName package.name}}</strong>
+              </div>
+              <div>
+                <span>Namba</span>
+                <strong>{{transaction.phone}}</strong>
+              </div>
             </div>
-            <div>
-              <span>Bei</span>
-              <strong>{{formatTzs package.price_tzs}} TZS</strong>
-            </div>
-            <div>
-              <span>Namba ya simu</span>
-              <strong>{{transaction.phone}}</strong>
-            </div>
-          </div>
 
-          {{#if showPayNow}}
-            <form class="portal-action" id="pay-now-form" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
-              <button class="primary-button" id="pay-now-button" type="submit">
-                <span class="button-text">TUMA OMBI LA MALIPO</span>
-                <span class="button-arrow" aria-hidden="true">→</span>
-              </button>
-            </form>
-          {{/if}}
-
-          {{#if paymentInitiated}}
-            <div class="status-box status-box-waiting" id="payment-waiting">
+            <div class="waiting-line" id="payment-waiting">
+              <span class="waiting-dot" aria-hidden="true"></span>
               Tunasubiri uthibitisho wa malipo…
             </div>
           {{else}}
-            <p class="portal-footnote">Hautakatwa pesa mpaka uthibitishe malipo kwenye simu yako.</p>
-          {{/if}}
+            <div class="state-icon state-icon-ready" aria-hidden="true">→</div>
+            <h1 id="confirm-title">Tayari kulipa</h1>
+            <p class="state-copy">Tuma ombi la malipo kwenda kwenye simu yako.</p>
 
-          <details class="technical-details">
-            <summary>Maelezo ya muamala</summary>
-            <dl>
-              <div><dt>Namba ya muamala</dt><dd>{{transaction.reference}}</dd></div>
-              <div><dt>Hali</dt><dd>{{transaction.status}}</dd></div>
-            </dl>
-          </details>
+            <div class="state-summary state-summary-compact">
+              <div>
+                <span>Kifurushi</span>
+                <strong>{{formatPackageName package.name}}</strong>
+              </div>
+              <div>
+                <span>Jumla</span>
+                <strong>{{formatTzs package.price_tzs}} TZS</strong>
+              </div>
+            </div>
+
+            {{#if showPayNow}}
+              <form class="portal-action" id="pay-now-form" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
+                <button class="primary-button" id="pay-now-button" type="submit">
+                  <span class="button-text">TUMA OMBI LA MALIPO</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </form>
+            {{/if}}
+          {{/if}}
         </section>
       {{/if}}
     {{/if}}
-    <p class="support-line">Kwa maulizo: <a href="tel:0655100259">0655100259</a></p>
+
+    <p class="support-line">Msaada / Maulizo: <a href="tel:0655100259">0655100259</a></p>
   </section>
 </main>
 
@@ -114,8 +107,7 @@
 
     form.addEventListener('submit', () => {
       button.disabled = true;
-      button.querySelector('.button-text').textContent = 'Inatuma ombi...';
-      button.querySelector('.button-arrow').textContent = '';
+      button.querySelector('.button-text').textContent = 'INATUMA…';
     });
   })();
 </script>
@@ -152,13 +144,15 @@
         }
 
         if (waiting) {
-          waiting.textContent = 'Tunasubiri uthibitisho wa malipo…';
+          waiting.innerHTML =
+            '<span class="waiting-dot" aria-hidden="true"></span>Tunasubiri uthibitisho wa malipo…';
         }
       } catch (error) {
         failures += 1;
 
         if (waiting && failures >= 2) {
-          waiting.textContent = 'Bado tunakagua malipo yako… tafadhali usifunge ukurasa huu.';
+          waiting.innerHTML =
+            '<span class="waiting-dot" aria-hidden="true"></span>Bado tunakagua malipo yako…';
         }
       }
 
