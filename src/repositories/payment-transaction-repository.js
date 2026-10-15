@@ -222,7 +222,7 @@ const updatePaymentStatus = async ({
         END
       WHERE provider_reference = $1
         AND status = 'pending'
-        AND $2 IN ('paid', 'failed', 'cancelled')
+        AND $2 IN ('paid', 'failed', 'cancelled', 'expired')
       RETURNING *
     `,
     [providerReference, status]
