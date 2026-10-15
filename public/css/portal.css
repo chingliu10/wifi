@@ -5,7 +5,7 @@
   --text: #10221a;
   --muted: #718178;
   --line: #d7e0da;
-  --brand: #07633f;
+  --brand: var(--portal-brand, #07633f);
   --brand-deep: #03472d;
   --brand-soft: #e4f6ed;
   --accent: #0fb978;
@@ -66,7 +66,7 @@ svg {
   background:
     radial-gradient(circle at 18% 70%, rgba(255,255,255,.08) 0 44px, transparent 45px),
     radial-gradient(circle at 82% 35%, rgba(255,255,255,.06) 0 58px, transparent 59px),
-    linear-gradient(145deg, #0a6b45 0%, #034d31 55%, #013922 100%);
+    linear-gradient(145deg, var(--brand) 0%, #034d31 58%, #013922 100%);
 }
 
 .hero-inner {
