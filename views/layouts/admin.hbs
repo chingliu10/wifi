@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{title}} · Solidus WiFi</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <div class="admin-app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>Solidus WiFi</strong>
+          <span>Management</span>
+        </div>
+      </div>
+
+      {{#if selectedOrg}}
+        <div class="org-card">
+          <span>Current client</span>
+          <strong>{{selectedOrg.name}}</strong>
+        </div>
+      {{/if}}
+
+      <nav class="nav">
+        <a href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Dashboard</a>
+        <a href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Payments</a>
+        <a href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Customers</a>
+        <a href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Packages</a>
+        <a href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Sites & devices</a>
+        <a href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Wallet & payouts</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a class="add-client-link" href="/admin/clients/new">+ Add client</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <button class="menu-button" type="button" onclick="document.body.classList.toggle('sidebar-open')">☰</button>
+
+        <div>
+          <p class="eyebrow">SOLIDUS WIFI</p>
+          <h1>{{title}}</h1>
+        </div>
+
+        {{#if organizations}}
+          <form class="org-switcher" method="GET" action="/admin">
+            <label for="org">Client</label>
+            <select id="org" name="org" onchange="this.form.submit()">
+              {{#each organizations}}
+                <option value="{{id}}">{{name}}</option>
+              {{/each}}
+            </select>
+          </form>
+        {{/if}}
+      </header>
+
+      {{{body}}}
+    </main>
+  </div>
+</body>
+</html>
