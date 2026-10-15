@@ -24,6 +24,8 @@ const createPaymentTransaction = async ({
         customer_name,
         phone,
         package_id,
+        site_id,
+        organization_id,
         client_mac,
         device_id,
         amount_tzs,
@@ -37,7 +39,15 @@ const createPaymentTransaction = async ({
         radio_id
       )
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8,
+        $1, $2, $3, $4,
+        (SELECT site_id FROM packages WHERE id = $4),
+        (
+          SELECT s.organization_id
+          FROM packages p
+          JOIN sites s ON s.id = p.site_id
+          WHERE p.id = $4
+        ),
+        $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14, $15
       )
       RETURNING *
