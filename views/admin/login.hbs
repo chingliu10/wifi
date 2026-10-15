@@ -1,0 +1,45 @@
+<main class="auth-shell">
+  <section class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <strong>Solidus WiFi</strong>
+        <span>Business Management</span>
+      </div>
+    </div>
+
+    <div class="auth-copy">
+      <h1>Sign in</h1>
+      <p>Manage sites, devices, packages, customers and payments.</p>
+    </div>
+
+    {{#if error}}
+      <div class="auth-error" role="alert">{{error}}</div>
+    {{/if}}
+
+    <form method="POST" action="/admin/login" class="auth-form">
+      <label>
+        <span>Username</span>
+        <input
+          name="username"
+          autocomplete="username"
+          required
+          autofocus
+          value="{{username}}"
+        >
+      </label>
+
+      <label>
+        <span>Password</span>
+        <input
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+      </label>
+
+      <button type="submit">Sign in</button>
+    </form>
+  </section>
+</main>
