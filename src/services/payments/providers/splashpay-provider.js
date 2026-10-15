@@ -104,7 +104,57 @@ const initiatePayment = async ({
   };
 };
 
+const checkPaymentStatus = async ({ reference }) => {
+  const apiKey = requiredEnv('SPLASHPAY_API_KEY');
+  const apiSecret = requiredEnv('SPLASHPAY_API_SECRET');
+
+  const baseUrl = (process.env.SPLASHPAY_BASE_URL || SPLASHPAY_DEFAULT_BASE_URL)
+    .replace(/\/$/, '');
+
+  const response = await fetch(`${baseUrl}/payments/check-status`, {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': apiKey,
+      'X-API-SECRET': apiSecret,
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    },
+    body: JSON.stringify({ reference })
+  });
+
+  let body;
+
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new Error(`SplashPay returned invalid status JSON (HTTP ${response.status})`);
+  }
+
+  if (!response.ok || body.status === 'error') {
+    const message = body.message || body.error || `HTTP ${response.status}`;
+    throw new Error(`SplashPay status check failed: ${message}`);
+  }
+
+  const data = body.data || {};
+
+  return {
+    reference: data.reference || reference,
+    providerReference:
+      data.provider_reference ||
+      data.providerReference ||
+      data.payment_reference ||
+      data.paymentReference ||
+      null,
+    amountTzs: data.amount !== undefined ? Number(data.amount) : null,
+    currency: data.currency || null,
+    status: data.status || null,
+    provider: data.provider || null,
+    network: data.network || null
+  };
+};
+
 module.exports = {
   initiatePayment,
+  checkPaymentStatus,
   normalizePhone
 };
