@@ -1106,3 +1106,86 @@ input {
     height: 44px;
   }
 }
+
+
+/* Final mobile purchase layout: no top gap + stacked package cards. */
+@media (max-width: 520px) {
+  .portal {
+    padding-top: 0;
+  }
+
+  .portal-shell {
+    padding-top: 14px;
+  }
+
+  .portal-brand {
+    margin-bottom: 14px;
+  }
+
+  .package-grid-compact {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 42px 9px 13px;
+    text-align: left;
+  }
+
+  .package-grid-compact .package-name {
+    font-size: 13px;
+  }
+
+  .package-grid-compact .package-price {
+    font-size: 16px;
+    text-align: right;
+  }
+
+  .package-grid-compact .package-price small {
+    display: inline;
+    margin-top: 0;
+    margin-left: 2px;
+    font-size: 8px;
+  }
+
+  .package-grid-compact .package-check {
+    top: 50%;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+  }
+
+  .package-grid-compact .package-card input:checked ~ .package-check {
+    transform: translateY(-50%);
+  }
+}
+
+@media (max-height: 650px) and (max-width: 520px) {
+  .portal-shell {
+    padding-top: 10px;
+  }
+
+  .portal-brand {
+    margin-bottom: 8px;
+  }
+
+  .package-grid-compact {
+    gap: 5px;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 48px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .portal-form {
+    gap: 9px;
+  }
+}
