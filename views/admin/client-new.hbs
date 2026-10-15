@@ -1,7 +1,7 @@
 <section class="page-head">
   <div>
     <h2>Add a WiFi client</h2>
-    <p>Create the organisation and its first site.</p>
+    <p>Create the business and its owner login. Sites and devices are added afterwards.</p>
   </div>
 </section>
 
@@ -14,8 +14,8 @@
       </label>
 
       <label>
-        <span>Owner name</span>
-        <input name="ownerName" placeholder="Owner / contact person">
+        <span>Owner full name</span>
+        <input name="ownerName" required placeholder="Owner / contact person">
       </label>
 
       <label>
@@ -24,19 +24,18 @@
       </label>
 
       <label>
-        <span>First site name</span>
-        <input name="siteName" required placeholder="e.g. Main Branch">
+        <span>Owner username</span>
+        <input name="ownerUsername" autocomplete="off" required placeholder="e.g. mwanzaowner">
       </label>
 
       <label>
-        <span>Portal support phone</span>
-        <input name="supportPhone" placeholder="07XXXXXXXX">
+        <span>Temporary password</span>
+        <input name="ownerPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Minimum 8 characters">
       </label>
+    </div>
 
-      <label>
-        <span>Brand colour</span>
-        <input name="primaryColor" value="#0B6B47" placeholder="#0B6B47">
-      </label>
+    <div class="notice">
+      The client will use this username and password to sign in. After creation, add their first site, device and packages.
     </div>
 
     <div class="form-actions">
