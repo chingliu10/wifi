@@ -11,6 +11,14 @@ const {
   clearSessionCookie,
   createClientOwner
 } = require('../services/auth-service');
+const omada = require('../services/omada/open-api-client');
+const {
+  provisionSite,
+  recordProvisionError,
+  getDeviceCredentials,
+  getInformHost,
+  createDeviceClaim
+} = require('../services/omada/provisioning-service');
 
 const router = express.Router();
 
@@ -497,6 +505,53 @@ router.post('/clients', requireSuperAdmin, async (req, res) => {
   }
 });
 
+router.get('/integrations/omada', requireSuperAdmin, async (req, res) => {
+  const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+  const integration = {
+    enabled: omada.configured(),
+    connected: false,
+    controllerVersion: null,
+    sitesVisible: null,
+    error: null
+  };
+
+  if (integration.enabled) {
+    try {
+      const info = await omada.getControllerInfo();
+      await omada.getAccessToken();
+      const remoteSites = await omada.listSites();
+
+      integration.connected = true;
+      integration.controllerVersion = info.controllerVersion;
+      integration.sitesVisible = remoteSites.length;
+    } catch (error) {
+      integration.error = error.message;
+    }
+  }
+
+  return renderAdmin(req, res, 'admin/omada-integration', {
+    title: 'Omada integration',
+    organizations,
+    selectedOrg,
+    integration
+  });
+});
+
+router.post('/integrations/omada/test', requireSuperAdmin, async (req, res) => {
+  try {
+    await omada.getAccessToken({ force: true });
+    await omada.listSites();
+    res.redirect('/admin/integrations/omada?tested=1');
+  } catch (error) {
+    console.error('OMADA INTEGRATION TEST ERROR:', error);
+    res.redirect(
+      '/admin/integrations/omada?error=' +
+      encodeURIComponent(error.message)
+    );
+  }
+});
+
 router.get('/sites', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -516,11 +571,17 @@ router.get('/sites', async (req, res) => {
                 s.portal_key,
                 s.portal_connected_at,
                 s.last_portal_seen_at,
+                s.omada_device_username,
+                s.omada_device_password_enc,
+                s.omada_provisioned_at,
+                s.omada_sync_error,
+                s.omada_auto_adopt,
                 s.active,
                 COUNT(nd.id)::INTEGER AS device_count
               FROM sites s
               LEFT JOIN network_devices nd ON nd.site_id = s.id
               WHERE s.organization_id = $1
+                AND s.active = TRUE
               GROUP BY s.id
               ORDER BY s.name
             `,
@@ -531,12 +592,63 @@ router.get('/sites', async (req, res) => {
 
     const sitesWithKeys = await ensurePortalKeys(sites);
     const publicBaseUrl = getPublicBaseUrl(req);
+    const informHost = getInformHost();
 
-    const siteViews = sitesWithKeys.map((site) => ({
-      ...site,
-      setup_url: `${publicBaseUrl}/portal/setup/${site.portal_key}`,
-      omada_connected: Boolean(site.external_portal_site_id)
-    }));
+    const claims = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT
+                c.id,
+                c.site_id,
+                c.ap_mac,
+                c.status,
+                c.last_error,
+                c.expires_at,
+                c.last_checked_at,
+                c.adopted_at,
+                c.created_at
+              FROM omada_device_claims c
+              JOIN sites s ON s.id = c.site_id
+              WHERE s.organization_id = $1
+              ORDER BY c.created_at DESC
+            `,
+            [selectedOrg.id]
+          )
+        ).rows
+      : [];
+
+    const siteViews = [];
+
+    for (const site of sitesWithKeys) {
+      let credentials = null;
+      let credentialError = null;
+
+      if (
+        site.omada_device_username &&
+        site.omada_device_password_enc
+      ) {
+        try {
+          credentials = await getDeviceCredentials(site.id);
+        } catch (error) {
+          credentialError = error.message;
+        }
+      }
+
+      siteViews.push({
+        ...site,
+        setup_url: `${publicBaseUrl}/portal/setup/${site.portal_key}`,
+        omada_provisioned: Boolean(site.external_portal_site_id),
+        omada_connected: Boolean(site.external_portal_site_id),
+        inform_host: informHost,
+        device_username: credentials?.username || null,
+        device_password: credentials?.password || null,
+        credential_error: credentialError,
+        claims: claims.filter(
+          (claim) => Number(claim.site_id) === Number(site.id)
+        )
+      });
+    }
 
     const devices = selectedOrg
       ? (
@@ -571,7 +683,8 @@ router.get('/sites', async (req, res) => {
       organizations,
       selectedOrg,
       sites: siteViews,
-      devices
+      devices,
+      omadaApiEnabled: omada.configured()
     });
   } catch (error) {
     console.error('ADMIN SITES ERROR:', error);
@@ -600,7 +713,7 @@ router.post('/sites', async (req, res) => {
     const suffix = crypto.randomBytes(2).toString('hex');
     const siteSlug = `${slugify(siteName) || 'site'}-${suffix}`;
 
-    await pool.query(
+    const created = await pool.query(
       `
         INSERT INTO sites (
           organization_id,
@@ -612,6 +725,7 @@ router.post('/sites', async (req, res) => {
           portal_key
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
       `,
       [
         selectedOrg.id,
@@ -624,47 +738,41 @@ router.post('/sites', async (req, res) => {
       ]
     );
 
+    const siteId = created.rows[0].id;
+
+    if (omada.configured()) {
+      try {
+        await provisionSite(siteId);
+      } catch (error) {
+        console.error('OMADA SITE PROVISION ERROR:', error);
+        await recordProvisionError(siteId, error);
+      }
+    }
+
     res.redirect('/admin/sites?org=' + selectedOrg.id);
   } catch (error) {
     console.error('ADMIN SITE CREATE ERROR:', error);
 
     if (error.code === '23505') {
-      return res.status(409).send('Unable to create a unique portal setup link. Please retry.');
+      return res.status(409).send(
+        'Unable to create a unique site. Please retry.'
+      );
     }
 
     res.status(500).send('Unable to create site.');
   }
 });
 
-router.post('/devices', async (req, res) => {
+router.post('/sites/:id/omada/provision', async (req, res) => {
   try {
     const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.params.id);
 
-    if (!selectedOrg) {
-      return res.status(400).send('Create or select a client first.');
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
     }
 
-    const {
-      siteId,
-      name,
-      brand,
-      model,
-      apMac,
-      nasIdentifier,
-      managementIp,
-      deviceType
-    } = req.body;
-
-    const selectedSiteId = Number(siteId);
-    const normalizedApMac = normalizeMacAddress(apMac);
-
-    if (!selectedSiteId || !name || !normalizedApMac) {
-      return res.status(400).send(
-        'Site, device name and valid AP MAC are required.'
-      );
-    }
-
-    const siteResult = await pool.query(
+    const owned = await pool.query(
       `
         SELECT id
         FROM sites
@@ -673,92 +781,65 @@ router.post('/devices', async (req, res) => {
           AND active = TRUE
         LIMIT 1
       `,
-      [selectedSiteId, selectedOrg.id]
+      [siteId, selectedOrg.id]
     );
 
-    if (!siteResult.rows[0]) {
-      return res.status(400).send(
-        'The selected site does not belong to this client.'
-      );
+    if (!owned.rows[0]) {
+      return res.status(404).send('Site not found.');
     }
 
-    await pool.query(
-      `
-        INSERT INTO network_devices (
-          site_id,
-          name,
-          nas_identifier,
-          brand,
-          model,
-          management_ip,
-          ap_mac,
-          device_type,
-          active
-        )
-        VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::inet, $7, $8, TRUE)
-        ON CONFLICT (site_id, nas_identifier)
-        DO UPDATE SET
-          name = EXCLUDED.name,
-          brand = EXCLUDED.brand,
-          model = EXCLUDED.model,
-          management_ip = EXCLUDED.management_ip,
-          ap_mac = EXCLUDED.ap_mac,
-          device_type = EXCLUDED.device_type,
-          active = TRUE,
-          updated_at = NOW()
-      `,
-      [
-        selectedSiteId,
-        String(name).trim(),
-        String(nasIdentifier || normalizedApMac).trim(),
-        String(brand || '').trim() || null,
-        String(model || '').trim() || null,
-        String(managementIp || '').trim(),
-        normalizedApMac,
-        String(deviceType || 'omada').trim().toLowerCase()
-      ]
-    );
+    try {
+      await provisionSite(siteId);
+    } catch (error) {
+      await recordProvisionError(siteId, error);
+      throw error;
+    }
 
     res.redirect('/admin/sites?org=' + selectedOrg.id);
   } catch (error) {
-    console.error('ADMIN DEVICE CREATE ERROR:', error);
-
-    if (error.code === '23505') {
-      return res.status(409).send('That AP MAC / NAS is already registered.');
-    }
-
-    if (error.code === '22P02') {
-      return res.status(400).send('Management IP address is invalid.');
-    }
-
-    res.status(500).send('Unable to register network device.');
+    console.error('OMADA PROVISION RETRY ERROR:', error);
+    res.status(500).send(
+      'Unable to provision the Omada site: ' + error.message
+    );
   }
 });
 
-router.post('/devices/:id/delete', async (req, res) => {
+router.post('/sites/:id/omada/claim', async (req, res) => {
   try {
     const { selectedOrg } = await getSelectedOrganization(req);
-    const deviceId = Number(req.params.id);
+    const siteId = Number(req.params.id);
 
-    if (!selectedOrg || !deviceId) {
-      return res.status(400).send('Invalid device.');
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
     }
 
-    await pool.query(
+    const owned = await pool.query(
       `
-        DELETE FROM network_devices nd
-        USING sites s
-        WHERE nd.id = $1
-          AND s.id = nd.site_id
-          AND s.organization_id = $2
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
       `,
-      [deviceId, selectedOrg.id]
+      [siteId, selectedOrg.id]
     );
+
+    if (!owned.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    await createDeviceClaim({
+      siteId,
+      apMac: req.body.apMac,
+      localUsername: req.body.localUsername,
+      localPassword: req.body.localPassword
+    });
 
     res.redirect('/admin/sites?org=' + selectedOrg.id);
   } catch (error) {
-    console.error('ADMIN DEVICE DELETE ERROR:', error);
-    res.status(500).send('Unable to remove network device.');
+    console.error('OMADA DEVICE CLAIM ERROR:', error);
+    res.status(400).send('Unable to claim AP: ' + error.message);
   }
 });
 
