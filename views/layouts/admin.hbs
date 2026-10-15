@@ -14,13 +14,13 @@
         <div class="brand-mark">S</div>
         <div>
           <strong>Solidus WiFi</strong>
-          <span>Management</span>
+          <span>{{#if isSuperAdmin}}Platform admin{{else}}Client portal{{/if}}</span>
         </div>
       </div>
 
       {{#if selectedOrg}}
         <div class="org-card">
-          <span>Current client</span>
+          <span>{{#if isSuperAdmin}}Current client{{else}}Your business{{/if}}</span>
           <strong>{{selectedOrg.name}}</strong>
         </div>
       {{/if}}
@@ -35,7 +35,19 @@
       </nav>
 
       <div class="sidebar-footer">
-        <a class="add-client-link" href="/admin/clients/new">+ Add client</a>
+        {{#if isSuperAdmin}}
+          <a class="add-client-link" href="/admin/clients/new">+ Add client</a>
+        {{/if}}
+
+        <div class="signed-in-user">
+          <span>Signed in as</span>
+          <strong>{{currentUser.full_name}}</strong>
+          <small>{{currentUser.username}}</small>
+        </div>
+
+        <form method="POST" action="/admin/logout">
+          <button class="logout-button" type="submit">Sign out</button>
+        </form>
       </div>
     </aside>
 
@@ -48,15 +60,17 @@
           <h1>{{title}}</h1>
         </div>
 
-        {{#if organizations}}
-          <form class="org-switcher" method="GET" action="/admin">
-            <label for="org">Client</label>
-            <select id="org" name="org" onchange="this.form.submit()">
-              {{#each organizations}}
-                <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
-              {{/each}}
-            </select>
-          </form>
+        {{#if isSuperAdmin}}
+          {{#if organizations}}
+            <form class="org-switcher" method="GET" action="/admin">
+              <label for="org">Client</label>
+              <select id="org" name="org" onchange="this.form.submit()">
+                {{#each organizations}}
+                  <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </form>
+          {{/if}}
         {{/if}}
       </header>
 
