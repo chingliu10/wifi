@@ -1,105 +1,170 @@
 <main class="portal">
-  <section class="portal-panel" aria-labelledby="confirm-title">
-    <h1 id="confirm-title">{{title}}</h1>
+  <section class="portal-shell" aria-labelledby="confirm-title">
+    <header class="portal-brand">
+      <div class="brand-mark" aria-hidden="true">SG</div>
+      <div>
+        <strong>Small Garden</strong>
+        <span>WiFi</span>
+      </div>
+    </header>
 
     {{#if error}}
-      <p class="portal-error">{{error}}</p>
+      <section class="payment-state payment-state-error">
+        <div class="state-icon state-icon-error" aria-hidden="true">!</div>
+        <p class="eyebrow">PAYMENT</p>
+        <h1 id="confirm-title">{{title}}</h1>
+        <div class="status-box status-box-error" role="alert">{{error}}</div>
+        <button class="secondary-button" type="button" onclick="history.back()">Go back</button>
+      </section>
     {{else}}
-      <dl class="portal-summary">
-        <div>
-          <dt>Reference</dt>
-          <dd>{{transaction.reference}}</dd>
-        </div>
-        <div>
-          <dt>Phone number</dt>
-          <dd>{{transaction.phone}}</dd>
-        </div>
-        <div>
-          <dt>Client MAC</dt>
-          <dd>{{transaction.client_mac}}</dd>
-        </div>
-        <div>
-          <dt>Package</dt>
-          <dd>{{package.name}}</dd>
-        </div>
-        <div>
-          <dt>Price</dt>
-          <dd>{{formatTzs package.price_tzs}} TZS</dd>
-        </div>
-        <div>
-          <dt>Duration</dt>
-          <dd>{{package.duration_seconds}} seconds</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd>{{transaction.status}}</dd>
-        </div>
-        {{#if subscription}}
-          <div>
-            <dt>Access</dt>
-            <dd>{{subscription.status}}</dd>
+      {{#if paymentActive}}
+        <section class="payment-state payment-state-success">
+          <div class="state-icon state-icon-success" aria-hidden="true">✓</div>
+          <p class="eyebrow">ACCESS ACTIVE</p>
+          <h1 id="confirm-title">You're online</h1>
+          <p class="state-copy">Your payment was confirmed and internet access is active for this device.</p>
+
+          <div class="receipt-card">
+            <div>
+              <span>Plan</span>
+              <strong>{{package.name}}</strong>
+            </div>
+            <div>
+              <span>Paid</span>
+              <strong>{{formatTzs package.price_tzs}} TZS</strong>
+            </div>
+            {{#if subscription}}
+              <div>
+                <span>Access until</span>
+                <strong>{{formatDate subscription.expires_at}}</strong>
+              </div>
+            {{/if}}
           </div>
-          <div>
-            <dt>Activated</dt>
-            <dd>{{subscription.starts_at}}</dd>
+
+          <div class="status-box status-box-success">{{message}}</div>
+          <p class="portal-footnote">If internet does not start immediately, turn Wi-Fi off and back on once.</p>
+        </section>
+      {{else}}
+        <section class="payment-state">
+          {{#if paymentInitiated}}
+            <div class="state-spinner" aria-hidden="true"></div>
+            <p class="eyebrow">WAITING FOR PAYMENT</p>
+            <h1 id="confirm-title">Check your phone</h1>
+            <p class="state-copy">Approve the mobile-money prompt. This page will update automatically after payment is confirmed.</p>
+          {{else}}
+            <div class="state-icon state-icon-ready" aria-hidden="true">→</div>
+            <p class="eyebrow">READY TO PAY</p>
+            <h1 id="confirm-title">Confirm your plan</h1>
+            <p class="state-copy">We will send a mobile-money payment prompt to the number below.</p>
+          {{/if}}
+
+          <div class="receipt-card">
+            <div>
+              <span>Plan</span>
+              <strong>{{package.name}}</strong>
+            </div>
+            <div>
+              <span>Price</span>
+              <strong>{{formatTzs package.price_tzs}} TZS</strong>
+            </div>
+            <div>
+              <span>Phone</span>
+              <strong>{{transaction.phone}}</strong>
+            </div>
           </div>
-          <div>
-            <dt>Expires</dt>
-            <dd>{{subscription.expires_at}}</dd>
-          </div>
-        {{/if}}
-      </dl>
 
-      <p class="portal-message">{{message}}</p>
+          {{#if showPayNow}}
+            <form class="portal-action" id="pay-now-form" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
+              <button class="primary-button" id="pay-now-button" type="submit">
+                <span class="button-text">Send payment prompt</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </form>
+          {{/if}}
 
-      {{#if showPayNow}}
-        <form class="portal-action" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
-          <button type="submit">Pay now</button>
-        </form>
-      {{/if}}
+          {{#if paymentInitiated}}
+            <div class="status-box status-box-waiting" id="payment-waiting">
+              Waiting for payment confirmation…
+            </div>
+          {{else}}
+            <p class="portal-footnote">Nothing is charged until you approve the prompt on your phone.</p>
+          {{/if}}
 
-      {{#if paymentInitiated}}
-        <p class="portal-note">Payment request sent. Check your phone to complete the payment.</p>
-        <p class="portal-note" id="payment-waiting">Waiting for payment confirmation...</p>
-        <script>
-          (() => {
-            const reference = {{{json transaction.reference}}};
-            let stopped = false;
-
-            const checkStatus = async () => {
-              if (stopped) return;
-
-              try {
-                const response = await fetch(
-                  '/api/payments/' + encodeURIComponent(reference) + '/status',
-                  { cache: 'no-store' }
-                );
-
-                if (!response.ok) {
-                  throw new Error('Status request failed');
-                }
-
-                const data = await response.json();
-
-                if (
-                  data.status !== 'pending' ||
-                  data.accessActive === true
-                ) {
-                  stopped = true;
-                  window.location.reload();
-                  return;
-                }
-              } catch (error) {
-                // Keep the page usable if a temporary status check fails.
-              }
-
-              setTimeout(checkStatus, 5000);
-            };
-
-            setTimeout(checkStatus, 3000);
-          })();
-        </script>
+          <details class="technical-details">
+            <summary>Transaction details</summary>
+            <dl>
+              <div><dt>Reference</dt><dd>{{transaction.reference}}</dd></div>
+              <div><dt>Status</dt><dd>{{transaction.status}}</dd></div>
+            </dl>
+          </details>
+        </section>
       {{/if}}
     {{/if}}
   </section>
 </main>
+
+{{#if showPayNow}}
+<script>
+  (() => {
+    const form = document.getElementById('pay-now-form');
+    const button = document.getElementById('pay-now-button');
+
+    if (!form || !button) return;
+
+    form.addEventListener('submit', () => {
+      button.disabled = true;
+      button.querySelector('.button-text').textContent = 'Sending prompt...';
+      button.querySelector('.button-arrow').textContent = '';
+    });
+  })();
+</script>
+{{/if}}
+
+{{#if paymentInitiated}}
+<script>
+  (() => {
+    const reference = {{{json transaction.reference}}};
+    const waiting = document.getElementById('payment-waiting');
+    let stopped = false;
+    let failures = 0;
+
+    const checkStatus = async () => {
+      if (stopped) return;
+
+      try {
+        const response = await fetch(
+          '/api/payments/' + encodeURIComponent(reference) + '/status',
+          { cache: 'no-store' }
+        );
+
+        if (!response.ok) {
+          throw new Error('Status request failed');
+        }
+
+        const data = await response.json();
+        failures = 0;
+
+        if (data.status !== 'pending' || data.accessActive === true) {
+          stopped = true;
+          window.location.reload();
+          return;
+        }
+
+        if (waiting) {
+          waiting.textContent = 'Waiting for payment confirmation…';
+        }
+      } catch (error) {
+        failures += 1;
+
+        if (waiting && failures >= 2) {
+          waiting.textContent = 'Still checking your payment… keep this page open.';
+        }
+      }
+
+      setTimeout(checkStatus, 4000);
+    };
+
+    setTimeout(checkStatus, 2000);
+  })();
+</script>
+{{/if}}
