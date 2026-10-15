@@ -52,3 +52,18 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
 .device-panel{margin-top:14px}
 .device-form-grid select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text)}
 .device-table-panel{margin-top:14px}
+
+.signed-in-user{display:grid;gap:2px;margin:12px 0;padding:11px 12px;border-top:1px solid #273244;border-bottom:1px solid #273244}
+.signed-in-user span,.signed-in-user small{font-size:10px;color:#8f98aa}.signed-in-user strong{font-size:12px;color:#fff}
+.logout-button{width:100%;padding:9px 12px;border:0;border-radius:8px;background:#263244;color:#dbe2ee;text-align:left;cursor:pointer}
+.admin-form select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text)}
+.site-list{margin-top:14px}
+.duration-control{display:grid;grid-template-columns:1fr 120px;gap:8px}
+.danger-button{padding:7px 10px;border:1px solid #f3b8b2;border-radius:8px;background:#fff4f2;color:var(--danger);cursor:pointer}
+.auth-body{min-height:100vh;background:#f3f6fa}
+.auth-shell{min-height:100vh;display:grid;place-items:center;padding:24px}
+.auth-card{width:min(420px,100%);padding:30px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 22px 60px rgba(17,24,39,.10)}
+.auth-brand{display:flex;align-items:center;gap:11px}.auth-brand>div:last-child{display:grid}.auth-brand strong{font-size:15px}.auth-brand span{font-size:11px;color:var(--muted)}
+.auth-copy{margin:28px 0 20px}.auth-copy h1{margin:0;font-size:28px}.auth-copy p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+.auth-form{display:grid;gap:14px}.auth-form label{display:grid;gap:6px}.auth-form label span{font-size:11px;font-weight:700}.auth-form input{padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit}.auth-form button{margin-top:4px;padding:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:800;cursor:pointer}
+.auth-error{margin-bottom:14px;padding:11px 12px;border-radius:9px;background:#fff0ee;color:var(--danger);font-size:12px}
