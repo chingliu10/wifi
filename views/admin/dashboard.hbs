@@ -1,0 +1,113 @@
+<section class="page-head">
+  <div>
+    <h2>{{#if selectedOrg}}{{selectedOrg.name}}{{else}}No client yet{{/if}}</h2>
+    <p>WiFi business overview</p>
+  </div>
+  <a class="primary-link" href="/admin/clients/new">Add client</a>
+</section>
+
+{{#if selectedOrg}}
+  <section class="stats-grid">
+    <article class="stat-card">
+      <span>Revenue today</span>
+      <strong>{{formatTzs stats.revenue_today}} TZS</strong>
+      <small>{{stats.payments_today}} successful payments</small>
+    </article>
+
+    <article class="stat-card">
+      <span>Active now</span>
+      <strong>{{stats.active_sessions}}</strong>
+      <small>active subscriptions</small>
+    </article>
+
+    <article class="stat-card">
+      <span>Customers</span>
+      <strong>{{stats.customers}}</strong>
+      <small>paying devices</small>
+    </article>
+
+    <article class="stat-card">
+      <span>Collected total</span>
+      <strong>{{formatTzs stats.collected_total}} TZS</strong>
+      <small>gross successful payments</small>
+    </article>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Setup progress</h3>
+          <p>Get this client ready to sell WiFi.</p>
+        </div>
+      </div>
+
+      <div class="checklist">
+        {{#each checklist}}
+          <div class="check-item {{#if done}}done{{/if}}">
+            <span class="check-dot">{{#if done}}✓{{else}}○{{/if}}</span>
+            <span>{{label}}</span>
+          </div>
+        {{/each}}
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Infrastructure</h3>
+          <p>Current footprint</p>
+        </div>
+      </div>
+
+      <div class="mini-stats">
+        <div><span>Sites</span><strong>{{stats.sites}}</strong></div>
+        <div><span>Routers / APs</span><strong>{{stats.devices}}</strong></div>
+        <div><span>Wallet ledger</span><strong>{{formatTzs stats.ledger_balance}}</strong></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-head">
+      <div>
+        <h3>Recent payments</h3>
+        <p>Latest hotspot activity</p>
+      </div>
+      <a href="/admin/payments?org={{selectedOrg.id}}">View all</a>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Site</th>
+            <th>Package</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each recentPayments}}
+            <tr>
+              <td><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
+              <td>{{site_name}}</td>
+              <td>{{formatPackageName package_name}}</td>
+              <td>{{formatTzs amount_tzs}} TZS</td>
+              <td><span class="status-pill status-{{status}}">{{status}}</span></td>
+            </tr>
+          {{else}}
+            <tr><td colspan="5" class="empty">No payments yet.</td></tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{{else}}
+  <section class="empty-state">
+    <h2>Create your first client</h2>
+    <p>Small Garden will become client #1, then you can add the remote client as client #2.</p>
+    <a class="primary-link" href="/admin/clients/new">Add client</a>
+  </section>
+{{/if}}
