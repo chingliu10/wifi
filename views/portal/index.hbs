@@ -1,13 +1,13 @@
-<main class="portal-app">
-  <section class="portal-hero" aria-label="Small Garden WiFi">
+<main class="portal-app" style="--portal-brand: {{siteConfig.primary_color}};">
+  <section class="portal-hero" aria-label="{{siteConfig.brand_name}}">
     <div class="hero-inner">
       <div class="hero-logo" aria-hidden="true">SG</div>
-      <h1>Small Garden WiFi</h1>
+      <h1>{{siteConfig.brand_name}}</h1>
       <p>Chagua bando uunganishwe</p>
     </div>
   </section>
 
-  <section class="purchase-card" aria-label="Nunua bando la Small Garden WiFi">
+  <section class="purchase-card" aria-label="Nunua bando la {{siteConfig.brand_name}}">
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
@@ -142,7 +142,7 @@
           </svg>
         </span>
         <span>Msaada / Maulizo:</span>
-        <a href="tel:0655100259">0655100259</a>
+        <a href="tel:{{siteConfig.support_phone}}">{{siteConfig.support_phone}}</a>
       </p>
     </form>
   </section>
