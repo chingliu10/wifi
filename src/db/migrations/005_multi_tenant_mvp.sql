@@ -19,20 +19,6 @@ ALTER TABLE sites
     ADD COLUMN IF NOT EXISTS external_portal_site_id VARCHAR(160),
     ADD COLUMN IF NOT EXISTS logo_url TEXT;
 
-INSERT INTO organizations (name, slug, owner_name, owner_phone)
-VALUES ('Small Garden', 'small-garden', 'Small Garden', '0655100259')
-ON CONFLICT (slug) DO NOTHING;
-
-UPDATE sites
-SET
-    organization_id = (
-        SELECT id FROM organizations WHERE slug = 'small-garden' LIMIT 1
-    ),
-    brand_name = COALESCE(brand_name, 'Small Garden WiFi'),
-    support_phone = COALESCE(support_phone, '0655100259')
-WHERE slug = 'small-garden'
-  AND organization_id IS NULL;
-
 ALTER TABLE network_devices
     ADD COLUMN IF NOT EXISTS ap_mac VARCHAR(17),
     ADD COLUMN IF NOT EXISTS device_type VARCHAR(40) NOT NULL DEFAULT 'omada';
