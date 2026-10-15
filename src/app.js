@@ -24,6 +24,7 @@ const {
 } = require('./services/subscriptions/subscription-service');
 
 const app = express();
+const devRoutesEnabled = process.env.ALLOW_DEV_ROUTES === 'true';
 
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
 
@@ -263,6 +264,12 @@ const loadSubscriptionForTransaction = async (transaction) => {
 
 const renderPaymentStatus = async (res, transaction, title = 'Payment status') => {
   const subscription = await loadSubscriptionForTransaction(transaction);
+  const paymentActive = Boolean(
+    transaction.status === 'paid' &&
+    subscription &&
+    subscription.status === 'active' &&
+    new Date(subscription.expires_at).getTime() > Date.now()
+  );
 
   return res.render('portal/confirm', {
     title,
@@ -270,6 +277,7 @@ const renderPaymentStatus = async (res, transaction, title = 'Payment status') =
     package: buildPackageView(transaction),
     subscription,
     message: buildPaymentMessage(transaction, subscription),
+    paymentActive,
     showPayNow: transaction.status === 'pending' && !transaction.provider_reference,
     paymentInitiated: transaction.status === 'pending' && Boolean(transaction.provider_reference)
   });
@@ -280,6 +288,22 @@ app.engine('hbs', engine({
   defaultLayout: 'main',
   helpers: {
     formatTzs: (amount) => Number(amount).toLocaleString('en-US'),
+    formatDate: (value) => {
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return '—';
+      }
+
+      return new Intl.DateTimeFormat('en-TZ', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Africa/Dar_es_Salaam'
+      }).format(date);
+    },
     json: (value) => JSON.stringify(value)
   }
 }));
@@ -771,6 +795,10 @@ app.post('/api/payments/splashpay/webhook', async (req, res) => {
 });
 
 app.post('/api/payments/mock/callback', async (req, res) => {
+  if (!devRoutesEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
   try {
     const { providerReference, status } = req.body;
 
@@ -851,11 +879,8 @@ app.post('/api/payments/mock/callback', async (req, res) => {
 });
 
 app.post('/api/internal/payments/:reference/provision', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({
-      success: false,
-      error: 'Not found'
-    });
+  if (!devRoutesEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
   }
 
   try {
@@ -899,6 +924,10 @@ app.post('/api/internal/payments/:reference/provision', async (req, res) => {
 });
 
 app.post('/devices', async (req, res) => {
+  if (!devRoutesEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
   try {
     const { macAddress } = req.body;
 
@@ -918,6 +947,10 @@ app.post('/devices', async (req, res) => {
 
 
 app.get('/devices/:mac/access', async (req, res) => {
+  if (!devRoutesEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
   try {
     const device = await getOrCreateDevice(req.params.mac);
 
@@ -940,6 +973,10 @@ app.get('/devices/:mac/access', async (req, res) => {
 });
 
 app.post('/test/activate', async (req, res) => {
+  if (!devRoutesEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
   try {
     const { macAddress, packageId } = req.body;
 
