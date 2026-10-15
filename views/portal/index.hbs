@@ -73,6 +73,27 @@
       </fieldset>
 
       <div class="field">
+        <label for="customer-name">
+          <span class="section-icon section-icon-phone" aria-hidden="true">👤</span>
+          <span>Jina la kwanza</span>
+        </label>
+
+        <input
+          id="customer-name"
+          name="customerName"
+          type="text"
+          autocomplete="given-name"
+          placeholder="Mfano: Juma"
+          minlength="2"
+          maxlength="40"
+          value="{{savedCustomer.customer_name}}"
+          required
+        >
+
+        <p class="field-help" id="name-help" role="status" hidden>Weka jina lako la kwanza.</p>
+      </div>
+
+      <div class="field">
         <label for="phone-number">
           <span class="section-icon section-icon-phone" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -89,6 +110,7 @@
           inputmode="numeric"
           autocomplete="tel"
           placeholder="0655100259"
+          value="{{savedCustomer.phone}}"
           minlength="10"
           maxlength="10"
           pattern="0[67][0-9]{8}"
@@ -140,6 +162,8 @@
     const button = document.getElementById('continue-button');
     const buttonText = button?.querySelector('.button-text');
     const loading = document.getElementById('payment-loading');
+    const customerName = document.getElementById('customer-name');
+    const nameHelp = document.getElementById('name-help');
     const phone = document.getElementById('phone-number');
     const phoneExample = document.getElementById('phone-example');
     const packageError = document.getElementById('package-error');
@@ -148,10 +172,15 @@
     );
     const phonePattern = /^0[67][0-9]{8}$/;
 
-    if (!form || !button || !buttonText || !phone) return;
+    if (!form || !button || !buttonText || !customerName || !phone) return;
 
     const selectedPackage = () =>
       packageInputs.find((input) => input.checked);
+
+    const nameIsValid = () => {
+      const value = customerName.value.trim();
+      return /^[A-Za-z][A-Za-z' -]{1,39}$/.test(value);
+    };
 
     const phoneIsValid = () => phonePattern.test(phone.value.trim());
 
@@ -160,12 +189,29 @@
 
     const updateButton = () => {
       const plan = selectedPackage();
-      const ready = Boolean(plan && phoneIsValid());
+      const ready = Boolean(plan && nameIsValid() && phoneIsValid());
 
       button.disabled = !ready;
       buttonText.textContent = plan
         ? 'LIPA ' + formatTzs(plan.dataset.price) + ' TZS'
         : 'NUNUA BANDO';
+    };
+
+    const validateName = () => {
+      const valid = nameIsValid();
+
+      customerName.setCustomValidity(
+        valid || customerName.value.length === 0
+          ? ''
+          : 'Weka jina lako la kwanza.'
+      );
+
+      if (nameHelp) {
+        nameHelp.hidden = valid || customerName.value.length === 0;
+      }
+
+      updateButton();
+      return valid;
     };
 
     const validatePhone = () => {
@@ -188,6 +234,27 @@
       return valid;
     };
 
+    try {
+      if (!customerName.value) {
+        customerName.value = localStorage.getItem('solidusWifiCustomerName') || '';
+      }
+
+      if (!phone.value) {
+        phone.value = localStorage.getItem('solidusWifiCustomerPhone') || '';
+      }
+    } catch (error) {
+      // Captive portal browsers may block localStorage; continue without it.
+    }
+
+    customerName.addEventListener('input', () => {
+      customerName.value = customerName.value
+        .replace(/[^A-Za-z' -]/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .slice(0, 40);
+
+      validateName();
+    });
+
     packageInputs.forEach((input) => {
       input.addEventListener('change', () => {
         if (packageError) packageError.hidden = true;
@@ -202,20 +269,36 @@
 
     form.addEventListener('submit', (event) => {
       const plan = selectedPackage();
+      const validName = validateName();
       const validPhone = validatePhone();
 
-      if (!plan || !validPhone) {
+      if (!plan || !validName || !validPhone) {
         event.preventDefault();
 
         if (!plan && packageError) {
           packageError.hidden = false;
         }
 
-        if (!validPhone) {
+        if (!validName) {
+          customerName.focus();
+        } else if (!validPhone) {
           phone.focus();
         }
 
         return;
+      }
+
+      try {
+        localStorage.setItem(
+          'solidusWifiCustomerName',
+          customerName.value.trim()
+        );
+        localStorage.setItem(
+          'solidusWifiCustomerPhone',
+          phone.value.trim()
+        );
+      } catch (error) {
+        // Captive portal browsers may block localStorage; DB still remembers it.
       }
 
       button.disabled = true;
@@ -227,6 +310,8 @@
       }
     });
 
+    validateName();
+    validatePhone();
     updateButton();
   })();
 </script>
