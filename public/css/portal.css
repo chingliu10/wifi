@@ -1189,3 +1189,93 @@ input {
     gap: 9px;
   }
 }
+
+
+/* Compact purchase intro from the approved portal direction. */
+.purchase-intro {
+  margin: 0 0 18px;
+}
+
+.purchase-intro h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.purchase-intro p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Validation is intentionally calm: no red warning block for routine input mistakes. */
+.field-help {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.field-help::before {
+  content: "ⓘ ";
+  color: var(--brand);
+}
+
+.package-error {
+  padding-left: 1px;
+}
+
+/* Keep package options vertical/top-to-bottom on phones. */
+@media (max-width: 520px) {
+  .purchase-intro {
+    margin-bottom: 14px;
+  }
+
+  .purchase-intro h1 {
+    font-size: 27px;
+  }
+
+  .purchase-intro p {
+    margin-top: 5px;
+    font-size: 13px;
+  }
+
+  .portal-form {
+    gap: 14px;
+  }
+
+  .package-grid-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 56px;
+  }
+}
+
+@media (max-height: 650px) and (max-width: 520px) {
+  .purchase-intro {
+    margin-bottom: 10px;
+  }
+
+  .purchase-intro h1 {
+    font-size: 23px;
+  }
+
+  .purchase-intro p {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .portal-form {
+    gap: 9px;
+  }
+
+  .package-grid-compact .package-card-body {
+    min-height: 47px;
+  }
+}
