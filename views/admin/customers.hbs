@@ -1,0 +1,27 @@
+<section class="page-head">
+  <div>
+    <h2>Customers</h2>
+    <p>Devices that have interacted with this client's portal.</p>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Phone</th><th>Paid orders</th><th>Total spent</th><th>Last seen</th></tr></thead>
+      <tbody>
+        {{#each customers}}
+          <tr>
+            <td><strong>{{customer_name}}</strong></td>
+            <td>{{phone}}</td>
+            <td>{{paid_orders}}</td>
+            <td>{{formatTzs total_spent}} TZS</td>
+            <td>{{last_seen}}</td>
+          </tr>
+        {{else}}
+          <tr><td colspan="5" class="empty">No customers yet.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
