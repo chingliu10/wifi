@@ -1,5 +1,5 @@
 <main class="portal">
-  <section class="portal-shell" aria-labelledby="portal-title">
+  <section class="portal-shell" aria-label="Nunua bando la Small Garden WiFi">
     <header class="portal-brand">
       <div class="brand-mark" aria-hidden="true">SG</div>
       <div>
@@ -7,12 +7,6 @@
         <span>WiFi</span>
       </div>
     </header>
-
-    <section class="portal-intro">
-      <p class="eyebrow">HARAKA • RAHISI • MALIPO YA SIMU</p>
-      <h1 id="portal-title"><span class="title-normal">Unganishwa ndani ya sekunde chache</span><span class="title-compact">Nunua Bando</span></h1>
-      <p>Chagua kifurushi, weka namba ya simu itakayolipia, kisha thibitisha ombi la malipo kwenye simu yako.</p>
-    </section>
 
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
@@ -23,31 +17,12 @@
       <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
 
-      <div class="field">
-        <label for="phone-number">Namba ya simu</label>
-        <input
-          id="phone-number"
-          name="phone"
-          type="tel"
-          inputmode="tel"
-          autocomplete="tel"
-          placeholder="Mfano: 0655100259"
-          minlength="10"
-          maxlength="10"
-          pattern="0[67][0-9]{8}"
-          title="Weka namba sahihi ya simu yenye tarakimu 10, mfano 0655100259"
-          required
-        >
-        <p class="field-hint">Weka namba itakayolipia bando. Mfano: 0655100259</p>
-        <p class="field-error" id="phone-error" role="alert" hidden>Weka namba sahihi ya simu. Mfano: 0655100259</p>
-      </div>
-
       <fieldset class="package-fieldset">
         <legend>Chagua kifurushi</legend>
-        <div class="package-grid">
+        <div class="package-grid package-grid-compact">
           {{#each packages}}
             <label class="package-card">
-              <input type="radio" name="packageId" value="{{id}}" {{#if @first}}checked{{/if}} required>
+              <input type="radio" name="packageId" value="{{id}}" required>
               <span class="package-card-body">
                 <span class="package-name">{{formatPackageName name}}</span>
                 <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
@@ -56,18 +31,36 @@
             </label>
           {{/each}}
         </div>
+        <p class="field-error package-error" id="package-error" role="alert" hidden>Chagua kifurushi kwanza.</p>
       </fieldset>
+
+      <div class="field">
+        <label for="phone-number">Namba ya simu</label>
+        <input
+          id="phone-number"
+          name="phone"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="0655100259"
+          minlength="10"
+          maxlength="10"
+          pattern="0[67][0-9]{8}"
+          title="Weka namba sahihi ya simu yenye tarakimu 10, mfano 0655100259"
+          required
+        >
+        <p class="field-error" id="phone-error" role="alert" hidden>Weka namba sahihi ya simu. Mfano: 0655100259</p>
+      </div>
 
       {{#if error}}
         <div class="status-box status-box-error" role="alert">{{error}}</div>
       {{/if}}
 
-      <button class="primary-button" id="continue-button" type="submit">
+      <button class="primary-button" id="continue-button" type="submit" disabled>
         <span class="button-text">NUNUA BANDO</span>
         <span class="button-arrow" aria-hidden="true">→</span>
       </button>
 
-      <p class="portal-footnote">Bando lako litaanza baada ya malipo kuthibitishwa.</p>
       <p class="support-line">Kwa maulizo: <a href="tel:0655100259">0655100259</a></p>
     </form>
   </section>
@@ -88,42 +81,80 @@
     const loading = document.getElementById('payment-loading');
     const phone = document.getElementById('phone-number');
     const phoneError = document.getElementById('phone-error');
+    const packageError = document.getElementById('package-error');
+    const packageInputs = Array.from(
+      document.querySelectorAll('input[name="packageId"]')
+    );
     const phonePattern = /^0[67][0-9]{8}$/;
 
     if (!form || !button || !phone) return;
 
-    const validatePhone = () => {
+    const selectedPackage = () =>
+      packageInputs.find((input) => input.checked);
+
+    const phoneIsValid = () => phonePattern.test(phone.value.trim());
+
+    const updateButton = () => {
+      button.disabled = !(selectedPackage() && phoneIsValid());
+    };
+
+    const validatePhone = ({ showError = false } = {}) => {
       const value = phone.value.trim();
-      const valid = phonePattern.test(value);
+      const valid = phoneIsValid();
 
       phone.setCustomValidity(
         valid ? '' : 'Weka namba sahihi ya simu. Mfano: 0655100259'
       );
 
       if (phoneError) {
-        phoneError.hidden = valid || value.length === 0;
+        phoneError.hidden = !showError || valid || value.length === 0;
       }
 
+      updateButton();
       return valid;
     };
 
+    packageInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (packageError) packageError.hidden = true;
+        updateButton();
+
+        if (!phone.value) {
+          phone.focus({ preventScroll: true });
+        }
+      });
+    });
+
     phone.addEventListener('input', () => {
       phone.value = phone.value.replace(/\D/g, '').slice(0, 10);
+
+      if (phoneError) {
+        phoneError.hidden = true;
+      }
+
       validatePhone();
     });
 
-    phone.addEventListener('blur', validatePhone);
+    phone.addEventListener('blur', () => {
+      validatePhone({ showError: phone.value.length > 0 });
+    });
 
     form.addEventListener('submit', (event) => {
-      if (!validatePhone()) {
+      const packageSelected = Boolean(selectedPackage());
+      const validPhone = validatePhone({ showError: true });
+
+      if (!packageSelected || !validPhone) {
         event.preventDefault();
 
-        if (phoneError) {
-          phoneError.hidden = false;
+        if (!packageSelected && packageError) {
+          packageError.hidden = false;
         }
 
-        phone.reportValidity();
-        phone.focus();
+        if (!validPhone) {
+          phone.reportValidity();
+          phone.focus();
+        }
+
         return;
       }
 
@@ -136,5 +167,7 @@
         loading.setAttribute('aria-hidden', 'false');
       }
     });
+
+    updateButton();
   })();
 </script>
