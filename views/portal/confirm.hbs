@@ -1,29 +1,26 @@
-<main class="portal">
-  <section class="portal-shell portal-shell-state" aria-labelledby="confirm-title">
-    <header class="portal-brand portal-brand-state">
-      <div class="brand-mark" aria-hidden="true">SG</div>
-      <div class="brand-copy">
-        <strong>Small Garden</strong>
-        <span>WiFi</span>
-      </div>
-    </header>
+<main class="portal-app state-page">
+  <section class="portal-hero portal-hero-state">
+    <div class="hero-inner">
+      <div class="hero-logo" aria-hidden="true">SG</div>
+      <h1>Small Garden WiFi</h1>
+      <p>Chagua bando uunganishwe</p>
+    </div>
+  </section>
 
+  <section class="purchase-card state-card-shell" aria-labelledby="confirm-title">
     {{#if error}}
       <section class="state-card payment-state payment-state-error">
         <div class="state-icon state-icon-error" aria-hidden="true">!</div>
-        <h1 id="confirm-title">{{title}}</h1>
-        <p class="state-copy">{{error}}</p>
-
-        <button class="secondary-button" type="button" onclick="history.back()">
-          Rudi nyuma
-        </button>
+        <h2 id="confirm-title">{{title}}</h2>
+        <p>{{error}}</p>
+        <button class="secondary-button" type="button" onclick="history.back()">Rudi nyuma</button>
       </section>
     {{else}}
       {{#if paymentActive}}
         <section class="state-card payment-state payment-state-success">
           <div class="state-icon state-icon-success" aria-hidden="true">✓</div>
-          <h1 id="confirm-title">Umeunganishwa</h1>
-          <p class="state-copy">Internet yako imewashwa.</p>
+          <h2 id="confirm-title">Umeunganishwa</h2>
+          <p>Internet yako imewashwa.</p>
 
           <div class="state-summary">
             <div>
@@ -44,12 +41,10 @@
         <section class="state-card payment-state">
           {{#if paymentInitiated}}
             <div class="state-spinner" aria-hidden="true"></div>
-            <h1 id="confirm-title">Angalia simu yako</h1>
-            <p class="state-copy">
-              Thibitisha malipo ya <strong>{{formatTzs package.price_tzs}} TZS</strong> kwenye simu yako.
-            </p>
+            <h2 id="confirm-title">Angalia simu yako</h2>
+            <p>Thibitisha malipo ya <strong>{{formatTzs package.price_tzs}} TZS</strong> kwenye simu yako.</p>
 
-            <div class="state-summary state-summary-compact">
+            <div class="state-summary">
               <div>
                 <span>Kifurushi</span>
                 <strong>{{formatPackageName package.name}}</strong>
@@ -66,25 +61,14 @@
             </div>
           {{else}}
             <div class="state-icon state-icon-ready" aria-hidden="true">→</div>
-            <h1 id="confirm-title">Tayari kulipa</h1>
-            <p class="state-copy">Tuma ombi la malipo kwenda kwenye simu yako.</p>
-
-            <div class="state-summary state-summary-compact">
-              <div>
-                <span>Kifurushi</span>
-                <strong>{{formatPackageName package.name}}</strong>
-              </div>
-              <div>
-                <span>Jumla</span>
-                <strong>{{formatTzs package.price_tzs}} TZS</strong>
-              </div>
-            </div>
+            <h2 id="confirm-title">Tayari kulipa</h2>
+            <p>Tuma ombi la malipo kwenda kwenye simu yako.</p>
 
             {{#if showPayNow}}
               <form class="portal-action" id="pay-now-form" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
                 <button class="primary-button" id="pay-now-button" type="submit">
                   <span class="button-text">TUMA OMBI LA MALIPO</span>
-                  <span class="button-arrow" aria-hidden="true">→</span>
+                  <span class="button-arrow" aria-hidden="true">›</span>
                 </button>
               </form>
             {{/if}}
@@ -93,7 +77,10 @@
       {{/if}}
     {{/if}}
 
-    <p class="support-line">Msaada / Maulizo: <a href="tel:0655100259">0655100259</a></p>
+    <p class="support-line">
+      <span>Msaada / Maulizo:</span>
+      <a href="tel:0655100259">0655100259</a>
+    </p>
   </section>
 </main>
 
