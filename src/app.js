@@ -466,7 +466,7 @@ app.post('/portal/pay', async (req, res) => {
     if (!/^0[67][0-9]{8}$/.test(normalizedPhoneInput)) {
       return res.status(400).render('portal/confirm', {
         title: 'Malipo',
-        error: 'Weka namba sahihi ya simu. Mfano: 0652992922'
+        error: 'Weka namba sahihi ya simu. Mfano: 0655100259'
       });
     }
 
