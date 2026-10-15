@@ -18,7 +18,7 @@ const {
 const {
   findSubscriptionByPaymentTransactionId
 } = require('./repositories/subscription-repository');
-const { initiatePayment } = require('./services/payments/payment-service');
+const { initiatePayment, checkPaymentStatus } = require('./services/payments/payment-service');
 const {
   activateSubscriptionForPayment
 } = require('./services/subscriptions/subscription-service');
@@ -115,6 +115,10 @@ const mapSplashPayStatus = (payload) => {
     return 'failed';
   }
 
+  if (rawStatus === 'expired' || event.endsWith('.expired')) {
+    return 'expired';
+  }
+
   if (
     rawStatus === 'cancelled' ||
     rawStatus === 'canceled' ||
@@ -167,6 +171,86 @@ const buildPaymentMessage = (transaction, subscription) => {
   return 'Payment status unavailable.';
 };
 
+const reconcileSplashPayPayment = async (transaction) => {
+  if (
+    !transaction ||
+    transaction.provider !== 'splashpay' ||
+    !transaction.provider_reference
+  ) {
+    return transaction;
+  }
+
+  if (transaction.status === 'paid') {
+    try {
+      await activateSubscriptionForPayment(transaction);
+    } catch (error) {
+      console.error('SPLASHPAY STATUS PROVISIONING RETRY ERROR:', error);
+    }
+
+    return findPaymentTransactionByReference(transaction.reference);
+  }
+
+  if (transaction.status !== 'pending') {
+    return transaction;
+  }
+
+  const providerStatus = await checkPaymentStatus({
+    reference: transaction.reference
+  });
+
+  if (
+    providerStatus.reference &&
+    providerStatus.reference !== transaction.reference
+  ) {
+    throw new Error('SplashPay status merchant reference mismatch');
+  }
+
+  if (
+    providerStatus.providerReference &&
+    transaction.provider_reference &&
+    providerStatus.providerReference !== transaction.provider_reference
+  ) {
+    throw new Error('SplashPay status provider reference mismatch');
+  }
+
+  if (
+    providerStatus.currency &&
+    String(providerStatus.currency).toUpperCase() !== 'TZS'
+  ) {
+    throw new Error('SplashPay status currency mismatch');
+  }
+
+  if (
+    providerStatus.amountTzs !== null &&
+    Number(providerStatus.amountTzs) !== Number(transaction.amount_tzs)
+  ) {
+    throw new Error('SplashPay status amount mismatch');
+  }
+
+  const mappedStatus = mapSplashPayStatus({
+    status: providerStatus.status
+  });
+
+  if (!mappedStatus) {
+    return transaction;
+  }
+
+  const updatedTransaction = await updatePaymentStatus({
+    providerReference: transaction.provider_reference,
+    status: mappedStatus
+  });
+
+  const currentTransaction =
+    updatedTransaction ||
+    await findPaymentTransactionByReference(transaction.reference);
+
+  if (currentTransaction.status === 'paid') {
+    await activateSubscriptionForPayment(currentTransaction);
+  }
+
+  return findPaymentTransactionByReference(transaction.reference);
+};
+
 const loadSubscriptionForTransaction = async (transaction) => {
   return findSubscriptionByPaymentTransactionId({
     paymentTransactionId: transaction.id
@@ -191,7 +275,8 @@ app.engine('hbs', engine({
   extname: '.hbs',
   defaultLayout: 'main',
   helpers: {
-    formatTzs: (amount) => Number(amount).toLocaleString('en-US')
+    formatTzs: (amount) => Number(amount).toLocaleString('en-US'),
+    json: (value) => JSON.stringify(value)
   }
 }));
 app.set('view engine', 'hbs');
@@ -408,7 +493,7 @@ app.post('/portal/pay', async (req, res) => {
 
 app.get('/portal/payment/:reference', async (req, res) => {
   try {
-    const transaction = await findPaymentTransactionByReference(
+    let transaction = await findPaymentTransactionByReference(
       req.params.reference
     );
 
@@ -417,6 +502,13 @@ app.get('/portal/payment/:reference', async (req, res) => {
         title: 'Payment not found',
         error: 'Payment transaction was not found.'
       });
+    }
+
+    if (
+      transaction.provider === 'splashpay' &&
+      transaction.provider_reference
+    ) {
+      transaction = await reconcileSplashPayPayment(transaction);
     }
 
     return await renderPaymentStatus(res, transaction);
@@ -477,6 +569,50 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
   }
 });
 
+
+
+app.get('/api/payments/:reference/status', async (req, res) => {
+  try {
+    let transaction = await findPaymentTransactionByReference(
+      req.params.reference
+    );
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment transaction was not found'
+      });
+    }
+
+    if (
+      transaction.provider === 'splashpay' &&
+      transaction.provider_reference
+    ) {
+      transaction = await reconcileSplashPayPayment(transaction);
+    }
+
+    const subscription = await loadSubscriptionForTransaction(transaction);
+
+    return res.json({
+      success: true,
+      reference: transaction.reference,
+      status: transaction.status,
+      provisioningStatus: transaction.provisioning_status,
+      accessActive: Boolean(
+        subscription &&
+        subscription.status === 'active' &&
+        new Date(subscription.expires_at).getTime() > Date.now()
+      )
+    });
+  } catch (error) {
+    console.error('PAYMENT STATUS CHECK ERROR:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to check payment status'
+    });
+  }
+});
 
 
 app.post('/api/payments/splashpay/webhook', async (req, res) => {
