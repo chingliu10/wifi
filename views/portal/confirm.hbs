@@ -60,6 +60,45 @@
 
       {{#if paymentInitiated}}
         <p class="portal-note">Payment request sent. Check your phone to complete the payment.</p>
+        <p class="portal-note" id="payment-waiting">Waiting for payment confirmation...</p>
+        <script>
+          (() => {
+            const reference = {{{json transaction.reference}}};
+            let stopped = false;
+
+            const checkStatus = async () => {
+              if (stopped) return;
+
+              try {
+                const response = await fetch(
+                  '/api/payments/' + encodeURIComponent(reference) + '/status',
+                  { cache: 'no-store' }
+                );
+
+                if (!response.ok) {
+                  throw new Error('Status request failed');
+                }
+
+                const data = await response.json();
+
+                if (
+                  data.status !== 'pending' ||
+                  data.accessActive === true
+                ) {
+                  stopped = true;
+                  window.location.reload();
+                  return;
+                }
+              } catch (error) {
+                // Keep the page usable if a temporary status check fails.
+              }
+
+              setTimeout(checkStatus, 5000);
+            };
+
+            setTimeout(checkStatus, 3000);
+          })();
+        </script>
       {{/if}}
     {{/if}}
   </section>
