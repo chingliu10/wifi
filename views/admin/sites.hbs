@@ -17,10 +17,120 @@
       <dl>
         <div><dt>Devices</dt><dd>{{device_count}}</dd></div>
         <div><dt>Support</dt><dd>{{support_phone}}</dd></div>
-        <div><dt>Portal ID</dt><dd>{{external_portal_site_id}}</dd></div>
+        <div><dt>Omada site ID</dt><dd>{{external_portal_site_id}}</dd></div>
       </dl>
     </article>
   {{else}}
     <div class="empty-state">No sites yet.</div>
   {{/each}}
 </section>
+
+{{#if selectedOrg}}
+<section class="panel device-panel">
+  <div class="panel-head">
+    <div>
+      <h3>Register network device</h3>
+      <p>Add an Omada AP now. MikroTik/OpenWrt can be added later.</p>
+    </div>
+  </div>
+
+  <form method="POST" action="/admin/devices" class="admin-form">
+    <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+    <div class="form-grid device-form-grid">
+      <label>
+        <span>Site</span>
+        <select name="siteId" required>
+          {{#each sites}}
+            <option value="{{id}}">{{name}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>Device name</span>
+        <input name="name" required placeholder="Main Outdoor AP">
+      </label>
+
+      <label>
+        <span>Type</span>
+        <select name="deviceType">
+          <option value="omada">TP-Link Omada</option>
+          <option value="mikrotik">MikroTik</option>
+          <option value="openwrt">OpenWrt</option>
+          <option value="radius">Other RADIUS device</option>
+        </select>
+      </label>
+
+      <label>
+        <span>AP MAC address</span>
+        <input name="apMac" required placeholder="10:5A:95:51:F0:C4">
+      </label>
+
+      <label>
+        <span>Brand</span>
+        <input name="brand" placeholder="TP-Link Omada">
+      </label>
+
+      <label>
+        <span>Model</span>
+        <input name="model" placeholder="EAP225-Outdoor">
+      </label>
+
+      <label>
+        <span>NAS identifier</span>
+        <input name="nasIdentifier" placeholder="small-garden-eap225">
+      </label>
+
+      <label>
+        <span>Management IP</span>
+        <input name="managementIp" placeholder="192.168.1.2">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Register device</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel table-panel device-table-panel">
+  <div class="panel-head">
+    <div>
+      <h3>Registered devices</h3>
+      <p>Hardware mapped to this client.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Device</th>
+          <th>Site</th>
+          <th>Type</th>
+          <th>AP MAC</th>
+          <th>Management IP</th>
+          <th>NAS identifier</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each devices}}
+          <tr>
+            <td><strong>{{name}}</strong><small>{{brand}} {{model}}</small></td>
+            <td>{{site_name}}</td>
+            <td>{{device_type}}</td>
+            <td><code>{{ap_mac}}</code></td>
+            <td>{{management_ip}}</td>
+            <td><code>{{nas_identifier}}</code></td>
+            <td><span class="status-pill status-paid">{{#if active}}active{{else}}disabled{{/if}}</span></td>
+          </tr>
+        {{else}}
+          <tr><td colspan="7" class="empty">No network devices registered yet.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{/if}}
