@@ -30,6 +30,7 @@ const normalizePhone = (phone) => {
 
 const initiatePayment = async ({
   reference,
+  customerName,
   phone,
   amountTzs,
   packageData,
@@ -37,8 +38,13 @@ const initiatePayment = async ({
 }) => {
   const apiKey = requiredEnv('SPLASHPAY_API_KEY');
   const apiSecret = requiredEnv('SPLASHPAY_API_SECRET');
-  const customerName = requiredEnv('SPLASHPAY_CUSTOMER_NAME');
-  const customerEmail = requiredEnv('SPLASHPAY_CUSTOMER_EMAIL');
+  const normalizedCustomerName = String(customerName || '').trim();
+  const customerEmail =
+    process.env.SPLASHPAY_CUSTOMER_EMAIL || 'info@soliduslogic.co.tz';
+
+  if (!normalizedCustomerName) {
+    throw new Error('Customer name is required for SplashPay');
+  }
 
   const baseUrl = (process.env.SPLASHPAY_BASE_URL || SPLASHPAY_DEFAULT_BASE_URL)
     .replace(/\/$/, '');
@@ -48,7 +54,7 @@ const initiatePayment = async ({
     currency: 'TZS',
     reference,
     phone: normalizePhone(phone),
-    customer_name: customerName,
+    customer_name: normalizedCustomerName,
     customer_email: customerEmail,
     metadata: {
       clientMac,
