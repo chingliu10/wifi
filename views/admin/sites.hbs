@@ -10,7 +10,7 @@
   <div class="panel-head">
     <div>
       <h3>Create site</h3>
-      <p>A site is one physical WiFi location.</p>
+      <p>Create the physical WiFi location first. Solidus will discover the Omada IDs automatically.</p>
     </div>
   </div>
 
@@ -37,11 +37,6 @@
         <span>Brand colour</span>
         <input name="primaryColor" value="#0B6B47" placeholder="#0B6B47">
       </label>
-
-      <label>
-        <span>Controller / external site ID</span>
-        <input name="externalPortalSiteId" placeholder="Optional Omada site ID">
-      </label>
     </div>
 
     <div class="form-actions">
@@ -50,101 +45,97 @@
   </form>
 </section>
 
-<section class="card-grid site-list">
+<section class="site-onboarding-list">
   {{#each sites}}
-    <article class="site-card">
-      <div class="site-card-top">
-        <div class="site-icon">⌂</div>
-        <span class="status-pill status-paid">{{#if active}}active{{else}}disabled{{/if}}</span>
+    <article class="site-connect-card">
+      <div class="site-connect-head">
+        <div>
+          <div class="site-title-row">
+            <div class="site-icon">⌂</div>
+            <div>
+              <h3>{{name}}</h3>
+              <p>{{brand_name}}</p>
+            </div>
+          </div>
+        </div>
+
+        {{#if omada_connected}}
+          <span class="connection-badge connected">Omada connected</span>
+        {{else}}
+          <span class="connection-badge waiting">Waiting for Omada</span>
+        {{/if}}
       </div>
-      <h3>{{name}}</h3>
-      <p>{{brand_name}}</p>
-      <dl>
-        <div><dt>Devices</dt><dd>{{device_count}}</dd></div>
-        <div><dt>Support</dt><dd>{{support_phone}}</dd></div>
-        <div><dt>Controller site ID</dt><dd>{{external_portal_site_id}}</dd></div>
-      </dl>
+
+      <div class="site-meta-grid">
+        <div>
+          <span>Devices</span>
+          <strong>{{device_count}}</strong>
+        </div>
+        <div>
+          <span>Support</span>
+          <strong>{{support_phone}}</strong>
+        </div>
+        <div>
+          <span>Omada site</span>
+          <strong>{{#if external_portal_site_id}}Detected{{else}}Not detected yet{{/if}}</strong>
+        </div>
+      </div>
+
+      <div class="connect-omada">
+        <div class="connect-copy">
+          <h4>{{#if omada_connected}}Portal URL{{else}}Connect TP-Link Omada{{/if}}</h4>
+          {{#if omada_connected}}
+            <p>Keep this URL configured as the site's External Portal Server.</p>
+          {{else}}
+            <p>Paste this URL into the Omada External Portal Server. Then connect one phone to the WiFi. Solidus will capture the Omada site ID, AP MAC and SSID automatically.</p>
+          {{/if}}
+        </div>
+
+        <div class="setup-url-row">
+          <input
+            id="setup-url-{{id}}"
+            type="text"
+            readonly
+            value="{{setup_url}}"
+            aria-label="Omada setup URL for {{name}}"
+          >
+          <button
+            class="copy-button"
+            type="button"
+            data-copy-target="setup-url-{{id}}"
+          >
+            Copy URL
+          </button>
+        </div>
+
+        {{#unless omada_connected}}
+          <ol class="setup-steps">
+            <li>Open the Omada Controller for this location.</li>
+            <li>Open the portal settings and choose <strong>External Portal Server</strong>.</li>
+            <li>Paste the URL above and save.</li>
+            <li>Connect a phone to the WiFi once.</li>
+            <li>Return here. The site and AP will appear automatically.</li>
+          </ol>
+        {{/unless}}
+
+        {{#if external_portal_site_id}}
+          <div class="detected-id">
+            <span>Detected controller site ID</span>
+            <code>{{external_portal_site_id}}</code>
+          </div>
+        {{/if}}
+      </div>
     </article>
   {{else}}
     <div class="empty-state">No sites yet. Create the first site above.</div>
   {{/each}}
 </section>
 
-{{#if sites}}
-<section class="panel device-panel">
-  <div class="panel-head">
-    <div>
-      <h3>Register network device</h3>
-      <p>Map a physical AP/router to one of this client's sites.</p>
-    </div>
-  </div>
-
-  <form method="POST" action="/admin/devices" class="admin-form">
-    <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
-
-    <div class="form-grid device-form-grid">
-      <label>
-        <span>Site</span>
-        <select name="siteId" required>
-          {{#each sites}}
-            <option value="{{id}}">{{name}}</option>
-          {{/each}}
-        </select>
-      </label>
-
-      <label>
-        <span>Device name</span>
-        <input name="name" required placeholder="Main Outdoor AP">
-      </label>
-
-      <label>
-        <span>Type</span>
-        <select name="deviceType">
-          <option value="omada">TP-Link Omada</option>
-          <option value="mikrotik">MikroTik</option>
-          <option value="openwrt">OpenWrt</option>
-          <option value="radius">Other RADIUS device</option>
-        </select>
-      </label>
-
-      <label>
-        <span>AP MAC address</span>
-        <input name="apMac" required placeholder="10:5A:95:51:F0:C4">
-      </label>
-
-      <label>
-        <span>Brand</span>
-        <input name="brand" placeholder="TP-Link">
-      </label>
-
-      <label>
-        <span>Model</span>
-        <input name="model" placeholder="EAP225-Outdoor">
-      </label>
-
-      <label>
-        <span>NAS identifier</span>
-        <input name="nasIdentifier" placeholder="small-garden-eap225">
-      </label>
-
-      <label>
-        <span>Management IP</span>
-        <input name="managementIp" placeholder="192.168.1.2">
-      </label>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit">Register device</button>
-    </div>
-  </form>
-</section>
-{{/if}}
-
 <section class="panel table-panel device-table-panel">
   <div class="panel-head">
     <div>
-      <h3>Registered devices</h3>
-      <p>Hardware mapped to this client.</p>
+      <h3>Detected network devices</h3>
+      <p>Omada access points appear here automatically after a device reaches the captive portal.</p>
     </div>
   </div>
 
@@ -154,12 +145,11 @@
         <tr>
           <th>Device</th>
           <th>Site</th>
-          <th>Type</th>
+          <th>SSID</th>
           <th>AP MAC</th>
-          <th>Management IP</th>
-          <th>NAS identifier</th>
+          <th>Type</th>
+          <th>Last portal seen</th>
           <th>Status</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -167,23 +157,41 @@
           <tr>
             <td><strong>{{name}}</strong><small>{{brand}} {{model}}</small></td>
             <td>{{site_name}}</td>
-            <td>{{device_type}}</td>
+            <td>{{ssid_name}}</td>
             <td><code>{{ap_mac}}</code></td>
-            <td>{{management_ip}}</td>
-            <td><code>{{nas_identifier}}</code></td>
-            <td><span class="status-pill status-paid">{{#if active}}registered{{else}}disabled{{/if}}</span></td>
-            <td>
-              <form method="POST" action="/admin/devices/{{id}}/delete" onsubmit="return confirm('Remove this registered device?');">
-                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
-                <button class="danger-button" type="submit">Remove</button>
-              </form>
-            </td>
+            <td>{{device_type}}</td>
+            <td>{{#if last_seen_at}}{{formatDate last_seen_at}}{{else}}—{{/if}}</td>
+            <td><span class="status-pill status-paid">{{#if active}}detected{{else}}disabled{{/if}}</span></td>
           </tr>
         {{else}}
-          <tr><td colspan="8" class="empty">No network devices registered yet.</td></tr>
+          <tr><td colspan="7" class="empty">No access point has been detected yet.</td></tr>
         {{/each}}
       </tbody>
     </table>
   </div>
 </section>
 {{/if}}
+
+<script>
+  (() => {
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const input = document.getElementById(button.dataset.copyTarget);
+
+        if (!input) return;
+
+        try {
+          await navigator.clipboard.writeText(input.value);
+          const original = button.textContent;
+          button.textContent = 'Copied';
+          setTimeout(() => {
+            button.textContent = original;
+          }, 1400);
+        } catch (error) {
+          input.select();
+          document.execCommand('copy');
+        }
+      });
+    });
+  })();
+</script>
