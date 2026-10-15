@@ -558,3 +558,201 @@ input {
 .support-line a:hover {
   text-decoration: underline;
 }
+
+
+/* Short screens: keep the whole purchase flow reachable without cramped content. */
+@media (max-height: 700px) {
+  .portal {
+    place-items: start center;
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+
+  .portal-shell {
+    padding-top: 20px;
+    padding-bottom: 22px;
+  }
+
+  .portal-brand {
+    margin-bottom: 20px;
+  }
+
+  .portal-intro h1,
+  .payment-state h1 {
+    font-size: 30px;
+  }
+
+  .portal-intro > p:last-child,
+  .state-copy {
+    margin-top: 10px;
+    line-height: 1.45;
+  }
+
+  .portal-form {
+    gap: 18px;
+    margin-top: 22px;
+  }
+
+  .package-grid {
+    gap: 8px;
+  }
+
+  .package-card-body {
+    min-height: 58px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .field input,
+  .primary-button,
+  .secondary-button {
+    min-height: 48px;
+    height: 48px;
+  }
+
+  .receipt-card {
+    margin-top: 20px;
+  }
+
+  .state-icon,
+  .state-spinner {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-height: 560px) {
+  .portal {
+    padding-top: 8px;
+    padding-bottom: 12px;
+  }
+
+  .portal-shell {
+    padding: 16px 18px 20px;
+  }
+
+  .portal-brand {
+    margin-bottom: 14px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .portal-intro h1,
+  .payment-state h1 {
+    font-size: 27px;
+  }
+
+  .eyebrow {
+    margin-bottom: 6px;
+    font-size: 10px;
+  }
+
+  .portal-form {
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .field {
+    gap: 6px;
+  }
+
+  .field-hint,
+  .portal-footnote {
+    font-size: 11px;
+  }
+
+  .package-fieldset legend {
+    margin-bottom: 7px;
+  }
+
+  .package-card-body {
+    min-height: 52px;
+    padding: 8px 42px 8px 12px;
+  }
+
+  .package-price {
+    font-size: 16px;
+  }
+
+  .primary-button,
+  .secondary-button {
+    min-height: 46px;
+    height: 46px;
+  }
+
+  .status-box {
+    margin-top: 14px;
+    padding: 10px 12px;
+  }
+
+  .receipt-card {
+    margin-top: 16px;
+  }
+
+  .receipt-card > div {
+    padding: 10px 12px;
+  }
+
+  .technical-details {
+    margin-top: 14px;
+  }
+
+  .support-line {
+    margin-top: 12px;
+  }
+}
+
+/* Landscape phones are often very short even when their width is large. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .portal {
+    display: block;
+    min-height: 100%;
+    padding: 8px 14px 12px;
+  }
+
+  .portal-shell {
+    width: min(100%, 760px);
+    margin: 0 auto;
+  }
+
+  .portal-brand {
+    margin-bottom: 12px;
+  }
+
+  .portal-intro h1,
+  .payment-state h1 {
+    font-size: 25px;
+  }
+
+  .portal-intro > p:last-child,
+  .state-copy {
+    font-size: 13px;
+  }
+
+  .portal-form {
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .package-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .package-card-body {
+    min-height: 50px;
+    padding: 8px 34px 8px 10px;
+  }
+
+  .package-name {
+    font-size: 12px;
+  }
+
+  .package-price {
+    font-size: 14px;
+  }
+}
