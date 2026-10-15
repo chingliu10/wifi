@@ -342,6 +342,11 @@ const renderPaymentStatus = async (res, transaction, title = 'Payment status') =
     title,
     transaction,
     package: buildPackageView(transaction),
+    siteConfig: {
+      brand_name: transaction.site_brand_name || 'WiFi',
+      support_phone: transaction.site_support_phone || '',
+      primary_color: transaction.site_primary_color || '#07633f'
+    },
     subscription,
     message: buildPaymentMessage(transaction, subscription),
     paymentActive,
