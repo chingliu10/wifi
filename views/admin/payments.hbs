@@ -1,0 +1,28 @@
+<section class="page-head">
+  <div>
+    <h2>Payments</h2>
+    <p>Latest customer payments.</p>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Customer</th><th>Site</th><th>Package</th><th>Amount</th><th>Status</th><th>Reference</th></tr></thead>
+      <tbody>
+        {{#each payments}}
+          <tr>
+            <td><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
+            <td>{{site_name}}</td>
+            <td>{{formatPackageName package_name}}</td>
+            <td>{{formatTzs amount_tzs}} TZS</td>
+            <td><span class="status-pill status-{{status}}">{{status}}</span></td>
+            <td><code>{{reference}}</code></td>
+          </tr>
+        {{else}}
+          <tr><td colspan="6" class="empty">No payments yet.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
