@@ -53,7 +53,7 @@
             <label for="org">Client</label>
             <select id="org" name="org" onchange="this.form.submit()">
               {{#each organizations}}
-                <option value="{{id}}">{{name}}</option>
+                <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
               {{/each}}
             </select>
           </form>
