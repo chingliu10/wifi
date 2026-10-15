@@ -142,34 +142,34 @@ const buildPackageView = (transaction) => ({
 
 const buildPaymentMessage = (transaction, subscription) => {
   if (transaction.status === 'paid' && subscription && subscription.status === 'active') {
-    return 'Payment successful. Internet access activated.';
+    return 'Malipo yamefanikiwa. Internet imewashwa.';
   }
 
   if (transaction.status === 'paid') {
-    return 'Payment received. Preparing your internet access.';
+    return 'Malipo yamepokelewa. Tunaandaa internet yako.';
   }
 
   if (transaction.status === 'pending' && transaction.provider_reference) {
-    return 'Payment request sent. Please complete payment on your phone.';
+    return 'Ombi la malipo limetumwa. Tafadhali thibitisha kwenye simu yako.';
   }
 
   if (transaction.status === 'pending') {
-    return 'Payment request ready';
+    return 'Ombi la malipo liko tayari';
   }
 
   if (transaction.status === 'failed') {
-    return 'Payment failed. Please try again.';
+    return 'Malipo hayajakamilika. Tafadhali jaribu tena.';
   }
 
   if (transaction.status === 'cancelled') {
-    return 'Payment was cancelled.';
+    return 'Malipo yamekatishwa.';
   }
 
   if (transaction.status === 'expired') {
-    return 'Payment request expired.';
+    return 'Ombi la malipo limeisha muda.';
   }
 
-  return 'Payment status unavailable.';
+  return 'Hali ya malipo haipatikani kwa sasa.';
 };
 
 const reconcileSplashPayPayment = async (transaction) => {
@@ -288,6 +288,15 @@ app.engine('hbs', engine({
   defaultLayout: 'main',
   helpers: {
     formatTzs: (amount) => Number(amount).toLocaleString('en-US'),
+    formatPackageName: (name) => {
+      const labels = {
+        '7 Hours': 'Masaa 7',
+        '24 Hours': 'Masaa 24',
+        '30 Days': 'Siku 30'
+      };
+
+      return labels[name] || name;
+    },
     formatDate: (value) => {
       const date = new Date(value);
 
@@ -405,7 +414,7 @@ app.get('/portal', async (req, res) => {
         title: 'Small Garden WiFi',
         packages: result.rows,
         portal: portalContext,
-        error: 'Missing client MAC address from portal request.'
+        error: 'Imeshindikana kutambua kifaa chako. Tafadhali unganisha kwenye WiFi ya Small Garden kisha ujaribu tena.'
       });
     }
 
@@ -426,7 +435,7 @@ app.get('/portal', async (req, res) => {
     res.status(500).render('portal/index', {
       title: 'Small Garden WiFi',
       packages: [],
-      error: 'Unable to load packages. Please try again later.'
+      error: 'Imeshindikana kufungua vifurushi. Tafadhali jaribu tena.'
     });
   }
 });
@@ -448,7 +457,7 @@ app.post('/portal/pay', async (req, res) => {
     if (!phone || !packageId || !clientMac || !deviceId) {
       return res.status(400).render('portal/confirm', {
         title: 'Payment request',
-        error: 'Phone number, package, client MAC, and device ID are required.'
+        error: 'Tafadhali weka namba ya simu na uchague kifurushi.'
       });
     }
 
@@ -457,7 +466,7 @@ app.post('/portal/pay', async (req, res) => {
     if (!normalizedClientMac) {
       return res.status(400).render('portal/confirm', {
         title: 'Payment request',
-        error: 'Client MAC address is invalid.'
+        error: 'Imeshindikana kutambua kifaa chako. Tafadhali unganisha tena kwenye WiFi.'
       });
     }
 
@@ -481,7 +490,7 @@ app.post('/portal/pay', async (req, res) => {
     if (!packageData) {
       return res.status(400).render('portal/confirm', {
         title: 'Payment request',
-        error: 'Selected package is not available.'
+        error: 'Kifurushi ulichochagua hakipatikani kwa sasa.'
       });
     }
 
@@ -519,14 +528,14 @@ app.post('/portal/pay', async (req, res) => {
     return await renderPaymentStatus(
       res,
       currentTransaction,
-      'Check your phone'
+      'Angalia simu yako'
     );
   } catch (error) {
     console.error('PORTAL PAY ERROR:', error);
 
     res.status(500).render('portal/confirm', {
       title: 'Payment request',
-      error: 'Unable to prepare payment request. Please try again later.'
+      error: 'Imeshindikana kuandaa malipo. Tafadhali jaribu tena.'
     });
   }
 });
@@ -539,8 +548,8 @@ app.get('/portal/payment/:reference', async (req, res) => {
 
     if (!transaction) {
       return res.status(404).render('portal/confirm', {
-        title: 'Payment not found',
-        error: 'Payment transaction was not found.'
+        title: 'Malipo hayajapatikana',
+        error: 'Muamala wa malipo haujapatikana.'
       });
     }
 
@@ -556,8 +565,8 @@ app.get('/portal/payment/:reference', async (req, res) => {
     console.error('PORTAL PAYMENT LOOKUP ERROR:', error);
 
     res.status(500).render('portal/confirm', {
-      title: 'Payment status',
-      error: 'Unable to load payment status. Please try again later.'
+      title: 'Hali ya malipo',
+      error: 'Imeshindikana kuangalia hali ya malipo. Tafadhali jaribu tena.'
     });
   }
 });
@@ -570,8 +579,8 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
 
     if (!transaction) {
       return res.status(404).render('portal/confirm', {
-        title: 'Payment not found',
-        error: 'Payment transaction was not found.'
+        title: 'Malipo hayajapatikana',
+        error: 'Muamala wa malipo haujapatikana.'
       });
     }
 
@@ -603,8 +612,8 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
     console.error('PORTAL PAYMENT INITIATE ERROR:', error);
 
     res.status(500).render('portal/confirm', {
-      title: 'Payment status',
-      error: 'Unable to initiate payment. Please try again later.'
+      title: 'Hali ya malipo',
+      error: 'Imeshindikana kutuma ombi la malipo. Tafadhali jaribu tena.'
     });
   }
 });
