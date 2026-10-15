@@ -1,19 +1,19 @@
 :root {
-  --bg: #eef4ef;
+  --bg: #edf3f0;
   --surface: #ffffff;
-  --surface-soft: #f6f8f6;
-  --text: #17211b;
-  --muted: #68736c;
-  --line: #dce4de;
-  --brand: #173f2b;
-  --brand-strong: #0f3321;
-  --brand-soft: #e4f0e8;
-  --success: #176b3a;
-  --success-soft: #e8f5ec;
-  --danger: #a33225;
-  --danger-soft: #fff0ed;
+  --surface-soft: #f5f8f6;
+  --text: #142019;
+  --muted: #718078;
+  --line: #dce5df;
+  --brand: #0d6b46;
+  --brand-dark: #084d33;
+  --brand-soft: #e4f6ee;
+  --success: #13b982;
+  --success-soft: #ddf7ed;
+  --danger: #a63a2f;
+  --danger-soft: #fff1ef;
   --warning-soft: #fff8e8;
-  --shadow: 0 22px 60px rgba(20, 54, 36, 0.12);
+  --shadow: 0 18px 45px rgba(12, 49, 33, 0.10);
 }
 
 * {
@@ -30,9 +30,7 @@ body {
   margin: 0;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(76, 136, 98, 0.12), transparent 34rem),
-    var(--bg);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,131 +40,81 @@ input {
 }
 
 .portal {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+  padding: 16px;
 }
 
 .portal-shell {
-  width: min(100%, 470px);
-  padding: 30px;
-  border: 1px solid rgba(220, 228, 222, 0.9);
+  width: min(100%, 430px);
+  padding: 22px;
+  border: 1px solid rgba(220, 229, 223, 0.95);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
   box-shadow: var(--shadow);
 }
 
 .portal-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 30px;
-}
-
-.portal-brand > div:last-child {
-  display: grid;
-  gap: 1px;
-}
-
-.portal-brand strong {
-  font-size: 15px;
-  line-height: 1.1;
-}
-
-.portal-brand span {
-  color: var(--muted);
-  font-size: 13px;
+  gap: 11px;
+  margin: 0 0 18px;
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
   border-radius: 13px;
   color: #fff;
   background: var(--brand);
   font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
-.portal-intro,
-.payment-state {
+.brand-copy {
   display: grid;
+  gap: 1px;
 }
 
-.eyebrow {
-  margin: 0 0 8px;
-  color: var(--success);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+.brand-copy strong {
+  font-size: 15px;
+  line-height: 1.05;
 }
 
-.portal-intro h1,
+.brand-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.purchase-intro {
+  margin: 0 0 18px;
+}
+
+.purchase-intro h1,
 .payment-state h1 {
   margin: 0;
-  font-size: clamp(30px, 8vw, 42px);
-  line-height: 1.04;
+  color: var(--text);
+  font-size: 29px;
+  line-height: 1.05;
   letter-spacing: -0.035em;
 }
 
-.portal-intro > p:last-child,
+.purchase-intro p,
 .state-copy {
-  margin: 14px 0 0;
+  margin: 7px 0 0;
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .portal-form {
   display: grid;
-  gap: 24px;
-  margin-top: 30px;
-}
-
-.field {
-  display: grid;
-  gap: 8px;
-}
-
-.field label,
-.package-fieldset legend {
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 750;
-}
-
-.field input {
-  width: 100%;
-  height: 54px;
-  padding: 0 15px;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  outline: none;
-  color: var(--text);
-  background: var(--surface);
-  font-size: 16px;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.field input:focus {
-  border-color: #4c8862;
-  box-shadow: 0 0 0 4px rgba(76, 136, 98, 0.12);
-}
-
-.field input::placeholder {
-  color: #98a29c;
-}
-
-.field-hint,
-.portal-footnote {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  gap: 15px;
 }
 
 .package-fieldset {
@@ -176,13 +124,17 @@ input {
   border: 0;
 }
 
-.package-fieldset legend {
-  margin-bottom: 10px;
+.package-fieldset legend,
+.field label {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .package-grid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .package-card {
@@ -198,82 +150,118 @@ input {
 }
 
 .package-card-body {
-  min-height: 68px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 46px 14px 15px;
+  gap: 12px;
+  padding: 10px 42px 10px 13px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 13px;
   background: var(--surface);
-  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 
 .package-card:hover .package-card-body {
-  border-color: #b7c8bc;
+  border-color: #b8c9bf;
 }
 
 .package-card input:focus-visible + .package-card-body {
-  box-shadow: 0 0 0 4px rgba(76, 136, 98, 0.12);
+  box-shadow: 0 0 0 3px rgba(13, 107, 70, 0.12);
 }
 
 .package-card input:checked + .package-card-body {
-  border-color: #4c8862;
+  border-color: var(--success);
   background: var(--brand-soft);
 }
 
 .package-name {
-  font-size: 14px;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .package-price {
-  font-size: 18px;
-  font-weight: 850;
-  letter-spacing: -0.025em;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .package-price small {
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.05em;
+  margin-left: 2px;
+  font-size: 8px;
+  font-weight: 800;
 }
 
 .package-check {
   position: absolute;
   top: 50%;
-  right: 15px;
-  width: 22px;
-  height: 22px;
+  right: 12px;
+  width: 19px;
+  height: 19px;
   display: grid;
   place-items: center;
-  transform: translateY(-50%) scale(0.85);
-  border: 1px solid #b9c6bd;
+  transform: translateY(-50%);
+  border: 1px solid #c4d0c9;
   border-radius: 50%;
   color: transparent;
-  background: var(--surface);
-  font-size: 12px;
+  background: #fff;
+  font-size: 10px;
   font-weight: 900;
-  transition: all 140ms ease;
 }
 
 .package-card input:checked ~ .package-check {
-  transform: translateY(-50%) scale(1);
   border-color: var(--brand);
   color: #fff;
   background: var(--brand);
 }
 
+.field {
+  display: grid;
+}
+
+.field input {
+  width: 100%;
+  height: 50px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 16px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field input::placeholder {
+  color: #a2ada7;
+}
+
+.field input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(13, 107, 70, 0.10);
+}
+
+.field-help {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.field-help::before {
+  content: "ⓘ ";
+  color: var(--brand);
+}
+
 .primary-button,
 .secondary-button {
   width: 100%;
-  min-height: 54px;
-  border-radius: 14px;
-  padding: 0 17px;
-  font-weight: 800;
+  min-height: 50px;
+  border-radius: 12px;
+  padding: 0 15px;
+  font-weight: 900;
   cursor: pointer;
-  transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
 }
 
 .primary-button {
@@ -282,11 +270,12 @@ input {
   justify-content: space-between;
   border: 0;
   color: #fff;
-  background: var(--brand);
+  background: var(--success);
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .primary-button:hover {
-  background: var(--brand-strong);
+  background: #0fa977;
 }
 
 .primary-button:active,
@@ -295,8 +284,9 @@ input {
 }
 
 .primary-button:disabled {
-  cursor: wait;
-  opacity: 0.72;
+  cursor: not-allowed;
+  color: #f1f4f2;
+  background: #aab8b1;
 }
 
 .button-arrow {
@@ -308,20 +298,27 @@ input {
   margin-top: 18px;
   border: 1px solid var(--line);
   color: var(--text);
-  background: var(--surface);
+  background: #fff;
 }
 
-.portal-action {
-  margin-top: 22px;
+.support-line {
+  margin: -1px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.support-line a {
+  color: var(--brand);
+  font-weight: 900;
+  text-decoration: none;
 }
 
 .status-box {
-  margin-top: 20px;
-  padding: 13px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .status-box-error {
@@ -329,27 +326,87 @@ input {
   background: var(--danger-soft);
 }
 
-.status-box-success {
-  color: var(--success);
-  background: var(--success-soft);
+.payment-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 40, 27, 0.42);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
-.status-box-waiting {
-  color: #6d551a;
-  background: var(--warning-soft);
+.payment-loading.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.payment-loading-card {
+  width: min(100%, 290px);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 20px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.payment-loading-card strong {
+  font-size: 16px;
+}
+
+.payment-loading-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.portal-shell-state {
+  padding-bottom: 18px;
+}
+
+.portal-brand-state {
+  margin-bottom: 16px;
+}
+
+.state-card {
+  min-height: 330px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 26px 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 12px 30px rgba(16, 48, 34, 0.07);
+  text-align: center;
+}
+
+.state-copy {
+  max-width: 290px;
+  font-size: 13px;
+}
+
+.state-copy strong {
+  color: var(--text);
 }
 
 .state-icon,
 .state-spinner {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 22px;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 18px;
 }
 
 .state-icon {
   display: grid;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 50%;
   font-size: 25px;
   font-weight: 900;
 }
@@ -360,8 +417,9 @@ input {
 }
 
 .state-icon-success {
-  color: var(--success);
-  background: var(--success-soft);
+  color: #fff;
+  background: var(--success);
+  box-shadow: 0 0 0 8px var(--success-soft);
 }
 
 .state-icon-error {
@@ -370,115 +428,280 @@ input {
 }
 
 .state-spinner {
-  border: 5px solid #e5ebe6;
-  border-top-color: var(--brand);
+  border: 5px solid #d9f4e9;
+  border-top-color: var(--success);
   border-radius: 50%;
   animation: spin 900ms linear infinite;
 }
 
-.receipt-card {
+.state-summary {
+  width: 100%;
   display: grid;
-  margin-top: 28px;
+  gap: 0;
+  margin-top: 22px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 13px;
   background: var(--surface-soft);
+  text-align: left;
 }
 
-.receipt-card > div {
+.state-summary > div {
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 15px;
+  gap: 14px;
+  padding: 11px 12px;
 }
 
-.receipt-card > div + div {
+.state-summary > div + div {
   border-top: 1px solid var(--line);
 }
 
-.receipt-card span {
+.state-summary span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.receipt-card strong {
+.state-summary strong {
   min-width: 0;
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   text-align: right;
   overflow-wrap: anywhere;
 }
 
-.payment-state .portal-footnote {
-  margin-top: 16px;
-  text-align: center;
+.state-summary-compact {
+  max-width: 310px;
 }
 
-.technical-details {
-  margin-top: 22px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.technical-details summary {
-  cursor: pointer;
-  text-align: center;
-}
-
-.technical-details dl {
-  display: grid;
-  gap: 8px;
+.state-note {
   margin: 14px 0 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
-.technical-details dl div {
-  display: grid;
-  gap: 3px;
+.waiting-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
-.technical-details dt {
-  font-weight: 750;
+.waiting-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
-.technical-details dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+.portal-action {
+  width: 100%;
+  margin-top: 18px;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
 @media (max-width: 520px) {
   .portal {
     place-items: start center;
-    padding-left: 0;
-    padding-right: 0;
-    padding-bottom: 0;
+    padding: 0;
+    background: #fff;
   }
 
   .portal-shell {
-    min-height: 100vh;
-    padding: 24px 20px 30px;
+    width: 100%;
+    min-height: 100dvh;
+    padding: 14px 18px 16px;
     border: 0;
     border-radius: 0;
     box-shadow: none;
   }
 
   .portal-brand {
-    margin-bottom: 34px;
+    margin-bottom: 12px;
   }
 
-  .portal-intro h1,
+  .purchase-intro {
+    margin-bottom: 13px;
+  }
+
+  .purchase-intro h1,
   .payment-state h1 {
-    font-size: 36px;
+    font-size: 25px;
+  }
+
+  .purchase-intro p {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .portal-form {
+    gap: 12px;
+  }
+
+  .package-grid {
+    gap: 6px;
+  }
+
+  .package-card-body {
+    min-height: 52px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .field input,
+  .primary-button,
+  .secondary-button {
+    min-height: 47px;
+    height: 47px;
+  }
+
+  .state-card {
+    min-height: 320px;
+    padding: 24px 16px;
+  }
+
+  .portal-shell-state .support-line {
+    margin-top: 12px;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 520px) {
+  .portal-shell {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .portal-brand {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .brand-copy strong {
+    font-size: 13px;
+  }
+
+  .brand-copy span {
+    font-size: 10px;
+  }
+
+  .purchase-intro {
+    margin-bottom: 8px;
+  }
+
+  .purchase-intro h1,
+  .payment-state h1 {
+    font-size: 21px;
+  }
+
+  .purchase-intro p {
+    font-size: 11px;
+  }
+
+  .portal-form {
+    gap: 8px;
+  }
+
+  .package-fieldset legend,
+  .field label {
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+
+  .package-grid {
+    gap: 4px;
+  }
+
+  .package-card-body {
+    min-height: 44px;
+    padding: 6px 38px 6px 11px;
+    border-radius: 10px;
+  }
+
+  .package-name {
+    font-size: 11px;
+  }
+
+  .package-price {
+    font-size: 14px;
+  }
+
+  .package-check {
+    right: 10px;
+    width: 17px;
+    height: 17px;
+  }
+
+  .field input,
+  .primary-button {
+    min-height: 42px;
+    height: 42px;
+    border-radius: 10px;
+  }
+
+  .support-line {
+    font-size: 10px;
+  }
+
+  .state-card {
+    min-height: 285px;
+  }
+}
+
+@media (max-height: 520px) and (max-width: 520px) {
+  .purchase-intro p {
+    display: none;
+  }
+
+  .portal-brand {
+    margin-bottom: 5px;
+  }
+
+  .purchase-intro {
+    margin-bottom: 5px;
+  }
+
+  .portal-form {
+    gap: 6px;
+  }
+
+  .package-card-body {
+    min-height: 40px;
+  }
+
+  .field input,
+  .primary-button {
+    min-height: 40px;
+    height: 40px;
+  }
+
+  .field-help {
+    font-size: 9px;
+  }
+
+  .state-card {
+    min-height: 250px;
   }
 }
 
@@ -486,796 +709,11 @@ input {
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
     transition: none !important;
   }
 
-  .state-spinner {
+  .state-spinner,
+  .waiting-dot {
     animation-duration: 1.8s;
-  }
-}
-
-
-.payment-loading {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(15, 30, 21, 0.45);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 140ms ease;
-}
-
-.payment-loading.is-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.payment-loading-card {
-  width: min(100%, 320px);
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 28px 24px;
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-
-.payment-loading-card .state-spinner {
-  margin-bottom: 6px;
-}
-
-.payment-loading-card strong {
-  font-size: 17px;
-}
-
-.payment-loading-card span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-
-.support-line {
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  text-align: center;
-}
-
-.support-line a {
-  color: var(--brand);
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.support-line a:focus,
-.support-line a:hover {
-  text-decoration: underline;
-}
-
-
-/* Short screens: keep the whole purchase flow reachable without cramped content. */
-@media (max-height: 700px) {
-  .portal {
-    place-items: start center;
-    padding-top: 14px;
-    padding-bottom: 18px;
-  }
-
-  .portal-shell {
-    padding-top: 20px;
-    padding-bottom: 22px;
-  }
-
-  .portal-brand {
-    margin-bottom: 20px;
-  }
-
-  .portal-intro h1,
-  .payment-state h1 {
-    font-size: 30px;
-  }
-
-  .portal-intro > p:last-child,
-  .state-copy {
-    margin-top: 10px;
-    line-height: 1.45;
-  }
-
-  .portal-form {
-    gap: 18px;
-    margin-top: 22px;
-  }
-
-  .package-grid {
-    gap: 8px;
-  }
-
-  .package-card-body {
-    min-height: 58px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-
-  .field input,
-  .primary-button,
-  .secondary-button {
-    min-height: 48px;
-    height: 48px;
-  }
-
-  .receipt-card {
-    margin-top: 20px;
-  }
-
-  .state-icon,
-  .state-spinner {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 16px;
-  }
-}
-
-@media (max-height: 560px) {
-  .portal {
-    padding-top: 8px;
-    padding-bottom: 12px;
-  }
-
-  .portal-shell {
-    padding: 16px 18px 20px;
-  }
-
-  .portal-brand {
-    margin-bottom: 14px;
-  }
-
-  .brand-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
-  }
-
-  .portal-intro h1,
-  .payment-state h1 {
-    font-size: 27px;
-  }
-
-  .eyebrow {
-    margin-bottom: 6px;
-    font-size: 10px;
-  }
-
-  .portal-form {
-    gap: 14px;
-    margin-top: 16px;
-  }
-
-  .field {
-    gap: 6px;
-  }
-
-  .field-hint,
-  .portal-footnote {
-    font-size: 11px;
-  }
-
-  .package-fieldset legend {
-    margin-bottom: 7px;
-  }
-
-  .package-card-body {
-    min-height: 52px;
-    padding: 8px 42px 8px 12px;
-  }
-
-  .package-price {
-    font-size: 16px;
-  }
-
-  .primary-button,
-  .secondary-button {
-    min-height: 46px;
-    height: 46px;
-  }
-
-  .status-box {
-    margin-top: 14px;
-    padding: 10px 12px;
-  }
-
-  .receipt-card {
-    margin-top: 16px;
-  }
-
-  .receipt-card > div {
-    padding: 10px 12px;
-  }
-
-  .technical-details {
-    margin-top: 14px;
-  }
-
-  .support-line {
-    margin-top: 12px;
-  }
-}
-
-/* Landscape phones are often very short even when their width is large. */
-@media (max-height: 500px) and (orientation: landscape) {
-  .portal {
-    display: block;
-    min-height: 100%;
-    padding: 8px 14px 12px;
-  }
-
-  .portal-shell {
-    width: min(100%, 760px);
-    margin: 0 auto;
-  }
-
-  .portal-brand {
-    margin-bottom: 12px;
-  }
-
-  .portal-intro h1,
-  .payment-state h1 {
-    font-size: 25px;
-  }
-
-  .portal-intro > p:last-child,
-  .state-copy {
-    font-size: 13px;
-  }
-
-  .portal-form {
-    gap: 12px;
-    margin-top: 14px;
-  }
-
-  .package-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .package-card-body {
-    min-height: 50px;
-    padding: 8px 34px 8px 10px;
-  }
-
-  .package-name {
-    font-size: 12px;
-  }
-
-  .package-price {
-    font-size: 14px;
-  }
-}
-
-
-.title-compact {
-  display: none;
-}
-
-/* Ultra-compact mode for short phones: prioritize only the actions needed to buy. */
-@media (max-height: 650px) and (max-width: 520px) {
-  html,
-  body {
-    min-height: 100dvh;
-  }
-
-  .portal {
-    min-height: 100dvh;
-    height: 100dvh;
-    place-items: start center;
-    padding: 8px 10px;
-  }
-
-  .portal-shell {
-    min-height: 0;
-    width: 100%;
-    padding: 12px 14px 14px;
-    border-radius: 14px;
-  }
-
-  .portal-brand {
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .brand-mark {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    font-size: 10px;
-  }
-
-  .portal-brand strong {
-    font-size: 13px;
-  }
-
-  .portal-brand span,
-  .eyebrow,
-  .portal-intro > p:last-child,
-  .field-hint,
-  .portal-footnote,
-  .technical-details {
-    display: none;
-  }
-
-  .title-normal {
-    display: none;
-  }
-
-  .title-compact {
-    display: inline;
-  }
-
-  .portal-intro h1,
-  .payment-state h1 {
-    font-size: 24px;
-    line-height: 1.05;
-  }
-
-  .portal-form {
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .field {
-    gap: 4px;
-  }
-
-  .field label,
-  .package-fieldset legend {
-    font-size: 12px;
-  }
-
-  .field input {
-    height: 44px;
-    min-height: 44px;
-    padding: 0 12px;
-    border-radius: 10px;
-    font-size: 15px;
-  }
-
-  .package-fieldset legend {
-    margin-bottom: 5px;
-  }
-
-  .package-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .package-card-body {
-    min-height: 52px;
-    display: grid;
-    place-items: center;
-    align-content: center;
-    gap: 2px;
-    padding: 6px 5px;
-    border-radius: 10px;
-    text-align: center;
-  }
-
-  .package-name,
-  .package-price {
-    display: block;
-    line-height: 1.05;
-  }
-
-  .package-name {
-    font-size: 11px;
-  }
-
-  .package-price {
-    font-size: 14px;
-  }
-
-  .package-price small {
-    display: block;
-    margin-top: 2px;
-    font-size: 8px;
-  }
-
-  .package-check {
-    display: none;
-  }
-
-  .primary-button,
-  .secondary-button {
-    min-height: 44px;
-    height: 44px;
-    border-radius: 10px;
-  }
-
-  .support-line {
-    margin-top: 8px;
-    font-size: 11px;
-  }
-
-  .payment-state .state-copy {
-    display: none;
-  }
-
-  .state-icon,
-  .state-spinner {
-    width: 38px;
-    height: 38px;
-    margin: 0 0 8px;
-  }
-
-  .state-icon {
-    border-radius: 11px;
-    font-size: 18px;
-  }
-
-  .receipt-card {
-    margin-top: 12px;
-    border-radius: 10px;
-  }
-
-  .receipt-card > div {
-    padding: 8px 10px;
-  }
-
-  .receipt-card span {
-    font-size: 10px;
-  }
-
-  .receipt-card strong {
-    font-size: 11px;
-  }
-
-  .payment-state:not(.payment-state-success) .receipt-card {
-    display: none;
-  }
-
-  .payment-state-success .receipt-card > div:nth-child(2) {
-    display: none;
-  }
-
-  .status-box {
-    margin-top: 10px;
-    padding: 9px 10px;
-    font-size: 11px;
-  }
-
-  .portal-action {
-    margin-top: 12px;
-  }
-
-  .payment-loading-card {
-    width: min(100%, 280px);
-    padding: 20px 18px;
-  }
-}
-
-/* Very short portrait devices: remove branding so the form stays above the fold. */
-@media (max-height: 540px) and (orientation: portrait) {
-  .portal-brand {
-    display: none;
-  }
-
-  .portal-shell {
-    padding-top: 10px;
-  }
-
-  .portal-intro h1,
-  .payment-state h1 {
-    font-size: 22px;
-  }
-
-  .portal-form {
-    margin-top: 10px;
-  }
-
-  .support-line {
-    margin-top: 6px;
-  }
-}
-
-
-/* Purchase screen: expose all three packages and remove unnecessary vertical weight. */
-.portal-form {
-  margin-top: 8px;
-}
-
-.package-grid-compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.package-grid-compact .package-card-body {
-  min-height: 72px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 5px;
-  padding: 10px 8px;
-  text-align: center;
-}
-
-.package-grid-compact .package-name,
-.package-grid-compact .package-price {
-  display: block;
-  line-height: 1.08;
-}
-
-.package-grid-compact .package-name {
-  font-size: 13px;
-}
-
-.package-grid-compact .package-price {
-  font-size: 17px;
-}
-
-.package-grid-compact .package-price small {
-  display: block;
-  margin-top: 3px;
-  font-size: 8px;
-}
-
-.package-grid-compact .package-check {
-  top: 8px;
-  right: 8px;
-  width: 18px;
-  height: 18px;
-  transform: none;
-  font-size: 10px;
-}
-
-.package-grid-compact .package-card input:checked ~ .package-check {
-  transform: none;
-}
-
-.package-error,
-.field-error {
-  margin: 7px 0 0;
-  color: var(--danger);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-#continue-button:disabled {
-  background: #aab7af;
-  cursor: not-allowed;
-  opacity: 1;
-}
-
-@media (max-width: 520px) {
-  .portal-shell {
-    padding-top: 18px;
-  }
-
-  .portal-brand {
-    margin-bottom: 18px;
-  }
-
-  .portal-form {
-    gap: 16px;
-    margin-top: 0;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 68px;
-    padding: 8px 5px;
-  }
-
-  .package-grid-compact .package-name {
-    font-size: 11px;
-  }
-
-  .package-grid-compact .package-price {
-    font-size: 15px;
-  }
-
-  .field input {
-    height: 50px;
-  }
-
-  .support-line {
-    margin-top: 4px;
-  }
-}
-
-@media (max-height: 650px) and (max-width: 520px) {
-  .portal-brand {
-    margin-bottom: 10px;
-  }
-
-  .portal-form {
-    gap: 10px;
-    margin-top: 0;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 58px;
-    padding: 6px 4px;
-  }
-
-  .field input,
-  .primary-button {
-    min-height: 44px;
-    height: 44px;
-  }
-}
-
-
-/* Final mobile purchase layout: no top gap + stacked package cards. */
-@media (max-width: 520px) {
-  .portal {
-    padding-top: 0;
-  }
-
-  .portal-shell {
-    padding-top: 14px;
-  }
-
-  .portal-brand {
-    margin-bottom: 14px;
-  }
-
-  .package-grid-compact {
-    grid-template-columns: 1fr;
-    gap: 7px;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 54px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 9px 42px 9px 13px;
-    text-align: left;
-  }
-
-  .package-grid-compact .package-name {
-    font-size: 13px;
-  }
-
-  .package-grid-compact .package-price {
-    font-size: 16px;
-    text-align: right;
-  }
-
-  .package-grid-compact .package-price small {
-    display: inline;
-    margin-top: 0;
-    margin-left: 2px;
-    font-size: 8px;
-  }
-
-  .package-grid-compact .package-check {
-    top: 50%;
-    right: 12px;
-    width: 18px;
-    height: 18px;
-    transform: translateY(-50%);
-  }
-
-  .package-grid-compact .package-card input:checked ~ .package-check {
-    transform: translateY(-50%);
-  }
-}
-
-@media (max-height: 650px) and (max-width: 520px) {
-  .portal-shell {
-    padding-top: 10px;
-  }
-
-  .portal-brand {
-    margin-bottom: 8px;
-  }
-
-  .package-grid-compact {
-    gap: 5px;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 48px;
-    padding-top: 7px;
-    padding-bottom: 7px;
-  }
-
-  .portal-form {
-    gap: 9px;
-  }
-}
-
-
-/* Compact purchase intro from the approved portal direction. */
-.purchase-intro {
-  margin: 0 0 18px;
-}
-
-.purchase-intro h1 {
-  margin: 0;
-  color: var(--text);
-  font-size: 30px;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-}
-
-.purchase-intro p {
-  margin: 7px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-/* Validation is intentionally calm: no red warning block for routine input mistakes. */
-.field-help {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 1.35;
-}
-
-.field-help::before {
-  content: "ⓘ ";
-  color: var(--brand);
-}
-
-.package-error {
-  padding-left: 1px;
-}
-
-/* Keep package options vertical/top-to-bottom on phones. */
-@media (max-width: 520px) {
-  .purchase-intro {
-    margin-bottom: 14px;
-  }
-
-  .purchase-intro h1 {
-    font-size: 27px;
-  }
-
-  .purchase-intro p {
-    margin-top: 5px;
-    font-size: 13px;
-  }
-
-  .portal-form {
-    gap: 14px;
-  }
-
-  .package-grid-compact {
-    grid-template-columns: 1fr;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 56px;
-  }
-}
-
-@media (max-height: 650px) and (max-width: 520px) {
-  .purchase-intro {
-    margin-bottom: 10px;
-  }
-
-  .purchase-intro h1 {
-    font-size: 23px;
-  }
-
-  .purchase-intro p {
-    font-size: 12px;
-    line-height: 1.3;
-  }
-
-  .portal-form {
-    gap: 9px;
-  }
-
-  .package-grid-compact .package-card-body {
-    min-height: 47px;
   }
 }
