@@ -12,6 +12,7 @@ const {
   createPaymentTransaction,
   findPaymentTransactionByReference,
   findPaymentTransactionByProviderReference,
+  findLatestCustomerByDeviceId,
   updatePaymentProviderDetails,
   updatePaymentStatus
 } = require('./repositories/payment-transaction-repository');
@@ -27,6 +28,19 @@ const app = express();
 const devRoutesEnabled = process.env.ALLOW_DEV_ROUTES === 'true';
 
 const callbackStatuses = new Set(['paid', 'failed', 'cancelled']);
+
+const normalizeCustomerName = (value) =>
+  String(value || '').trim().replace(/\s+/g, ' ');
+
+const isValidCustomerName = (value) => {
+  const name = normalizeCustomerName(value);
+
+  return (
+    name.length >= 2 &&
+    name.length <= 40 &&
+    /^[A-Za-z][A-Za-z' -]*$/.test(name)
+  );
+};
 
 
 const getHeaderValue = (req, name) => {
@@ -419,11 +433,13 @@ app.get('/portal', async (req, res) => {
     }
 
     const device = await getOrCreateDevice(clientMac);
+    const savedCustomer = await findLatestCustomerByDeviceId(device.id);
 
     res.render('portal/index', {
       title: 'Small Garden WiFi',
       packages: result.rows,
       device,
+      savedCustomer,
       portal: {
         ...portalContext,
         clientMac
@@ -443,6 +459,7 @@ app.get('/portal', async (req, res) => {
 app.post('/portal/pay', async (req, res) => {
   try {
     const {
+      customerName,
       phone,
       packageId,
       deviceId,
@@ -454,10 +471,19 @@ app.post('/portal/pay', async (req, res) => {
       radioId
     } = req.body;
 
-    if (!phone || !packageId || !clientMac || !deviceId) {
+    if (!customerName || !phone || !packageId || !clientMac || !deviceId) {
       return res.status(400).render('portal/confirm', {
         title: 'Payment request',
-        error: 'Tafadhali weka namba ya simu na uchague kifurushi.'
+        error: 'Tafadhali weka jina, namba ya simu na uchague kifurushi.'
+      });
+    }
+
+    const normalizedCustomerName = normalizeCustomerName(customerName);
+
+    if (!isValidCustomerName(normalizedCustomerName)) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Malipo',
+        error: 'Weka jina sahihi la kwanza.'
       });
     }
 
@@ -506,6 +532,7 @@ app.post('/portal/pay', async (req, res) => {
     const reference = generatePaymentReference();
     const transaction = await createPaymentTransaction({
       reference,
+      customerName: normalizedCustomerName,
       phone: normalizedPhoneInput,
       packageId: packageData.id,
       clientMac: normalizedClientMac,
