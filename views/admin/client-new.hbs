@@ -1,0 +1,47 @@
+<section class="page-head">
+  <div>
+    <h2>Add a WiFi client</h2>
+    <p>Create the organisation and its first site.</p>
+  </div>
+</section>
+
+<section class="panel form-panel">
+  <form method="POST" action="/admin/clients" class="admin-form">
+    <div class="form-grid">
+      <label>
+        <span>Business / organisation name</span>
+        <input name="organizationName" required placeholder="e.g. Mwanza Cafe">
+      </label>
+
+      <label>
+        <span>Owner name</span>
+        <input name="ownerName" placeholder="Owner / contact person">
+      </label>
+
+      <label>
+        <span>Owner phone</span>
+        <input name="ownerPhone" placeholder="07XXXXXXXX">
+      </label>
+
+      <label>
+        <span>First site name</span>
+        <input name="siteName" required placeholder="e.g. Main Branch">
+      </label>
+
+      <label>
+        <span>Portal support phone</span>
+        <input name="supportPhone" placeholder="07XXXXXXXX">
+      </label>
+
+      <label>
+        <span>Brand colour</span>
+        <input name="primaryColor" value="#0B6B47" placeholder="#0B6B47">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <a href="/admin">Cancel</a>
+      <button type="submit">Create client</button>
+    </div>
+  </form>
+</section>
