@@ -1,0 +1,65 @@
+<section class="page-head">
+  <div>
+    <h2>Omada integration</h2>
+    <p>Controller automation used by Solidus WiFi.</p>
+  </div>
+</section>
+
+<section class="panel integration-panel">
+  <div class="panel-head">
+    <div>
+      <h3>Open API connection</h3>
+      <p>Credentials stay in the VPS environment and are never shown here.</p>
+    </div>
+
+    {{#if integration.connected}}
+      <span class="connection-badge connected">Connected</span>
+    {{else}}
+      <span class="connection-badge waiting">Not connected</span>
+    {{/if}}
+  </div>
+
+  <div class="integration-status-grid">
+    <div>
+      <span>API enabled</span>
+      <strong>{{#if integration.enabled}}Yes{{else}}No{{/if}}</strong>
+    </div>
+    <div>
+      <span>Controller</span>
+      <strong>{{#if integration.controllerVersion}}{{integration.controllerVersion}}{{else}}—{{/if}}</strong>
+    </div>
+    <div>
+      <span>Visible Omada sites</span>
+      <strong>{{#if integration.connected}}{{integration.sitesVisible}}{{else}}—{{/if}}</strong>
+    </div>
+  </div>
+
+  {{#if integration.error}}
+    <div class="status-box-admin error">
+      {{integration.error}}
+    </div>
+  {{/if}}
+
+  {{#unless integration.enabled}}
+    <div class="notice">
+      Configure the Omada Client Credentials app in the controller, add the values to the VPS .env, then restart Solidus.
+    </div>
+  {{/unless}}
+
+  <div class="integration-instructions">
+    <h4>Controller setup</h4>
+    <ol>
+      <li>Open Omada Controller → Global View.</li>
+      <li>Go to Settings → Platform Integration → Open API.</li>
+      <li>Add an app using Client Credentials mode.</li>
+      <li>Grant Global Dashboard Manager Modify, Site Device Manager View Only, and Site Adopt Device Manager Access.</li>
+      <li>Copy the Client ID, Client Secret and Omada ID into the VPS environment.</li>
+    </ol>
+  </div>
+
+  {{#if integration.enabled}}
+    <form method="POST" action="/admin/integrations/omada/test" class="form-actions">
+      <button type="submit">Test connection</button>
+    </form>
+  {{/if}}
+</section>
