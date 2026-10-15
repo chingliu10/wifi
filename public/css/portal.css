@@ -539,3 +539,22 @@ input {
   color: var(--muted);
   font-size: 13px;
 }
+
+
+.support-line {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.support-line a {
+  color: var(--brand);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.support-line a:focus,
+.support-line a:hover {
+  text-decoration: underline;
+}
