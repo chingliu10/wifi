@@ -60,7 +60,7 @@
       {{/if}}
 
       <button class="primary-button" id="continue-button" type="submit">
-        <span class="button-text">Continue to payment</span>
+        <span class="button-text">Pay & connect</span>
         <span class="button-arrow" aria-hidden="true">→</span>
       </button>
 
@@ -69,17 +69,31 @@
   </section>
 </main>
 
+<div class="payment-loading" id="payment-loading" aria-live="polite" aria-hidden="true">
+  <div class="payment-loading-card">
+    <div class="state-spinner" aria-hidden="true"></div>
+    <strong>Sending payment prompt…</strong>
+    <span>Please keep this page open.</span>
+  </div>
+</div>
+
 <script>
   (() => {
     const form = document.getElementById('portal-payment-form');
     const button = document.getElementById('continue-button');
+    const loading = document.getElementById('payment-loading');
 
     if (!form || !button) return;
 
     form.addEventListener('submit', () => {
       button.disabled = true;
-      button.querySelector('.button-text').textContent = 'Preparing payment...';
+      button.querySelector('.button-text').textContent = 'Sending payment prompt...';
       button.querySelector('.button-arrow').textContent = '';
+
+      if (loading) {
+        loading.classList.add('is-visible');
+        loading.setAttribute('aria-hidden', 'false');
+      }
     });
   })();
 </script>
