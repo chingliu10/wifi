@@ -11,64 +11,64 @@
     {{#if error}}
       <section class="payment-state payment-state-error">
         <div class="state-icon state-icon-error" aria-hidden="true">!</div>
-        <p class="eyebrow">PAYMENT</p>
+        <p class="eyebrow">MALIPO</p>
         <h1 id="confirm-title">{{title}}</h1>
         <div class="status-box status-box-error" role="alert">{{error}}</div>
-        <button class="secondary-button" type="button" onclick="history.back()">Go back</button>
+        <button class="secondary-button" type="button" onclick="history.back()">Rudi nyuma</button>
       </section>
     {{else}}
       {{#if paymentActive}}
         <section class="payment-state payment-state-success">
           <div class="state-icon state-icon-success" aria-hidden="true">✓</div>
-          <p class="eyebrow">ACCESS ACTIVE</p>
-          <h1 id="confirm-title">You're online</h1>
-          <p class="state-copy">Your payment was confirmed and internet access is active for this device.</p>
+          <p class="eyebrow">INTERNET IMEWASHWA</p>
+          <h1 id="confirm-title">Umeunganishwa</h1>
+          <p class="state-copy">Malipo yamethibitishwa na kifaa hiki sasa kina internet.</p>
 
           <div class="receipt-card">
             <div>
-              <span>Plan</span>
-              <strong>{{package.name}}</strong>
+              <span>Kifurushi</span>
+              <strong>{{formatPackageName package.name}}</strong>
             </div>
             <div>
-              <span>Paid</span>
+              <span>Ulicholipa</span>
               <strong>{{formatTzs package.price_tzs}} TZS</strong>
             </div>
             {{#if subscription}}
               <div>
-                <span>Access until</span>
+                <span>Internet hadi</span>
                 <strong>{{formatDate subscription.expires_at}}</strong>
               </div>
             {{/if}}
           </div>
 
           <div class="status-box status-box-success">{{message}}</div>
-          <p class="portal-footnote">If internet does not start immediately, turn Wi-Fi off and back on once.</p>
+          <p class="portal-footnote">Kama internet haijaanza mara moja, zima Wi-Fi kisha washa tena mara moja.</p>
         </section>
       {{else}}
         <section class="payment-state">
           {{#if paymentInitiated}}
             <div class="state-spinner" aria-hidden="true"></div>
-            <p class="eyebrow">WAITING FOR PAYMENT</p>
-            <h1 id="confirm-title">Check your phone</h1>
-            <p class="state-copy">Approve the mobile-money prompt. This page will update automatically after payment is confirmed.</p>
+            <p class="eyebrow">TUNASUBIRI MALIPO</p>
+            <h1 id="confirm-title">Angalia simu yako</h1>
+            <p class="state-copy">Thibitisha ombi la malipo kwenye simu yako. Ukurasa huu utabadilika wenyewe baada ya malipo kuthibitishwa.</p>
           {{else}}
             <div class="state-icon state-icon-ready" aria-hidden="true">→</div>
-            <p class="eyebrow">READY TO PAY</p>
-            <h1 id="confirm-title">Confirm your plan</h1>
-            <p class="state-copy">We will send a mobile-money payment prompt to the number below.</p>
+            <p class="eyebrow">TAYARI KULIPA</p>
+            <h1 id="confirm-title">Thibitisha kifurushi</h1>
+            <p class="state-copy">Tutakutumia ombi la malipo kwenye namba iliyo hapa chini.</p>
           {{/if}}
 
           <div class="receipt-card">
             <div>
-              <span>Plan</span>
-              <strong>{{package.name}}</strong>
+              <span>Kifurushi</span>
+              <strong>{{formatPackageName package.name}}</strong>
             </div>
             <div>
-              <span>Price</span>
+              <span>Bei</span>
               <strong>{{formatTzs package.price_tzs}} TZS</strong>
             </div>
             <div>
-              <span>Phone</span>
+              <span>Namba ya simu</span>
               <strong>{{transaction.phone}}</strong>
             </div>
           </div>
@@ -76,7 +76,7 @@
           {{#if showPayNow}}
             <form class="portal-action" id="pay-now-form" method="POST" action="/portal/payment/{{transaction.reference}}/initiate">
               <button class="primary-button" id="pay-now-button" type="submit">
-                <span class="button-text">Send payment prompt</span>
+                <span class="button-text">TUMA OMBI LA MALIPO</span>
                 <span class="button-arrow" aria-hidden="true">→</span>
               </button>
             </form>
@@ -84,17 +84,17 @@
 
           {{#if paymentInitiated}}
             <div class="status-box status-box-waiting" id="payment-waiting">
-              Waiting for payment confirmation…
+              Tunasubiri uthibitisho wa malipo…
             </div>
           {{else}}
-            <p class="portal-footnote">Nothing is charged until you approve the prompt on your phone.</p>
+            <p class="portal-footnote">Hautakatwa pesa mpaka uthibitishe malipo kwenye simu yako.</p>
           {{/if}}
 
           <details class="technical-details">
-            <summary>Transaction details</summary>
+            <summary>Maelezo ya muamala</summary>
             <dl>
-              <div><dt>Reference</dt><dd>{{transaction.reference}}</dd></div>
-              <div><dt>Status</dt><dd>{{transaction.status}}</dd></div>
+              <div><dt>Namba ya muamala</dt><dd>{{transaction.reference}}</dd></div>
+              <div><dt>Hali</dt><dd>{{transaction.status}}</dd></div>
             </dl>
           </details>
         </section>
@@ -113,7 +113,7 @@
 
     form.addEventListener('submit', () => {
       button.disabled = true;
-      button.querySelector('.button-text').textContent = 'Sending prompt...';
+      button.querySelector('.button-text').textContent = 'Inatuma ombi...';
       button.querySelector('.button-arrow').textContent = '';
     });
   })();
@@ -151,13 +151,13 @@
         }
 
         if (waiting) {
-          waiting.textContent = 'Waiting for payment confirmation…';
+          waiting.textContent = 'Tunasubiri uthibitisho wa malipo…';
         }
       } catch (error) {
         failures += 1;
 
         if (waiting && failures >= 2) {
-          waiting.textContent = 'Still checking your payment… keep this page open.';
+          waiting.textContent = 'Bado tunakagua malipo yako… tafadhali usifunge ukurasa huu.';
         }
       }
 
