@@ -2,6 +2,7 @@ const pool = require('../config/database');
 
 const createPaymentTransaction = async ({
   reference,
+  customerName,
   phone,
   packageId,
   clientMac,
@@ -20,6 +21,7 @@ const createPaymentTransaction = async ({
     `
       INSERT INTO payment_transactions (
         reference,
+        customer_name,
         phone,
         package_id,
         client_mac,
@@ -35,13 +37,14 @@ const createPaymentTransaction = async ({
         radio_id
       )
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, $12, $13, $14
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14, $15
       )
       RETURNING *
     `,
     [
       reference,
+      customerName,
       phone,
       packageId,
       clientMac,
@@ -67,6 +70,7 @@ const findPaymentTransactionByReference = async (reference) => {
       SELECT
         pt.id,
         pt.reference,
+        pt.customer_name,
         pt.phone,
         pt.package_id,
         pt.client_mac,
@@ -106,6 +110,7 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
       SELECT
         pt.id,
         pt.reference,
+        pt.customer_name,
         pt.phone,
         pt.package_id,
         pt.client_mac,
@@ -148,6 +153,7 @@ const findPaymentTransactionByReferenceForUpdate = async ({
       SELECT
         pt.id,
         pt.reference,
+        pt.customer_name,
         pt.phone,
         pt.package_id,
         pt.client_mac,
@@ -178,6 +184,28 @@ const findPaymentTransactionByReferenceForUpdate = async ({
       LIMIT 1
     `,
     [reference]
+  );
+
+  return result.rows[0] || null;
+};
+
+const findLatestCustomerByDeviceId = async (deviceId) => {
+  const result = await pool.query(
+    `
+      SELECT
+        customer_name,
+        phone
+      FROM payment_transactions
+      WHERE device_id = $1
+        AND customer_name IS NOT NULL
+        AND BTRIM(customer_name) <> ''
+      ORDER BY
+        CASE WHEN status = 'paid' THEN 0 ELSE 1 END,
+        paid_at DESC NULLS LAST,
+        created_at DESC
+      LIMIT 1
+    `,
+    [deviceId]
   );
 
   return result.rows[0] || null;
@@ -271,6 +299,7 @@ module.exports = {
   findPaymentTransactionByReference,
   findPaymentTransactionByProviderReference,
   findPaymentTransactionByReferenceForUpdate,
+  findLatestCustomerByDeviceId,
   updatePaymentProviderDetails,
   updatePaymentStatus,
   markPaymentProvisioningActive,
