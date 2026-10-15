@@ -15,6 +15,16 @@ const getProvider = () => {
   throw new Error(`Unsupported payment provider: ${provider}`);
 };
 
+const checkPaymentStatus = async ({ reference }) => {
+  const provider = getProvider();
+
+  if (typeof provider.checkPaymentStatus !== 'function') {
+    throw new Error('Active payment provider does not support status checks');
+  }
+
+  return provider.checkPaymentStatus({ reference });
+};
+
 const initiatePayment = async ({
   transaction,
   packageData
@@ -31,5 +41,6 @@ const initiatePayment = async ({
 };
 
 module.exports = {
-  initiatePayment
+  initiatePayment,
+  checkPaymentStatus
 };
