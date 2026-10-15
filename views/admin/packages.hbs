@@ -1,0 +1,31 @@
+<section class="page-head">
+  <div>
+    <h2>Packages</h2>
+    <p>Set the prices customers see on the portal.</p>
+  </div>
+</section>
+
+<section class="panel table-panel">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Site</th><th>Package</th><th>Price</th><th>Active</th><th></th></tr></thead>
+      <tbody>
+        {{#each packages}}
+          <tr>
+            <td>{{site_name}}</td>
+            <td><strong>{{formatPackageName name}}</strong></td>
+            <td>
+              <form method="POST" action="/admin/packages/{{id}}" class="inline-form">
+                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+                <input class="price-input" type="number" name="priceTzs" min="1" value="{{price_tzs}}" required>
+            </td>
+            <td><input type="checkbox" name="active" {{#if active}}checked{{/if}}></td>
+            <td><button type="submit">Save</button></form></td>
+          </tr>
+        {{else}}
+          <tr><td colspan="5" class="empty">No packages.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
