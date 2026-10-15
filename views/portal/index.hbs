@@ -8,6 +8,11 @@
       </div>
     </header>
 
+    <section class="purchase-intro">
+      <h1>Unganishwa haraka</h1>
+      <p>Weka namba ya simu itakayolipia, kisha chagua kifurushi.</p>
+    </section>
+
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
@@ -16,23 +21,6 @@
       <input type="hidden" name="ssidName" value="{{portal.ssidName}}">
       <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
-
-      <fieldset class="package-fieldset">
-        <legend>Chagua kifurushi</legend>
-        <div class="package-grid package-grid-compact">
-          {{#each packages}}
-            <label class="package-card">
-              <input type="radio" name="packageId" value="{{id}}" required>
-              <span class="package-card-body">
-                <span class="package-name">{{formatPackageName name}}</span>
-                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
-              </span>
-              <span class="package-check" aria-hidden="true">✓</span>
-            </label>
-          {{/each}}
-        </div>
-        <p class="field-error package-error" id="package-error" role="alert" hidden>Chagua kifurushi kwanza.</p>
-      </fieldset>
 
       <div class="field">
         <label for="phone-number">Namba ya simu</label>
@@ -49,8 +37,25 @@
           title="Weka namba sahihi ya simu yenye tarakimu 10, mfano 0655100259"
           required
         >
-        <p class="field-error" id="phone-error" role="alert" hidden>Weka namba sahihi ya simu. Mfano: 0655100259</p>
+        <p class="field-error field-help" id="phone-error" role="status" hidden>Mfano wa namba: 0655100259</p>
       </div>
+
+      <fieldset class="package-fieldset">
+        <legend>Chagua kifurushi</legend>
+        <div class="package-grid package-grid-compact">
+          {{#each packages}}
+            <label class="package-card">
+              <input type="radio" name="packageId" value="{{id}}" required>
+              <span class="package-card-body">
+                <span class="package-name">{{formatPackageName name}}</span>
+                <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
+              </span>
+              <span class="package-check" aria-hidden="true">✓</span>
+            </label>
+          {{/each}}
+        </div>
+        <p class="field-error field-help package-error" id="package-error" role="status" hidden>Chagua kifurushi kwanza.</p>
+      </fieldset>
 
       {{#if error}}
         <div class="status-box status-box-error" role="alert">{{error}}</div>
@@ -103,7 +108,7 @@
       const valid = phoneIsValid();
 
       phone.setCustomValidity(
-        valid ? '' : 'Weka namba sahihi ya simu. Mfano: 0655100259'
+        valid ? '' : 'Mfano wa namba: 0655100259'
       );
 
       if (phoneError) {
