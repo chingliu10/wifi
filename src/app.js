@@ -501,14 +501,26 @@ app.post('/portal/pay', async (req, res) => {
       radioId
     });
 
-    res.render('portal/confirm', {
-      title: 'Payment request ready',
+    const providerResult = await initiatePayment({
       transaction,
-      package: packageData,
-      message: 'Payment request ready',
-      showPayNow: true,
-      paymentInitiated: false
+      packageData
     });
+
+    await updatePaymentProviderDetails({
+      reference: transaction.reference,
+      provider: providerResult.provider,
+      providerReference: providerResult.providerReference
+    });
+
+    const currentTransaction = await findPaymentTransactionByReference(
+      transaction.reference
+    );
+
+    return await renderPaymentStatus(
+      res,
+      currentTransaction,
+      'Check your phone'
+    );
   } catch (error) {
     console.error('PORTAL PAY ERROR:', error);
 
