@@ -171,7 +171,7 @@
             <td><code>{{ap_mac}}</code></td>
             <td>{{management_ip}}</td>
             <td><code>{{nas_identifier}}</code></td>
-            <td><span class="status-pill status-paid">{{#if active}}active{{else}}disabled{{/if}}</span></td>
+            <td><span class="status-pill status-paid">{{#if active}}registered{{else}}disabled{{/if}}</span></td>
             <td>
               <form method="POST" action="/admin/devices/{{id}}/delete" onsubmit="return confirm('Remove this registered device?');">
                 <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
