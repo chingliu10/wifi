@@ -9,9 +9,9 @@
     </header>
 
     <section class="portal-intro">
-      <p class="eyebrow">FAST • SIMPLE • MOBILE MONEY</p>
-      <h1 id="portal-title">Get online in seconds</h1>
-      <p>Choose a plan, enter your mobile-money number and approve the payment prompt on your phone.</p>
+      <p class="eyebrow">HARAKA • RAHISI • MALIPO YA SIMU</p>
+      <h1 id="portal-title">Unganishwa ndani ya sekunde chache</h1>
+      <p>Chagua kifurushi, weka namba ya simu itakayolipia, kisha thibitisha ombi la malipo kwenye simu yako.</p>
     </section>
 
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
@@ -24,29 +24,29 @@
       <input type="hidden" name="radioId" value="{{portal.radioId}}">
 
       <div class="field">
-        <label for="phone-number">Mobile-money number</label>
+        <label for="phone-number">Namba ya simu</label>
         <input
           id="phone-number"
           name="phone"
           type="tel"
           inputmode="tel"
           autocomplete="tel"
-          placeholder="e.g. 0652 992 922"
+          placeholder="Mfano: 0652 992 922"
           minlength="9"
           maxlength="18"
           required
         >
-        <p class="field-hint">Use the number that should receive the payment prompt.</p>
+        <p class="field-hint">Weka namba itakayolipia bando.</p>
       </div>
 
       <fieldset class="package-fieldset">
-        <legend>Choose your plan</legend>
+        <legend>Chagua kifurushi</legend>
         <div class="package-grid">
           {{#each packages}}
             <label class="package-card">
               <input type="radio" name="packageId" value="{{id}}" {{#if @first}}checked{{/if}} required>
               <span class="package-card-body">
-                <span class="package-name">{{name}}</span>
+                <span class="package-name">{{formatPackageName name}}</span>
                 <span class="package-price">{{formatTzs price_tzs}} <small>TZS</small></span>
               </span>
               <span class="package-check" aria-hidden="true">✓</span>
@@ -60,11 +60,11 @@
       {{/if}}
 
       <button class="primary-button" id="continue-button" type="submit">
-        <span class="button-text">Pay & connect</span>
+        <span class="button-text">NUNUA BANDO</span>
         <span class="button-arrow" aria-hidden="true">→</span>
       </button>
 
-      <p class="portal-footnote">Your plan starts after payment is confirmed.</p>
+      <p class="portal-footnote">Bando lako litaanza baada ya malipo kuthibitishwa.</p>
     </form>
   </section>
 </main>
@@ -72,8 +72,8 @@
 <div class="payment-loading" id="payment-loading" aria-live="polite" aria-hidden="true">
   <div class="payment-loading-card">
     <div class="state-spinner" aria-hidden="true"></div>
-    <strong>Sending payment prompt…</strong>
-    <span>Please keep this page open.</span>
+    <strong>Inatuma ombi la malipo…</strong>
+    <span>Tafadhali usifunge ukurasa huu.</span>
   </div>
 </div>
 
@@ -87,7 +87,7 @@
 
     form.addEventListener('submit', () => {
       button.disabled = true;
-      button.querySelector('.button-text').textContent = 'Sending payment prompt...';
+      button.querySelector('.button-text').textContent = 'Inatuma ombi la malipo...';
       button.querySelector('.button-arrow').textContent = '';
 
       if (loading) {
