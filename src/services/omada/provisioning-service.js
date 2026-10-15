@@ -288,8 +288,12 @@ const getActiveClaims = async () => {
       FROM omada_device_claims c
       JOIN sites s ON s.id = c.site_id
       JOIN organizations o ON o.id = s.organization_id
-      WHERE c.status IN ('pending', 'discovered', 'adopting', 'failed')
+      WHERE c.status IN ('pending', 'discovered', 'adopting')
         AND c.expires_at > NOW()
+        AND (
+          c.last_checked_at IS NULL
+          OR c.last_checked_at < NOW() - INTERVAL '10 seconds'
+        )
         AND s.active = TRUE
         AND o.active = TRUE
         AND s.external_portal_site_id IS NOT NULL
@@ -331,7 +335,7 @@ const upsertDetectedDevice = async ({ claim, remoteDevice }) => {
         NOW(),
         TRUE
       )
-      ON CONFLICT (ap_mac)
+      ON CONFLICT (ap_mac) WHERE ap_mac IS NOT NULL
       DO UPDATE SET
         site_id = EXCLUDED.site_id,
         name = EXCLUDED.name,
@@ -407,21 +411,54 @@ const processClaim = async (claim) => {
       deviceMac: omadaMac
     });
 
+    const envelopeCode = Number(adoptResult?.errorCode || 0);
+    const adoptCode = adoptResult?.result?.adoptErrorCode;
+
+    if (envelopeCode !== 0) {
+      throw new Error(
+        adoptResult?.msg || `Unable to read adoption result (${envelopeCode})`
+      );
+    }
+
+    if (adoptCode !== undefined && Number(adoptCode) !== 0) {
+      const descriptions = {
+        '-39002': 'The AP did not respond to the adoption command.',
+        '-39003': 'The local EAP username or password is incorrect.',
+        '-39004': 'Omada could not adopt this device.',
+        '-39005': 'The AP is not connected to the controller.',
+        '-39329': 'The AP could not link to its uplink AP.'
+      };
+
+      const message =
+        descriptions[String(adoptCode)] ||
+        `Omada adoption failed with code ${adoptCode}`;
+
+      await pool.query(
+        `
+          UPDATE omada_device_claims
+          SET
+            status = 'failed',
+            last_error = $2,
+            last_checked_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [claim.id, message]
+      );
+
+      return;
+    }
+
     await pool.query(
       `
         UPDATE omada_device_claims
         SET
           last_checked_at = NOW(),
-          last_error = $2,
+          last_error = NULL,
           updated_at = NOW()
         WHERE id = $1
       `,
-      [
-        claim.id,
-        Number(adoptResult?.errorCode || 0) === 0
-          ? null
-          : String(adoptResult?.msg || 'Adoption is still in progress').slice(0, 1000)
-      ]
+      [claim.id]
     );
 
     return;
