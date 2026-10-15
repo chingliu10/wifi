@@ -33,6 +33,7 @@ const initiatePayment = async ({
 
   return provider.initiatePayment({
     reference: transaction.reference,
+    customerName: transaction.customer_name,
     phone: transaction.phone,
     amountTzs: transaction.amount_tzs,
     packageData,
