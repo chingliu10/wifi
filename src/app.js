@@ -210,7 +210,11 @@ const reconcileSplashPayPayment = async (transaction) => {
     transaction.provider_reference &&
     providerStatus.providerReference !== transaction.provider_reference
   ) {
-    throw new Error('SplashPay status provider reference mismatch');
+    console.log('SPLASHPAY PROVIDER REFERENCE CHANGED:', {
+      reference: transaction.reference,
+      initiatedProviderReference: transaction.provider_reference,
+      currentProviderReference: providerStatus.providerReference
+    });
   }
 
   if (
@@ -646,12 +650,12 @@ app.post('/api/payments/splashpay/webhook', async (req, res) => {
 
     let transaction = null;
 
-    if (providerReference) {
-      transaction = await findPaymentTransactionByProviderReference(providerReference);
+    if (reference) {
+      transaction = await findPaymentTransactionByReference(reference);
     }
 
-    if (!transaction && reference) {
-      transaction = await findPaymentTransactionByReference(reference);
+    if (!transaction && providerReference) {
+      transaction = await findPaymentTransactionByProviderReference(providerReference);
     }
 
     if (!transaction) {
@@ -678,9 +682,10 @@ app.post('/api/payments/splashpay/webhook', async (req, res) => {
       transaction.provider_reference &&
       providerReference !== transaction.provider_reference
     ) {
-      return res.status(400).json({
-        success: false,
-        error: 'Provider reference mismatch'
+      console.log('SPLASHPAY WEBHOOK PROVIDER REFERENCE CHANGED:', {
+        reference: transaction.reference,
+        initiatedProviderReference: transaction.provider_reference,
+        webhookProviderReference: providerReference
       });
     }
 
