@@ -166,11 +166,8 @@ const resolvePortalSite = async ({ externalSiteId, apMac }) => {
         FROM sites s
         LEFT JOIN network_devices nd ON nd.site_id = s.id
         WHERE s.active = true
-          AND (
-            ($1::text IS NOT NULL AND s.external_portal_site_id = $1)
-            OR
-            ($2::text IS NOT NULL AND nd.ap_mac = $2)
-          )
+          AND ($1::text IS NULL OR s.external_portal_site_id = $1)
+          AND ($2::text IS NULL OR nd.ap_mac = $2)
         LIMIT 1
       `,
       [externalSiteId || null, normalizedApMac || null]
@@ -182,6 +179,169 @@ const resolvePortalSite = async ({ externalSiteId, apMac }) => {
   }
 
   return null;
+};
+
+const bindOmadaSetup = async ({
+  portalKey,
+  externalSiteId,
+  apMac,
+  ssidName
+}) => {
+  const normalizedApMac = normalizeMacAddress(apMac);
+
+  if (!portalKey || !externalSiteId || !normalizedApMac) {
+    throw new Error('Omada setup redirect is missing site or AP identity');
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const siteResult = await client.query(
+      `
+        SELECT
+          s.id,
+          s.organization_id,
+          s.name,
+          s.external_portal_site_id
+        FROM sites s
+        JOIN organizations o ON o.id = s.organization_id
+        WHERE s.portal_key = $1
+          AND s.active = TRUE
+          AND o.active = TRUE
+        LIMIT 1
+        FOR UPDATE OF s
+      `,
+      [portalKey]
+    );
+
+    const siteConfig = siteResult.rows[0];
+
+    if (!siteConfig) {
+      throw new Error('This Solidus WiFi setup link is invalid');
+    }
+
+    if (
+      siteConfig.external_portal_site_id &&
+      siteConfig.external_portal_site_id !== externalSiteId
+    ) {
+      throw new Error('This setup link is already connected to another Omada site');
+    }
+
+    const duplicateSite = await client.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE external_portal_site_id = $1
+          AND id <> $2
+        LIMIT 1
+      `,
+      [externalSiteId, siteConfig.id]
+    );
+
+    if (duplicateSite.rows[0]) {
+      throw new Error('This Omada site is already assigned to another Solidus site');
+    }
+
+    await client.query(
+      `
+        UPDATE sites
+        SET
+          external_portal_site_id = COALESCE(external_portal_site_id, $2),
+          portal_connected_at = COALESCE(portal_connected_at, NOW()),
+          last_portal_seen_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+      `,
+      [siteConfig.id, externalSiteId]
+    );
+
+    const existingDevice = await client.query(
+      `
+        SELECT id, site_id
+        FROM network_devices
+        WHERE ap_mac = $1
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [normalizedApMac]
+    );
+
+    const existing = existingDevice.rows[0];
+    const safeSsid = String(ssidName || '').trim().slice(0, 150) || null;
+
+    if (existing && Number(existing.site_id) !== Number(siteConfig.id)) {
+      throw new Error('This access point is already assigned to another Solidus site');
+    }
+
+    if (existing) {
+      await client.query(
+        `
+          UPDATE network_devices
+          SET
+            ssid_name = COALESCE($2, ssid_name),
+            last_seen_at = NOW(),
+            active = TRUE,
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [existing.id, safeSsid]
+      );
+    } else {
+      const suffix = normalizedApMac.replace(/:/g, '').slice(-6);
+
+      await client.query(
+        `
+          INSERT INTO network_devices (
+            site_id,
+            name,
+            nas_identifier,
+            brand,
+            model,
+            ap_mac,
+            device_type,
+            ssid_name,
+            last_seen_at,
+            active
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'TP-Link Omada',
+            NULL,
+            $4,
+            'omada',
+            $5,
+            NOW(),
+            TRUE
+          )
+        `,
+        [
+          siteConfig.id,
+          safeSsid ? `${safeSsid} AP` : `Omada AP ${suffix}`,
+          `omada-${normalizedApMac.replace(/:/g, '').toLowerCase()}`,
+          normalizedApMac,
+          safeSsid
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      ...siteConfig,
+      external_portal_site_id: externalSiteId,
+      ap_mac: normalizedApMac,
+      ssid_name: safeSsid
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 const buildPackageView = (transaction) => ({
@@ -434,6 +594,51 @@ app.get('/packages', async (req, res) => {
   }
 });
 
+app.get('/portal/setup/:portalKey', async (req, res) => {
+  console.log('OMADA SETUP QUERY:', req.query);
+
+  try {
+    const {
+      clientMac,
+      site,
+      apMac,
+      ssidName,
+      redirectUrl,
+      radioId
+    } = req.query;
+
+    await bindOmadaSetup({
+      portalKey: req.params.portalKey,
+      externalSiteId: String(site || '').trim(),
+      apMac,
+      ssidName
+    });
+
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries({
+      clientMac,
+      site,
+      apMac,
+      ssidName,
+      redirectUrl,
+      radioId
+    })) {
+      if (value !== undefined && value !== null && String(value).length > 0) {
+        params.set(key, String(value));
+      }
+    }
+
+    return res.redirect(302, `/portal?${params.toString()}`);
+  } catch (error) {
+    console.error('OMADA AUTO ONBOARDING ERROR:', error);
+
+    return res.status(400).send(
+      'This WiFi site could not be connected to Solidus WiFi. Please contact the site administrator.'
+    );
+  }
+});
+
 app.get('/portal', async (req, res) => {
   console.log('PORTAL QUERY:', req.query);
 
@@ -481,11 +686,11 @@ app.get('/portal', async (req, res) => {
 
     if (!clientMac) {
       return res.status(400).render('portal/index', {
-        title: 'Small Garden WiFi',
+        title: siteConfig.brand_name,
         packages: result.rows,
         siteConfig,
         portal: portalContext,
-        error: 'Imeshindikana kutambua kifaa chako. Tafadhali unganisha kwenye WiFi ya Small Garden kisha ujaribu tena.'
+        error: 'Imeshindikana kutambua kifaa chako. Tafadhali unganisha tena kwenye WiFi kisha ujaribu tena.'
       });
     }
 
@@ -493,7 +698,7 @@ app.get('/portal', async (req, res) => {
     const savedCustomer = await findLatestCustomerByDeviceId(device.id);
 
     res.render('portal/index', {
-      title: 'Small Garden WiFi',
+      title: siteConfig.brand_name,
       packages: result.rows,
       device,
       savedCustomer,
@@ -507,9 +712,14 @@ app.get('/portal', async (req, res) => {
     console.error('PORTAL ERROR:', error);
 
     res.status(500).render('portal/index', {
-      title: 'Small Garden WiFi',
+      title: 'WiFi',
       packages: [],
-      error: 'Imeshindikana kufungua vifurushi. Tafadhali jaribu tena.'
+      siteConfig: {
+        brand_name: 'WiFi',
+        support_phone: '',
+        primary_color: '#07633f'
+      },
+      error: 'Mtandao huu bado haujasanidiwa vizuri. Tafadhali wasiliana na msimamizi.'
     });
   }
 });
