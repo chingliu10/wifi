@@ -41,16 +41,68 @@ const makeReference = () =>
   crypto.randomBytes(3).toString('hex').toUpperCase();
 
 const extractRecipientName = (lookup) => {
-  const data = lookup?.data || {};
+  const candidates = [
+    lookup?.data,
+    lookup?.raw?.data,
+    lookup?.raw
+  ].filter(Boolean);
 
-  return String(
-    data.account_name ||
-    data.accountName ||
-    data.recipient_name ||
-    data.recipientName ||
-    data.name ||
-    ''
-  ).trim();
+  const keys = [
+    'account_name',
+    'accountName',
+    'account_holder_name',
+    'accountHolderName',
+    'recipient_name',
+    'recipientName',
+    'customer_name',
+    'customerName',
+    'full_name',
+    'fullName',
+    'name'
+  ];
+
+  const findName = (value, depth = 0) => {
+    if (!value || depth > 3) {
+      return '';
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findName(item, depth + 1);
+        if (found) return found;
+      }
+      return '';
+    }
+
+    if (typeof value !== 'object') {
+      return '';
+    }
+
+    for (const key of keys) {
+      const candidate = value[key];
+
+      if (
+        typeof candidate === 'string' &&
+        candidate.trim()
+      ) {
+        return candidate.trim();
+      }
+    }
+
+    for (const nested of Object.values(value)) {
+      const found = findName(nested, depth + 1);
+      if (found) return found;
+    }
+
+    return '';
+  };
+
+  for (const candidate of candidates) {
+    const found = findName(candidate);
+    if (found) return found;
+  }
+
+  return '';
 };
 
 const printUsage = () => {
@@ -115,9 +167,14 @@ const run = async () => {
   console.log('   Recipient:', recipientName || 'NOT RETURNED');
 
   if (!recipientName) {
+    console.log('');
+    console.log('   SplashPay lookup response (safe body only):');
+    console.log(JSON.stringify(lookup.raw, null, 2));
+    console.log('');
+
     throw new Error(
-      'SplashPay name lookup did not return a recipient name. ' +
-      'Do not send until the recipient can be verified.'
+      'SplashPay name lookup returned success but no recipient name was found. ' +
+      'Do not send yet; inspect the response above so we can map the exact field SplashPay returned.'
     );
   }
 
