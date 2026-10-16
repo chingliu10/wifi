@@ -29,45 +29,42 @@
           <span>Chagua kifurushi</span>
         </legend>
 
-        <div class="package-grid">
-          {{#each packages}}
-            <label class="package-card">
-              <input
-                type="radio"
-                name="packageId"
+        <div class="package-select-wrap">
+          <select
+            class="package-select"
+            id="package-select"
+            name="packageId"
+            required
+          >
+            <option value="" selected disabled>Chagua kifurushi...</option>
+            {{#each packages}}
+              <option
                 value="{{id}}"
                 data-price="{{price_tzs}}"
-                required
+                data-name="{{formatPackageName name}}"
               >
+                {{formatPackageName name}} — {{formatTzs price_tzs}} TZS
+              </option>
+            {{/each}}
+          </select>
 
-              <span class="package-card-body">
-                <span class="package-main">
-                  <span class="package-icon" aria-hidden="true">
-                    {{#if @last}}
-                      <svg viewBox="0 0 24 24">
-                        <rect x="4" y="5.5" width="16" height="14" rx="2"></rect>
-                        <path d="M8 3.5v4M16 3.5v4M4 10h16"></path>
-                      </svg>
-                    {{else}}
-                      <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="8"></circle>
-                        <path d="M12 7.5V12l3 2"></path>
-                      </svg>
-                    {{/if}}
-                  </span>
+          <span class="package-select-chevron" aria-hidden="true">⌄</span>
+        </div>
 
-                  <span class="package-copy">
-                    <strong>{{formatPackageName name}}</strong>
-                    <span>{{formatTzs price_tzs}} TZS</span>
-                  </span>
-                </span>
+        <div class="package-selection-summary" id="package-selection-summary" hidden>
+          <span class="package-selection-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8"></circle>
+              <path d="M12 7.5V12l3 2"></path>
+            </svg>
+          </span>
 
-                <span class="package-radio" aria-hidden="true">
-                  <span></span>
-                </span>
-              </span>
-            </label>
-          {{/each}}
+          <span class="package-selection-copy">
+            <small>Kifurushi ulichochagua</small>
+            <strong id="package-selection-name"></strong>
+          </span>
+
+          <strong class="package-selection-price" id="package-selection-price"></strong>
         </div>
 
         <p class="field-help" id="package-error" role="status" hidden>Chagua kifurushi kwanza.</p>
@@ -168,15 +165,19 @@
     const phone = document.getElementById('phone-number');
     const phoneExample = document.getElementById('phone-example');
     const packageError = document.getElementById('package-error');
-    const packageInputs = Array.from(
-      document.querySelectorAll('input[name="packageId"]')
-    );
+    const packageSelect = document.getElementById('package-select');
+    const packageSummary = document.getElementById('package-selection-summary');
+    const packageSummaryName = document.getElementById('package-selection-name');
+    const packageSummaryPrice = document.getElementById('package-selection-price');
     const phonePattern = /^0[67][0-9]{8}$/;
 
     if (!form || !button || !buttonText || !customerName || !phone) return;
 
-    const selectedPackage = () =>
-      packageInputs.find((input) => input.checked);
+    const selectedPackage = () => {
+      const option = packageSelect?.selectedOptions?.[0];
+
+      return option && option.value ? option : null;
+    };
 
     const nameIsValid = () => {
       const value = customerName.value.trim();
@@ -256,11 +257,26 @@
       validateName();
     });
 
-    packageInputs.forEach((input) => {
-      input.addEventListener('change', () => {
-        if (packageError) packageError.hidden = true;
-        updateButton();
-      });
+    packageSelect?.addEventListener('change', () => {
+      const plan = selectedPackage();
+
+      if (packageError) packageError.hidden = Boolean(plan);
+
+      if (packageSummary) {
+        packageSummary.hidden = !plan;
+      }
+
+      if (plan && packageSummaryName) {
+        packageSummaryName.textContent =
+          plan.dataset.name || plan.textContent.trim();
+      }
+
+      if (plan && packageSummaryPrice) {
+        packageSummaryPrice.textContent =
+          formatTzs(plan.dataset.price) + ' TZS';
+      }
+
+      updateButton();
     });
 
     phone.addEventListener('input', () => {
@@ -280,7 +296,9 @@
           packageError.hidden = false;
         }
 
-        if (!validName) {
+        if (!plan && packageSelect) {
+          packageSelect.focus();
+        } else if (!validName) {
           customerName.focus();
         } else if (!validPhone) {
           phone.focus();
