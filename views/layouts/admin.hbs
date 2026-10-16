@@ -15,7 +15,10 @@
   <link rel="apple-touch-icon" href="/pwa/solidus-wifi-192.svg">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
-<body>
+<body
+  data-show-password-label="{{t 'account.showPassword'}}"
+  data-hide-password-label="{{t 'account.hidePassword'}}"
+>
   <div class="admin-app">
     <button
       class="sidebar-scrim"
@@ -33,6 +36,27 @@
           <span>{{#if isSuperAdmin}}{{t 'role.platformAdmin'}}{{else}}{{t 'role.clientPortal'}}{{/if}}</span>
         </div>
       </div>
+
+      <details class="sidebar-account">
+        <summary>
+          <span class="sidebar-account-avatar" aria-hidden="true">●</span>
+          <span class="sidebar-account-copy">
+            <strong>{{currentUser.full_name}}</strong>
+            <small>{{currentUser.username}}</small>
+          </span>
+          <span class="sidebar-account-chevron" aria-hidden="true">⌄</span>
+        </summary>
+
+        <div class="sidebar-account-menu">
+          <a href="/admin/account/password">
+            {{t 'account.changePassword'}}
+          </a>
+
+          <form method="POST" action="/admin/logout">
+            <button type="submit">{{t 'account.signOut'}}</button>
+          </form>
+        </div>
+      </details>
 
       {{#if selectedOrg}}
         <div class="org-card">
@@ -59,12 +83,6 @@
           <a class="add-client-link" href="/admin/clients/new">+ {{t 'account.addClient'}}</a>
         {{/if}}
 
-        <div class="signed-in-user">
-          <span>{{t 'account.signedInAs'}}</span>
-          <strong>{{currentUser.full_name}}</strong>
-          <small>{{currentUser.username}}</small>
-        </div>
-
         <button
           class="pwa-sidebar-button"
           id="pwa-install-button"
@@ -75,9 +93,6 @@
           {{t 'pwa.installButton'}}
         </button>
 
-        <form method="POST" action="/admin/logout">
-          <button class="logout-button" type="submit">{{t 'account.signOut'}}</button>
-        </form>
       </div>
     </aside>
 
@@ -159,6 +174,7 @@
       });
     })();
   </script>
+  <script src="/js/password-visibility.js" defer></script>
   <script src="/js/pwa.js" defer></script>
 </body>
 </html>
