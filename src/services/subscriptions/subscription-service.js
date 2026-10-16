@@ -10,6 +10,91 @@ const {
 } = require('../../repositories/subscription-repository');
 const { authorizeSubscription } = require('../radius/radius-service');
 
+const recordPaymentWalletEntries = async ({ db, payment }) => {
+  if (
+    payment.organization_id === null ||
+    payment.organization_id === undefined ||
+    payment.gateway_fee_tzs === null ||
+    payment.gateway_fee_tzs === undefined ||
+    payment.net_amount_tzs === null ||
+    payment.net_amount_tzs === undefined
+  ) {
+    return {
+      reconciled: false,
+      reason: 'Gateway fee/net amount is not available'
+    };
+  }
+
+  const gatewayFeeTzs = Number(payment.gateway_fee_tzs);
+  const netAmountTzs = Number(payment.net_amount_tzs);
+
+  if (
+    !Number.isFinite(gatewayFeeTzs) ||
+    !Number.isFinite(netAmountTzs) ||
+    gatewayFeeTzs < 0 ||
+    netAmountTzs < 0
+  ) {
+    return {
+      reconciled: false,
+      reason: 'Gateway fee/net amount is invalid'
+    };
+  }
+
+  /*
+   * Provider settlement is authoritative. Credit net + fee, then post the
+   * fee as a debit so SUM(wallet_entries.amount_tzs) equals provider net.
+   */
+  const settlementGrossTzs = netAmountTzs + gatewayFeeTzs;
+
+  await db.query(
+    `
+      INSERT INTO wallet_entries (
+        organization_id,
+        payment_transaction_id,
+        entry_type,
+        amount_tzs,
+        description
+      )
+      VALUES ($1, $2, 'payment_credit', $3, $4)
+      ON CONFLICT DO NOTHING
+    `,
+    [
+      payment.organization_id,
+      payment.id,
+      settlementGrossTzs,
+      `Customer payment ${payment.reference}`
+    ]
+  );
+
+  if (gatewayFeeTzs > 0) {
+    await db.query(
+      `
+        INSERT INTO wallet_entries (
+          organization_id,
+          payment_transaction_id,
+          entry_type,
+          amount_tzs,
+          description
+        )
+        VALUES ($1, $2, 'gateway_fee', $3, $4)
+        ON CONFLICT DO NOTHING
+      `,
+      [
+        payment.organization_id,
+        payment.id,
+        -gatewayFeeTzs,
+        `Gateway fee for ${payment.reference}`
+      ]
+    );
+  }
+
+  return {
+    reconciled: true,
+    gatewayFeeTzs,
+    netAmountTzs
+  };
+};
+
 const activateSubscriptionForPayment = async (paymentTransaction) => {
   const client = await pool.connect();
 
@@ -51,6 +136,18 @@ const activateSubscriptionForPayment = async (paymentTransaction) => {
       subscription
     });
 
+    const wallet = await recordPaymentWalletEntries({
+      db: client,
+      payment: lockedPayment
+    });
+
+    if (!wallet.reconciled) {
+      console.warn('PAYMENT WALLET NOT RECONCILED:', {
+        reference: lockedPayment.reference,
+        reason: wallet.reason
+      });
+    }
+
     await markPaymentProvisioningActive({
       db: client,
       reference: lockedPayment.reference
@@ -60,7 +157,8 @@ const activateSubscriptionForPayment = async (paymentTransaction) => {
 
     return {
       subscription,
-      radiusRecords
+      radiusRecords,
+      wallet
     };
   } catch (error) {
     await client.query('ROLLBACK');
