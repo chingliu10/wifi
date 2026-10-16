@@ -214,3 +214,52 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
 .auth-card-top{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .live-client-error{margin:14px 0}
 @media(max-width:430px){.auth-card{padding:22px}.auth-card-top{align-items:flex-start}.auth-card-top .language-switcher{margin-left:auto}}
+
+
+/* Wallet withdrawals */
+.status-processing{color:#175cd3;background:#eaf4ff}
+.notice-success{margin:14px 0;background:#ecfdf3;color:#027a48;border:1px solid #abefc6}
+.notice-error{margin:14px 0;background:#fff0ee;color:var(--danger);border:1px solid #f4c7c2}
+.wallet-stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.wallet-action-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:14px;margin-top:14px}
+.wallet-withdraw-panel,.wallet-fee-panel{min-width:0}
+.wallet-withdraw-form-grid{grid-template-columns:1fr 1fr}
+.wallet-amount-field{grid-column:1/-1}
+.withdraw-review{display:grid;gap:16px}
+.withdraw-review-head{display:grid;gap:4px;padding:14px;border:1px solid #cfe7df;border-radius:11px;background:#f4fbf8}
+.withdraw-review-head .status-pill{width:max-content;margin-bottom:4px}
+.withdraw-review-head strong{font-size:17px}
+.withdraw-review-head small{color:var(--muted);font-size:11px}
+.withdraw-summary{display:grid;gap:0;margin:0;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+.withdraw-summary div{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 14px;border-top:1px solid var(--line)}
+.withdraw-summary div:first-child{border-top:0}
+.withdraw-summary dt{color:var(--muted);font-size:11px}
+.withdraw-summary dd{margin:0;font-size:13px;font-weight:800;text-align:right}
+.withdraw-summary .withdraw-total-row{background:#f8fafc}
+.withdraw-summary .withdraw-total-row dd{font-size:16px}
+.wallet-confirm-actions a{display:inline-flex;align-items:center;justify-content:center;background:#eef2f6;color:var(--text)}
+.fee-tier-list{display:grid;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.fee-tier-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border-top:1px solid var(--line)}
+.fee-tier-row:first-child{border-top:0}
+.fee-tier-row span{color:var(--muted);font-size:11px}
+.fee-tier-row strong{font-size:12px}
+.wallet-fee-note{margin-top:12px;padding:12px;border-radius:10px;background:#eef8ff;color:#175cd3;font-size:11px;line-height:1.5}
+.wallet-history-panel{margin-top:14px}
+.wallet-ledger-panel{margin-top:14px}
+
+@media(max-width:1000px){
+  .wallet-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wallet-action-grid{grid-template-columns:1fr}
+}
+
+@media(max-width:760px){
+  .wallet-withdraw-form-grid{grid-template-columns:1fr}
+  .wallet-amount-field{grid-column:auto}
+  .wallet-confirm-actions{grid-template-columns:1fr 1fr}
+  .wallet-confirm-actions a,.wallet-confirm-actions button{width:100%}
+}
+
+@media(max-width:430px){
+  .wallet-stats-grid{grid-template-columns:1fr}
+  .fee-tier-row{align-items:flex-start;flex-direction:column;gap:4px}
+}
