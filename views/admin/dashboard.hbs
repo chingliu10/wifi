@@ -11,7 +11,7 @@
 {{#if selectedOrg}}
   <section class="stats-grid">
     <article class="stat-card">
-      <span>Revenue today</span>
+      <span>Gross sales today</span>
       <strong>{{formatTzs stats.revenue_today}} TZS</strong>
       <small>{{stats.payments_today}} successful payments</small>
     </article>
@@ -29,9 +29,9 @@
     </article>
 
     <article class="stat-card">
-      <span>Collected total</span>
-      <strong>{{formatTzs stats.collected_total}} TZS</strong>
-      <small>gross successful payments</small>
+      <span>Available balance</span>
+      <strong>{{formatTzs stats.available_balance}} TZS</strong>
+      <small>after gateway fees and payouts</small>
     </article>
   </section>
 
@@ -65,10 +65,17 @@
       <div class="mini-stats">
         <div><span>Sites</span><strong>{{stats.sites}}</strong></div>
         <div><span>Routers / APs</span><strong>{{stats.devices}}</strong></div>
-        <div><span>Wallet ledger</span><strong>{{formatTzs stats.ledger_balance}}</strong></div>
+        <div><span>Gross collected</span><strong>{{formatTzs stats.collected_total}} TZS</strong></div>
+        <div><span>Gateway fees</span><strong>{{formatTzs stats.gateway_fees}} TZS</strong></div>
       </div>
     </article>
   </section>
+
+  {{#if stats.unreconciled_payments}}
+    <div class="notice">
+      {{stats.unreconciled_payments}} successful payment(s) still need fee reconciliation before the available balance is final.
+    </div>
+  {{/if}}
 
   <section class="panel table-panel">
     <div class="panel-head">
@@ -86,7 +93,8 @@
             <th>Customer</th>
             <th>Site</th>
             <th>Package</th>
-            <th>Amount</th>
+            <th>Gross</th>
+            <th>Net</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -97,10 +105,17 @@
               <td>{{site_name}}</td>
               <td>{{formatPackageName package_name}}</td>
               <td>{{formatTzs amount_tzs}} TZS</td>
+              <td>
+                {{#if net_amount_tzs}}
+                  {{formatTzs net_amount_tzs}} TZS
+                {{else}}
+                  <span class="muted-value">—</span>
+                {{/if}}
+              </td>
               <td><span class="status-pill status-{{status}}">{{status}}</span></td>
             </tr>
           {{else}}
-            <tr><td colspan="5" class="empty">No payments yet.</td></tr>
+            <tr><td colspan="6" class="empty">No payments yet.</td></tr>
           {{/each}}
         </tbody>
       </table>
