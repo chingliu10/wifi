@@ -115,6 +115,9 @@ const activateSubscriptionForPayment = async (paymentTransaction) => {
       throw new Error('Payment transaction is not paid');
     }
 
+    const shouldRequestOmadaReauth =
+      lockedPayment.provisioning_status !== 'active';
+
     let subscription = await findSubscriptionByPaymentTransactionId({
       db: client,
       paymentTransactionId: lockedPayment.id
@@ -162,6 +165,7 @@ const activateSubscriptionForPayment = async (paymentTransaction) => {
     };
 
     if (
+      shouldRequestOmadaReauth &&
       omada.configured() &&
       lockedPayment.external_portal_site_id &&
       lockedPayment.client_mac
