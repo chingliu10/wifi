@@ -353,7 +353,12 @@ const buildPackageView = (transaction) => ({
 });
 
 const buildPaymentMessage = (transaction, subscription) => {
-  if (transaction.status === 'paid' && subscription && subscription.status === 'active') {
+  if (
+    transaction.status === 'paid' &&
+    subscription &&
+    subscription.status === 'active' &&
+    transaction.omada_portal_authorized_at
+  ) {
     return 'Malipo yamefanikiwa. Internet imewashwa.';
   }
 
@@ -476,11 +481,16 @@ const loadSubscriptionForTransaction = async (transaction) => {
 
 const renderPaymentStatus = async (res, transaction, title = 'Payment status') => {
   const subscription = await loadSubscriptionForTransaction(transaction);
-  const paymentActive = Boolean(
-    transaction.status === 'paid' &&
+  const subscriptionActive = Boolean(
     subscription &&
     subscription.status === 'active' &&
     new Date(subscription.expires_at).getTime() > Date.now()
+  );
+
+  const paymentActive = Boolean(
+    transaction.status === 'paid' &&
+    subscriptionActive &&
+    transaction.omada_portal_authorized_at
   );
 
   return res.render('portal/confirm', {
@@ -495,6 +505,7 @@ const renderPaymentStatus = async (res, transaction, title = 'Payment status') =
     subscription,
     message: buildPaymentMessage(transaction, subscription),
     paymentActive,
+    paymentPaid: transaction.status === 'paid',
     showPayNow: transaction.status === 'pending' && !transaction.provider_reference,
     paymentInitiated: transaction.status === 'pending' && Boolean(transaction.provider_reference)
   });
@@ -639,6 +650,7 @@ app.get('/portal/setup/:portalKey', async (req, res) => {
   try {
     const {
       clientMac,
+      clientIp,
       site,
       apMac,
       ssidName,
@@ -657,6 +669,7 @@ app.get('/portal/setup/:portalKey', async (req, res) => {
 
     for (const [key, value] of Object.entries({
       clientMac,
+      clientIp,
       site,
       apMac,
       ssidName,
@@ -684,6 +697,7 @@ app.get('/portal', async (req, res) => {
   try {
     const {
       clientMac,
+      clientIp,
       site,
       apMac,
       ssidName,
@@ -718,6 +732,7 @@ app.get('/portal', async (req, res) => {
 
     const portalContext = {
       site,
+      clientIp,
       apMac,
       ssidName,
       redirectUrl,
@@ -775,6 +790,7 @@ app.post('/portal/pay', async (req, res) => {
       packageId,
       deviceId,
       clientMac,
+      clientIp,
       site,
       apMac,
       ssidName,
@@ -782,7 +798,14 @@ app.post('/portal/pay', async (req, res) => {
       radioId
     } = req.body;
 
-    if (!customerName || !phone || !packageId || !clientMac || !deviceId) {
+    if (
+      !customerName ||
+      !phone ||
+      !packageId ||
+      !clientMac ||
+      !clientIp ||
+      !deviceId
+    ) {
       return res.status(400).render('portal/confirm', {
         title: 'Payment request',
         error: 'Tafadhali weka jina, namba ya simu na uchague kifurushi.'
@@ -927,6 +950,7 @@ app.post('/portal/pay', async (req, res) => {
         phone: normalizedPhoneInput,
         packageId: packageData.id,
         clientMac: normalizedClientMac,
+        clientIp: String(clientIp).trim(),
         deviceId,
         amountTzs: packageData.price_tzs,
         status: 'pending',
@@ -1104,7 +1128,8 @@ app.get('/api/payments/:reference/status', async (req, res) => {
       accessActive: Boolean(
         subscription &&
         subscription.status === 'active' &&
-        new Date(subscription.expires_at).getTime() > Date.now()
+        new Date(subscription.expires_at).getTime() > Date.now() &&
+        transaction.omada_portal_authorized_at
       )
     });
   } catch (error) {
