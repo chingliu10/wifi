@@ -40,7 +40,8 @@ const requestJson = async ({
   query,
   body,
   accessToken,
-  allowOmadaError = false
+  allowOmadaError = false,
+  timeoutMs = 15000
 }) => {
   const config = getConfig();
   const url = new URL(path, config.baseUrl + '/');
@@ -76,7 +77,7 @@ const requestJson = async ({
         method,
         headers,
         rejectUnauthorized: config.rejectUnauthorized,
-        timeout: 15000
+        timeout: timeoutMs
       },
       (res) => {
         const chunks = [];
@@ -238,7 +239,8 @@ const getOpenApiDocument = async () => {
   return requestJson({
     method: 'GET',
     path: '/v3/api-docs',
-    allowOmadaError: true
+    allowOmadaError: true,
+    timeoutMs: 90000
   });
 };
 
