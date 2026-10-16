@@ -217,7 +217,21 @@ const translations = {
     'sites.noWifi': 'No Wi-Fi networks found in this Omada site yet.',
     'sites.noSites': 'No sites yet. Create the first site above.',
     'sites.managed': 'managed',
-    'sites.disabled': 'disabled'
+    'sites.disabled': 'disabled',
+    'live.title': 'Live clients',
+    'live.subtitle': 'Clients currently connected to this Omada site.',
+    'live.site': 'Omada site',
+    'live.deviceName': 'Device',
+    'live.mac': 'MAC address',
+    'live.ip': 'IP address',
+    'live.ssid': 'SSID',
+    'live.ap': 'Access point',
+    'live.signal': 'Signal',
+    'live.uptime': 'Uptime',
+    'live.noClients': 'No connected clients found.',
+    'live.notLinked': 'This business does not have an Omada-linked site yet.',
+    'live.unavailable': 'Unable to read live clients from Omada right now.',
+    'live.refresh': 'Refresh'
   },
   sw: {
     'language.english': 'English',
@@ -437,7 +451,21 @@ const translations = {
     'sites.noWifi': 'Hakuna mtandao wa Wi-Fi uliopatikana kwenye eneo hili la Omada.',
     'sites.noSites': 'Hakuna maeneo bado. Tengeneza eneo la kwanza hapo juu.',
     'sites.managed': 'inasimamiwa',
-    'sites.disabled': 'imezimwa'
+    'sites.disabled': 'imezimwa',
+    'live.title': 'Wateja waliounganishwa',
+    'live.subtitle': 'Wateja ambao kwa sasa wameunganishwa kwenye eneo hili la Omada.',
+    'live.site': 'Eneo la Omada',
+    'live.deviceName': 'Kifaa',
+    'live.mac': 'MAC address',
+    'live.ip': 'IP address',
+    'live.ssid': 'SSID',
+    'live.ap': 'Access point',
+    'live.signal': 'Signal',
+    'live.uptime': 'Muda uliounganishwa',
+    'live.noClients': 'Hakuna wateja waliounganishwa waliopatikana.',
+    'live.notLinked': 'Biashara hii bado haina eneo lililounganishwa na Omada.',
+    'live.unavailable': 'Imeshindikana kusoma wateja waliounganishwa kutoka Omada kwa sasa.',
+    'live.refresh': 'Onyesha upya'
   }
 };
 
