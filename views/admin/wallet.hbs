@@ -1,56 +1,56 @@
 <section class="page-head">
   <div>
-    <h2>Wallet & payouts</h2>
-    <p>Exact financial position for {{#if selectedOrg}}{{selectedOrg.name}}{{/if}}.</p>
+    <h2>{{t 'wallet.title'}}</h2>
+    <p>{{t 'wallet.subtitle'}}{{#if selectedOrg}} — {{selectedOrg.name}}{{/if}}</p>
   </div>
 </section>
 
 <section class="stats-grid">
   <article class="stat-card">
-    <span>Available balance</span>
+    <span>{{t 'wallet.availableBalance'}}</span>
     <strong>{{formatTzs wallet.available_balance}} TZS</strong>
-    <small>amount currently owed to this client</small>
+    <small>{{t 'wallet.amountOwed'}}</small>
   </article>
 
   <article class="stat-card">
-    <span>Gross collected</span>
+    <span>{{t 'wallet.grossCollected'}}</span>
     <strong>{{formatTzs settlement.gross_collected}} TZS</strong>
-    <small>successful customer payments</small>
+    <small>{{t 'wallet.successfulPayments'}}</small>
   </article>
 
   <article class="stat-card">
-    <span>Net collected</span>
+    <span>{{t 'wallet.netCollected'}}</span>
     <strong>{{formatTzs settlement.net_collected}} TZS</strong>
-    <small>amount credited after payment processing</small>
+    <small>{{t 'wallet.afterProcessing'}}</small>
   </article>
 
   <article class="stat-card">
-    <span>Paid out</span>
+    <span>{{t 'wallet.paidOut'}}</span>
     <strong>{{formatTzs wallet.paid_out}} TZS</strong>
-    <small>client disbursements recorded in the ledger</small>
+    <small>{{t 'wallet.disbursements'}}</small>
   </article>
 
   <article class="stat-card">
-    <span>Platform fees</span>
+    <span>{{t 'wallet.platformFees'}}</span>
     <strong>{{formatTzs wallet.platform_fees}} TZS</strong>
-    <small>Solidus fees charged to this client</small>
+    <small>{{t 'wallet.solidusFees'}}</small>
   </article>
 </section>
 
 {{#if settlement.unreconciled_payments}}
   <div class="notice">
-    {{settlement.unreconciled_payments}} successful payment(s) do not yet have an exact payment provider fee/net amount. They are excluded from the reconciled wallet balance until resolved.
+    {{settlement.unreconciled_payments}} {{t 'wallet.unreconciled'}}
   </div>
 {{/if}}
 
 <section class="panel">
   <div class="panel-head">
     <div>
-      <h3>Wallet ledger</h3>
-      <p>{{wallet.entries}} accounting entries. Available balance is the sum of credits, gateway fees, platform fees, payouts and adjustments.</p>
+      <h3>{{t 'wallet.ledger'}}</h3>
+      <p>{{wallet.entries}} {{t 'wallet.ledgerHint'}}</p>
     </div>
   </div>
   <div class="notice">
-    Automatic client payouts are not enabled yet. When payouts are added, each successful payout will create a payout debit and reduce Available balance.
+    {{t 'wallet.payoutNotice'}}
   </div>
 </section>
