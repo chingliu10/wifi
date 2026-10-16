@@ -612,7 +612,20 @@ router.get('/', async (req, res) => {
       pool.query(
         `
           SELECT
-            COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS available_balance,
+            (
+              COALESCE((
+                SELECT SUM(amount_tzs)
+                FROM wallet_entries
+                WHERE organization_id = $1
+              ), 0)
+              -
+              COALESCE((
+                SELECT SUM(total_amount_tzs)
+                FROM payout_transactions
+                WHERE organization_id = $1
+                  AND status IN ('pending', 'processing')
+              ), 0)
+            )::NUMERIC(18,2) AS available_balance,
             COALESCE(
               -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
               0
