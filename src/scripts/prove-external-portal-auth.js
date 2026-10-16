@@ -218,7 +218,8 @@ const run = async () => {
   console.log('   CSRF token: received');
   console.log('   Session cookie: received');
 
-  const expiresAt = Date.now() + seconds * 1000;
+  const durationMs = seconds * 1000;
+  const expectedExpiresAt = Date.now() + durationMs;
   const authUrl =
     baseUrl +
     '/' +
@@ -226,8 +227,13 @@ const run = async () => {
     '/api/v2/hotspot/extPortal/auth';
 
   console.log('');
-  console.log('2. Authorizing captive client with exact expiry...');
-  console.log('   Expires:', formatLocal(expiresAt), 'Africa/Dar_es_Salaam');
+  console.log('2. Authorizing captive client for exact duration...');
+  console.log('   Duration:', durationMs, 'ms');
+  console.log(
+    '   Expected expiry:',
+    formatLocal(expectedExpiresAt),
+    'Africa/Dar_es_Salaam'
+  );
 
   const auth = await requestJson({
     url: authUrl,
@@ -241,7 +247,13 @@ const run = async () => {
       apMac,
       ssidName,
       radioId,
-      time: expiresAt,
+      /*
+       * Omada's current documentation labels this field "Authentication
+       * Expiration time", but the controller treats it as a duration in
+       * milliseconds. Passing an epoch timestamp causes multi-decade
+       * sessions (start + epochMilliseconds).
+       */
+      time: durationMs,
       authType: 4,
       originUrl,
       totalTrafficLimitBytes: 0,
