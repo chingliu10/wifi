@@ -268,7 +268,6 @@ const createSite = async ({
     path: '/openapi/v1/{omadacId}/sites',
     body: {
       name,
-      type: 0,
       region,
       timeZone,
       scenario,
