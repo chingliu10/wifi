@@ -19,6 +19,12 @@ const {
   getInformHost,
   createDeviceClaim
 } = require('../services/omada/provisioning-service');
+const {
+  detectSiteRadioCapabilities,
+  listSiteWifiNetworks,
+  createSiteWifiNetwork,
+  renameSiteWifiNetwork
+} = require('../services/omada/wifi-service');
 
 const router = express.Router();
 
@@ -635,6 +641,26 @@ router.get('/sites', async (req, res) => {
         }
       }
 
+      let radioCapabilities = null;
+      let wifiNetworks = [];
+      const wifiErrors = [];
+
+      if (site.external_portal_site_id) {
+        try {
+          wifiNetworks = await listSiteWifiNetworks(site.id);
+        } catch (error) {
+          wifiErrors.push('Unable to read WiFi networks: ' + error.message);
+        }
+
+        if (Number(site.device_count) > 0) {
+          try {
+            radioCapabilities = await detectSiteRadioCapabilities(site.id);
+          } catch (error) {
+            wifiErrors.push('Unable to detect AP radios: ' + error.message);
+          }
+        }
+      }
+
       siteViews.push({
         ...site,
         setup_url: `${publicBaseUrl}/portal/setup/${site.portal_key}`,
@@ -644,6 +670,9 @@ router.get('/sites', async (req, res) => {
         device_username: credentials?.username || null,
         device_password: credentials?.password || null,
         credential_error: credentialError,
+        radio_capabilities: radioCapabilities,
+        wifi_networks: wifiNetworks,
+        wifi_error: wifiErrors.join(' '),
         claims: claims.filter(
           (claim) => Number(claim.site_id) === Number(site.id)
         )
@@ -840,6 +869,83 @@ router.post('/sites/:id/omada/claim', async (req, res) => {
   } catch (error) {
     console.error('OMADA DEVICE CLAIM ERROR:', error);
     res.status(400).send('Unable to claim AP: ' + error.message);
+  }
+});
+
+router.post('/sites/:id/wifi-networks', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.params.id);
+
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
+    }
+
+    const owned = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    if (!owned.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    await createSiteWifiNetwork({
+      siteId,
+      ssidName: req.body.ssidName,
+      bandPreference: req.body.bandPreference || 'auto'
+    });
+
+    res.redirect('/admin/sites?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('OMADA WIFI CREATE ERROR:', error);
+    res.status(400).send('Unable to create WiFi network: ' + error.message);
+  }
+});
+
+router.post('/sites/:id/wifi-networks/:ssidId/rename', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.params.id);
+
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
+    }
+
+    const owned = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    if (!owned.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    await renameSiteWifiNetwork({
+      siteId,
+      wlanId: req.body.wlanId,
+      ssidId: req.params.ssidId,
+      ssidName: req.body.ssidName
+    });
+
+    res.redirect('/admin/sites?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('OMADA WIFI RENAME ERROR:', error);
+    res.status(400).send('Unable to rename WiFi network: ' + error.message);
   }
 });
 
