@@ -148,8 +148,10 @@ const requestMobileMoneyPayout = async ({
     remarks
   });
 
+  let provider;
+
   try {
-    const provider = await initiateMobileMoneyDisbursement({
+    provider = await initiateMobileMoneyDisbursement({
       reference,
       phone: preview.phone,
       recipientName: preview.recipientName,
@@ -161,76 +163,6 @@ const requestMobileMoneyPayout = async ({
         payout_transaction_id: String(reservation.id)
       }
     });
-
-    if (
-      provider.reference &&
-      provider.reference !== reference
-    ) {
-      throw new Error('SplashPay payout reference mismatch');
-    }
-
-    if (
-      Number(provider.amountTzs) !== Number(preview.amountTzs)
-    ) {
-      throw new Error('SplashPay payout amount mismatch');
-    }
-
-    const providerFee = Number.isFinite(Number(provider.feeTzs))
-      ? Number(provider.feeTzs)
-      : preview.feeTzs;
-    const providerTotal = Number.isFinite(Number(provider.totalAmountTzs))
-      ? Number(provider.totalAmountTzs)
-      : preview.amountTzs + providerFee;
-
-    if (
-      Math.abs(
-        providerTotal -
-        (preview.amountTzs + providerFee)
-      ) > 0.01
-    ) {
-      throw new Error('SplashPay payout total mismatch');
-    }
-
-    const providerStatus = String(
-      provider.status || 'pending'
-    ).toLowerCase();
-
-    if (
-      providerStatus === 'paid' ||
-      providerStatus === 'success' ||
-      providerStatus === 'completed'
-    ) {
-      const completed = await completePayout({
-        reference,
-        providerReference: provider.providerReference,
-        amountTzs: preview.amountTzs,
-        feeTzs: providerFee,
-        totalAmountTzs: providerTotal
-      });
-
-      return {
-        payout: completed,
-        preview
-      };
-    }
-
-    const status =
-      providerStatus === 'processing'
-        ? 'processing'
-        : 'pending';
-
-    const updated = await updatePayoutProviderState({
-      reference,
-      providerReference: provider.providerReference,
-      feeTzs: providerFee,
-      totalAmountTzs: providerTotal,
-      status
-    });
-
-    return {
-      payout: updated,
-      preview
-    };
   } catch (error) {
     await failPayout({
       reference,
@@ -240,6 +172,93 @@ const requestMobileMoneyPayout = async ({
 
     throw error;
   }
+
+  const providerStatus = String(
+    provider.status || 'pending'
+  ).toLowerCase();
+  const safeStatus =
+    providerStatus === 'processing'
+      ? 'processing'
+      : 'pending';
+
+  if (
+    provider.reference &&
+    provider.reference !== reference
+  ) {
+    await updatePayoutProviderState({
+      reference,
+      providerReference: provider.providerReference,
+      status: safeStatus
+    });
+
+    throw new Error('SplashPay accepted payout with a mismatched reference');
+  }
+
+  if (
+    Number(provider.amountTzs) !== Number(preview.amountTzs)
+  ) {
+    await updatePayoutProviderState({
+      reference,
+      providerReference: provider.providerReference,
+      status: safeStatus
+    });
+
+    throw new Error('SplashPay accepted payout with a mismatched amount');
+  }
+
+  const providerFee = Number.isFinite(Number(provider.feeTzs))
+    ? Number(provider.feeTzs)
+    : preview.feeTzs;
+  const providerTotal = Number.isFinite(Number(provider.totalAmountTzs))
+    ? Number(provider.totalAmountTzs)
+    : preview.amountTzs + providerFee;
+
+  if (
+    Math.abs(
+      providerTotal -
+      (preview.amountTzs + providerFee)
+    ) > 0.01
+  ) {
+    await updatePayoutProviderState({
+      reference,
+      providerReference: provider.providerReference,
+      status: safeStatus
+    });
+
+    throw new Error('SplashPay accepted payout with an invalid total');
+  }
+
+  if (
+    providerStatus === 'paid' ||
+    providerStatus === 'success' ||
+    providerStatus === 'completed'
+  ) {
+    const completed = await completePayout({
+      reference,
+      providerReference: provider.providerReference,
+      amountTzs: preview.amountTzs,
+      feeTzs: providerFee,
+      totalAmountTzs: providerTotal
+    });
+
+    return {
+      payout: completed,
+      preview
+    };
+  }
+
+  const updated = await updatePayoutProviderState({
+    reference,
+    providerReference: provider.providerReference,
+    feeTzs: providerFee,
+    totalAmountTzs: providerTotal,
+    status: safeStatus
+  });
+
+  return {
+    payout: updated,
+    preview
+  };
 };
 
 const mobileMoneyNetworks = [
