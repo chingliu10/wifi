@@ -37,27 +37,6 @@
         </div>
       </div>
 
-      <details class="sidebar-account">
-        <summary>
-          <span class="sidebar-account-avatar" aria-hidden="true">●</span>
-          <span class="sidebar-account-copy">
-            <strong>{{currentUser.full_name}}</strong>
-            <small>{{currentUser.username}}</small>
-          </span>
-          <span class="sidebar-account-chevron" aria-hidden="true">⌄</span>
-        </summary>
-
-        <div class="sidebar-account-menu">
-          <a href="/admin/account/password">
-            {{t 'account.changePassword'}}
-          </a>
-
-          <form method="POST" action="/admin/logout">
-            <button type="submit">{{t 'account.signOut'}}</button>
-          </form>
-        </div>
-      </details>
-
       {{#if selectedOrg}}
         <div class="org-card">
           <span>{{#if isSuperAdmin}}{{t 'org.currentClient'}}{{else}}{{t 'org.yourBusiness'}}{{/if}}</span>
@@ -116,6 +95,34 @@
             <button type="button" class="{{#if isSwahili}}active{{/if}}" data-admin-lang="sw">SW</button>
           </div>
 
+          <details class="topbar-account">
+            <summary
+              class="topbar-account-button"
+              aria-label="{{t 'account.account'}}"
+              title="{{t 'account.account'}}"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.5"></circle>
+                <path d="M5.5 19c.8-4 3-6 6.5-6s5.7 2 6.5 6"></path>
+              </svg>
+            </summary>
+
+            <div class="topbar-account-menu">
+              <div class="topbar-account-user">
+                <strong>{{currentUser.full_name}}</strong>
+                <small>{{currentUser.username}}</small>
+              </div>
+
+              <a href="/admin/account/password">
+                {{t 'account.changePassword'}}
+              </a>
+
+              <form method="POST" action="/admin/logout">
+                <button type="submit">{{t 'account.signOut'}}</button>
+              </form>
+            </div>
+          </details>
+
           {{#if isSuperAdmin}}
             {{#if organizations}}
               <form class="org-switcher" method="GET" action="/admin">
@@ -170,6 +177,15 @@
       document.querySelectorAll('.sidebar .nav a').forEach((link) => {
         link.addEventListener('click', () => {
           document.body.classList.remove('sidebar-open');
+        });
+      });
+
+
+      document.querySelectorAll('.topbar-account').forEach((account) => {
+        document.addEventListener('click', (event) => {
+          if (!account.contains(event.target)) {
+            account.removeAttribute('open');
+          }
         });
       });
     })();
