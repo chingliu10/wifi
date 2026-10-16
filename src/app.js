@@ -836,10 +836,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/admin', adminRouter);
 
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Hotspot backend is running'
-  });
+  res.redirect(302, '/admin');
 });
 
 app.get('/health', async (req, res) => {
