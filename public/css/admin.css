@@ -546,3 +546,71 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
   }
   .account-security-panel{max-width:none}
 }
+
+
+/* Site support phone editor */
+.site-support-meta{min-width:0}
+.site-support-editor{margin-top:6px}
+.site-support-editor summary{
+  width:max-content;
+  color:var(--accent);
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+  list-style:none
+}
+.site-support-editor summary::-webkit-details-marker{display:none}
+.site-support-editor summary:hover{text-decoration:underline}
+.site-support-form{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+  margin-top:8px
+}
+.site-support-form label{
+  display:grid;
+  gap:4px;
+  min-width:0
+}
+.site-support-form label span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:700
+}
+.site-support-form input{
+  width:100%;
+  min-height:36px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  outline:none
+}
+.site-support-form input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(15,118,110,.10)
+}
+.site-support-form button{
+  min-height:36px;
+  padding:8px 10px;
+  border:0;
+  border-radius:8px;
+  color:#fff;
+  background:var(--accent);
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer
+}
+.site-support-success{
+  display:block;
+  margin-top:5px;
+  color:#027a48;
+  font-size:9px;
+  font-weight:700
+}
+
+@media(max-width:760px){
+  .site-support-form{grid-template-columns:1fr}
+  .site-support-form button{width:100%}
+}
