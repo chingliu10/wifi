@@ -466,7 +466,7 @@ const translations = {
     'wallet.reviewTitle': 'Kagua utoaji wa fedha',
     'wallet.reviewHint': 'Thibitisha mpokeaji na kiasi kabla ya kutuma fedha.',
     'wallet.cancelReview': 'Ghairi',
-    'wallet.ledger': 'Daftari la pochi',
+    'wallet.ledger': 'Daftari la waleti',
     'wallet.ledgerHint': 'miamala ya kihasibu. Salio linalopatikana ni jumla ya mapato, ada za mtoa huduma, ada za mfumo, malipo yaliyotolewa na marekebisho.',
     'wallet.payoutNotice': 'Malipo ya moja kwa moja kwa wateja bado hayajawashwa. Yakiongezwa, kila malipo yaliyofanikiwa yatapunguza salio linalopatikana.',
     'wallet.unreconciled': 'malipo yaliyofanikiwa bado hayana ada halisi ya mtoa huduma au kiasi halisi. Hayajumuishwi kwenye salio lililopatanishwa hadi yatatuliwe.',
