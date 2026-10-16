@@ -504,7 +504,20 @@ app.engine('hbs', engine({
   extname: '.hbs',
   defaultLayout: 'main',
   helpers: {
-    formatTzs: (amount) => Number(amount).toLocaleString('en-US'),
+    formatTzs: (amount) => {
+      const value = Number(amount);
+
+      if (!Number.isFinite(value)) {
+        return '0';
+      }
+
+      const hasDecimals = Math.abs(value % 1) > 0.000001;
+
+      return value.toLocaleString('en-US', {
+        minimumFractionDigits: hasDecimals ? 2 : 0,
+        maximumFractionDigits: 2
+      });
+    },
     formatDuration: (seconds) => {
       const value = Number(seconds);
 
@@ -937,7 +950,9 @@ app.post('/portal/pay', async (req, res) => {
     await updatePaymentProviderDetails({
       reference: transaction.reference,
       provider: providerResult.provider,
-      providerReference: providerResult.providerReference
+      providerReference: providerResult.providerReference,
+      gatewayFeeTzs: providerResult.gatewayFeeTzs,
+      netAmountTzs: providerResult.netAmountTzs
     });
 
     const currentTransaction = await findPaymentTransactionByReference(
@@ -1034,7 +1049,9 @@ app.post('/portal/payment/:reference/initiate', async (req, res) => {
     const updatedTransaction = await updatePaymentProviderDetails({
       reference: transaction.reference,
       provider: providerResult.provider,
-      providerReference: providerResult.providerReference
+      providerReference: providerResult.providerReference,
+      gatewayFeeTzs: providerResult.gatewayFeeTzs,
+      netAmountTzs: providerResult.netAmountTzs
     });
 
     const currentTransaction = updatedTransaction
