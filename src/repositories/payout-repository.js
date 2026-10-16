@@ -143,6 +143,126 @@ const updatePayoutProviderState = async (data) => {
   return result.rows[0] || null;
 };
 
+const completePayout = async ({
+  reference,
+  providerReference,
+  amountTzs,
+  feeTzs,
+  totalAmountTzs
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const payoutResult = await client.query(
+      `
+        SELECT *
+        FROM payout_transactions
+        WHERE reference = $1
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [reference]
+    );
+
+    const payout = payoutResult.rows[0];
+
+    if (!payout) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    if (payout.status === 'paid') {
+      await client.query('COMMIT');
+      return payout;
+    }
+
+    const finalAmount = Number(amountTzs ?? payout.amount_tzs);
+    const finalFee = Number(feeTzs ?? payout.fee_tzs ?? 0);
+    const finalTotal = Number(
+      totalAmountTzs ?? (finalAmount + finalFee)
+    );
+
+    if (Number(payout.amount_tzs) !== finalAmount) {
+      throw new Error('SplashPay payout amount mismatch');
+    }
+
+    if (Math.abs(finalTotal - (finalAmount + finalFee)) > 0.01) {
+      throw new Error('SplashPay payout total mismatch');
+    }
+
+    const updatedResult = await client.query(
+      `
+        UPDATE payout_transactions
+        SET
+          provider_reference = COALESCE($2, provider_reference),
+          fee_tzs = $3,
+          total_amount_tzs = $4,
+          status = 'paid',
+          processed_at = COALESCE(processed_at, NOW()),
+          paid_at = COALESCE(paid_at, NOW()),
+          error_code = NULL,
+          error_message = NULL,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
+      [payout.id, providerReference || null, finalFee, finalTotal]
+    );
+
+    await client.query(
+      `
+        INSERT INTO wallet_entries (
+          organization_id,
+          payout_transaction_id,
+          entry_type,
+          amount_tzs,
+          description
+        )
+        VALUES ($1, $2, 'payout_debit', $3, $4)
+        ON CONFLICT DO NOTHING
+      `,
+      [
+        payout.organization_id,
+        payout.id,
+        -finalAmount,
+        'Wallet withdrawal ' + payout.reference
+      ]
+    );
+
+    if (finalFee > 0) {
+      await client.query(
+        `
+          INSERT INTO wallet_entries (
+            organization_id,
+            payout_transaction_id,
+            entry_type,
+            amount_tzs,
+            description
+          )
+          VALUES ($1, $2, 'payout_fee', $3, $4)
+          ON CONFLICT DO NOTHING
+        `,
+        [
+          payout.organization_id,
+          payout.id,
+          -finalFee,
+          'Payout fee for ' + payout.reference
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+    return updatedResult.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 const failPayout = async ({ reference, status = 'failed', code, message }) => {
   const finalStatus = status === 'cancelled' ? 'cancelled' : 'failed';
 
@@ -172,5 +292,6 @@ module.exports = {
   findPayoutByReference,
   findPayoutByProviderReference,
   updatePayoutProviderState,
+  completePayout,
   failPayout
 };
