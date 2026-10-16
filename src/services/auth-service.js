@@ -245,6 +245,76 @@ const clearSessionCookie = (req, res) => {
   );
 };
 
+const changePassword = async ({
+  userId,
+  currentPassword,
+  newPassword
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `
+        SELECT id, password_hash
+        FROM platform_users
+        WHERE id = $1
+          AND active = TRUE
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [userId]
+    );
+
+    const user = result.rows[0];
+
+    if (!user || !verifyPassword(currentPassword, user.password_hash)) {
+      const error = new Error('Current password is incorrect');
+      error.code = 'INVALID_CURRENT_PASSWORD';
+      throw error;
+    }
+
+    if (verifyPassword(newPassword, user.password_hash)) {
+      const error = new Error('New password must be different from the current password');
+      error.code = 'PASSWORD_UNCHANGED';
+      throw error;
+    }
+
+    const passwordHash = hashPassword(newPassword);
+
+    await client.query(
+      `
+        UPDATE platform_users
+        SET
+          password_hash = $2,
+          updated_at = NOW()
+        WHERE id = $1
+      `,
+      [userId, passwordHash]
+    );
+
+    // Revoke every existing session for this user. The route creates a fresh
+    // session immediately after the password change succeeds.
+    await client.query(
+      `
+        DELETE FROM platform_sessions
+        WHERE user_id = $1
+      `,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 const createClientOwner = async ({
   db,
   organizationId,
@@ -301,5 +371,6 @@ module.exports = {
   getUserFromRequest,
   setSessionCookie,
   clearSessionCookie,
+  changePassword,
   createClientOwner
 };
