@@ -11,6 +11,7 @@
     <form class="portal-form" id="portal-payment-form" method="POST" action="/portal/pay">
       <input type="hidden" name="deviceId" value="{{device.id}}">
       <input type="hidden" name="clientMac" value="{{device.mac_address}}">
+      <input type="hidden" name="clientIp" value="{{portal.clientIp}}">
       <input type="hidden" name="site" value="{{portal.site}}">
       <input type="hidden" name="apMac" value="{{portal.apMac}}">
       <input type="hidden" name="ssidName" value="{{portal.ssidName}}">
