@@ -26,6 +26,7 @@ const {
   activateSubscriptionForPayment
 } = require('./services/subscriptions/subscription-service');
 const adminRouter = require('./routes/admin');
+const { translate } = require('./i18n/admin');
 
 const app = express();
 const devRoutesEnabled = process.env.ALLOW_DEV_ROUTES === 'true';
@@ -581,7 +582,15 @@ app.engine('hbs', engine({
         timeZone: 'Africa/Dar_es_Salaam'
       }).format(date);
     },
-    json: (value) => JSON.stringify(value)
+    json: (value) => JSON.stringify(value),
+    t: (key, options) => {
+      const language = options?.data?.root?.language || 'en';
+      return translate(language, key);
+    },
+    statusLabel: (status, options) => {
+      const language = options?.data?.root?.language || 'en';
+      return translate(language, 'status.' + String(status || '').toLowerCase());
+    }
   }
 }));
 app.set('view engine', 'hbs');
