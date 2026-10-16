@@ -22,7 +22,7 @@ a{color:inherit}
 .brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#14b8a6;color:#fff;font-weight:900}
 .brand div:last-child{display:grid}.brand strong{color:#fff;font-size:15px}.brand span{font-size:11px;color:#8f98aa}
 .org-card{display:grid;gap:3px;padding:11px 12px;margin-bottom:18px;border:1px solid #2b3546;border-radius:11px;background:#182132}.org-card span{font-size:10px;color:#8f98aa}.org-card strong{font-size:13px;color:#fff}
-.nav{display:grid;gap:4px}.nav a,.add-client-link{padding:10px 12px;border-radius:9px;text-decoration:none;font-size:13px}.nav a:hover,.add-client-link:hover{background:var(--nav-soft);color:#fff}
+.nav{display:grid;gap:4px}.nav a,.add-client-link{padding:10px 12px;border-radius:9px;text-decoration:none;font-size:13px}.nav a:hover,.add-client-link:hover{background:var(--nav-soft);color:#fff}.nav a.active{background:var(--nav-soft);color:#fff;font-weight:800;box-shadow:inset 3px 0 0 #14b8a6}
 .sidebar-footer{margin-top:auto}
 .content{min-width:0;padding:0 28px 40px}
 .topbar{min-height:84px;display:flex;align-items:center;gap:18px;border-bottom:1px solid var(--line)}
