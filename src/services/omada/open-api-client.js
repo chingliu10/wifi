@@ -234,6 +234,14 @@ const openApi = async ({
   });
 };
 
+const getOpenApiDocument = async () => {
+  return requestJson({
+    method: 'GET',
+    path: '/v3/api-docs',
+    allowOmadaError: true
+  });
+};
+
 const listSites = async () => {
   const data = await openApi({
     path: '/openapi/v1/{omadacId}/sites',
@@ -460,6 +468,7 @@ module.exports = {
   configured,
   getControllerInfo,
   getAccessToken,
+  getOpenApiDocument,
   listSites,
   listScenarios,
   createSite,
