@@ -193,6 +193,11 @@ const run = async () => {
   const reference = String(getArg('--reference') || makeReference()).trim();
 
   console.log('');
+  console.log('WARNING: This CLI payout bypasses tenant wallet accounting.');
+  console.log(
+    'Use it only for controlled provider testing; production tenant withdrawals must go through Solidus Waleti.'
+  );
+  console.log('');
   console.log('2. Sending REAL mobile-money disbursement...');
   console.log('   Reference:', reference);
   console.log('   Recipient:', recipientName);
