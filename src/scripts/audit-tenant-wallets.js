@@ -127,6 +127,24 @@ const run = async () => {
       SELECT 'payout_total_mismatch', po.id::TEXT
       FROM payout_transactions po
       WHERE ABS(po.total_amount_tzs - (po.amount_tzs + po.fee_tzs)) >= 0.01
+
+      UNION ALL
+
+      SELECT 'payment_snapshot_missing', pt.id::TEXT
+      FROM payment_transactions pt
+      WHERE pt.package_name_snapshot IS NULL
+         OR pt.package_price_tzs_snapshot IS NULL
+         OR pt.package_duration_seconds_snapshot IS NULL
+         OR pt.site_name_snapshot IS NULL
+         OR pt.site_brand_name_snapshot IS NULL
+
+      UNION ALL
+
+      SELECT 'package_soft_delete_missing_actor', p.id::TEXT
+      FROM packages p
+      WHERE p.deleted_at IS NOT NULL
+        AND p.deleted_by_user_id IS NULL
+        AND p.deleted_at >= NOW() - INTERVAL '1 day'
     `
   );
 
