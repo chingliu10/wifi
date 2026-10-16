@@ -1,0 +1,38 @@
+{
+  "id": "/admin/",
+  "name": "Solidus WiFi",
+  "short_name": "Solidus WiFi",
+  "description": "Manage Solidus WiFi sites, customers, packages, payments and wallet.",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f766e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/pwa/solidus-wifi-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/solidus-wifi-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/admin/"
+    },
+    {
+      "name": "Wallet",
+      "short_name": "Wallet",
+      "url": "/admin/wallet"
+    }
+  ]
+}
