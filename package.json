@@ -12,7 +12,8 @@
     "omada:test": "node src/scripts/test-omada-api.js",
     "omada:portal-api": "node src/scripts/inspect-omada-portal-api.js",
     "omada:hotspot-reference": "node src/scripts/inspect-omada-hotspot-reference.js",
-    "omada:hotspot-provision": "node src/scripts/provision-existing-hotspot.js"
+    "omada:hotspot-provision": "node src/scripts/provision-existing-hotspot.js",
+    "radius:check": "node src/scripts/check-client-access.js"
   },
   "keywords": [],
   "author": "",
