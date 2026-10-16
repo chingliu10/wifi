@@ -115,7 +115,18 @@ const run = async () => {
 
   const portalUrl = extractPortalUrl(portal);
   const expectedUrl = expectedPortalUrl();
-  const macSsids = Array.isArray(macAuth.ssids) ? macAuth.ssids.map(String) : [];
+  const macSsids = Array.isArray(macAuth.ssids)
+    ? macAuth.ssids
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item;
+          }
+
+          return item?.ssidId || item?.id || null;
+        })
+        .filter(Boolean)
+        .map(String)
+    : [];
   const macBound = macSsids.includes(String(network.ssid_id));
   const radiusProfile = radiusProfiles.find((profile) =>
     String(profile.radiusProfileId || profile.id) ===
