@@ -386,7 +386,7 @@
             <td data-label="{{t 'sites.model'}}">{{model}}</td>
             <td data-label="{{t 'sites.ip'}}">{{management_ip}}</td>
             <td data-label="{{t 'sites.lastSeen'}}">{{#if last_seen_at}}{{formatDate last_seen_at}}{{else}}—{{/if}}</td>
-            <td data-label="{{t 'common.status'}}"><span class="status-pill status-paid">{{#if active}}{{t 'sites.managed'}}{{else}}{{t 'sites.disabled'}}{{/if}}</span></td>
+            <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{#if active}}paid{{else}}expired{{/if}}">{{#if active}}{{t 'sites.managed'}}{{else}}{{t 'sites.disabled'}}{{/if}}</span></td>
           </tr>
         {{else}}
           <tr><td colspan="7" class="empty">{{t 'sites.noDevices'}}</td></tr>
