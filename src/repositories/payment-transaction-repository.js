@@ -305,6 +305,44 @@ const findLatestCustomerByDeviceId = async (deviceId) => {
   return result.rows[0] || null;
 };
 
+const updatePaymentPortalContext = async ({
+  reference,
+  clientIp,
+  site,
+  apMac,
+  ssidName,
+  redirectUrl,
+  radioId
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE payment_transactions
+      SET
+        client_ip = COALESCE($2, client_ip),
+        site = COALESCE($3, site),
+        ap_mac = COALESCE($4, ap_mac),
+        ssid_name = COALESCE($5, ssid_name),
+        redirect_url = COALESCE($6, redirect_url),
+        radio_id = COALESCE($7, radio_id),
+        updated_at = NOW()
+      WHERE reference = $1
+        AND omada_portal_authorized_at IS NULL
+      RETURNING *
+    `,
+    [
+      reference,
+      clientIp || null,
+      site || null,
+      apMac || null,
+      ssidName || null,
+      redirectUrl || null,
+      radioId || null
+    ]
+  );
+
+  return result.rows[0] || null;
+};
+
 const updatePaymentProviderDetails = async ({
   reference,
   provider,
@@ -443,6 +481,7 @@ module.exports = {
   findPaymentTransactionByReferenceForUpdate,
   findRecentReusablePayment,
   findLatestCustomerByDeviceId,
+  updatePaymentPortalContext,
   updatePaymentProviderDetails,
   updatePaymentStatus,
   markPaymentOmadaPortalAuthorized,
