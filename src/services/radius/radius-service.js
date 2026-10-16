@@ -1,5 +1,6 @@
 const {
   upsertRadcheck,
+  upsertRadreply,
   upsertRadiusAuthorization,
   findRadcheckByUsername
 } = require('../../repositories/radius-repository');
@@ -39,6 +40,19 @@ const authorizeSubscription = async ({ db, subscription }) => {
     attribute: 'Expiration',
     op: ':=',
     value: formatRadiusExpiration(expiresAt)
+  });
+
+  const sessionTimeoutSeconds = Math.max(
+    1,
+    Math.ceil((expiresAt.getTime() - Date.now()) / 1000)
+  );
+
+  await upsertRadreply({
+    db,
+    username,
+    attribute: 'Session-Timeout',
+    op: ':=',
+    value: String(sessionTimeoutSeconds)
   });
 
   await upsertRadiusAuthorization({
