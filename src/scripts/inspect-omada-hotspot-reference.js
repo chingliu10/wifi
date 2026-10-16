@@ -45,7 +45,7 @@ const printSchema = (spec, name) => {
     console.log('Not found');
     return;
   }
-  printJson(schema);
+  console.log(JSON.stringify(schema, null, 2));
 };
 
 const printSite = async (site) => {
