@@ -109,11 +109,21 @@ const findPaymentTransactionByReference = async (reference) => {
         pt.provisioned_at,
         pt.omada_portal_authorized_at,
         pt.omada_portal_auth_error,
-        p.name AS package_name,
-        p.price_tzs AS package_price_tzs,
-        p.duration_seconds AS package_duration_seconds,
+        COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+        COALESCE(
+          pt.package_price_tzs_snapshot,
+          p.price_tzs
+        ) AS package_price_tzs,
+        COALESCE(
+          pt.package_duration_seconds_snapshot,
+          p.duration_seconds
+        ) AS package_duration_seconds,
         p.site_id AS package_site_id,
-        COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
+        COALESCE(
+          pt.site_brand_name_snapshot,
+          s.brand_name,
+          s.name || ' WiFi'
+        ) AS site_brand_name,
         s.support_phone AS site_support_phone,
         s.primary_color AS site_primary_color,
         s.external_portal_site_id
@@ -161,11 +171,21 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
         pt.provisioned_at,
         pt.omada_portal_authorized_at,
         pt.omada_portal_auth_error,
-        p.name AS package_name,
-        p.price_tzs AS package_price_tzs,
-        p.duration_seconds AS package_duration_seconds,
+        COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+        COALESCE(
+          pt.package_price_tzs_snapshot,
+          p.price_tzs
+        ) AS package_price_tzs,
+        COALESCE(
+          pt.package_duration_seconds_snapshot,
+          p.duration_seconds
+        ) AS package_duration_seconds,
         p.site_id AS package_site_id,
-        COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
+        COALESCE(
+          pt.site_brand_name_snapshot,
+          s.brand_name,
+          s.name || ' WiFi'
+        ) AS site_brand_name,
         s.support_phone AS site_support_phone,
         s.primary_color AS site_primary_color,
         s.external_portal_site_id
@@ -216,11 +236,21 @@ const findPaymentTransactionByReferenceForUpdate = async ({
         pt.provisioned_at,
         pt.omada_portal_authorized_at,
         pt.omada_portal_auth_error,
-        p.name AS package_name,
-        p.price_tzs AS package_price_tzs,
-        p.duration_seconds AS package_duration_seconds,
+        COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+        COALESCE(
+          pt.package_price_tzs_snapshot,
+          p.price_tzs
+        ) AS package_price_tzs,
+        COALESCE(
+          pt.package_duration_seconds_snapshot,
+          p.duration_seconds
+        ) AS package_duration_seconds,
         p.site_id AS package_site_id,
-        COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
+        COALESCE(
+          pt.site_brand_name_snapshot,
+          s.brand_name,
+          s.name || ' WiFi'
+        ) AS site_brand_name,
         s.support_phone AS site_support_phone,
         s.primary_color AS site_primary_color,
         s.external_portal_site_id
