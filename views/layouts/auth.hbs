@@ -15,7 +15,11 @@
   <link rel="apple-touch-icon" href="/pwa/solidus-wifi-192.svg">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
-<body class="auth-body">
+<body
+  class="auth-body"
+  data-show-password-label="{{t 'account.showPassword'}}"
+  data-hide-password-label="{{t 'account.hidePassword'}}"
+>
   {{{body}}}
 
   <script>
@@ -29,6 +33,7 @@
       });
     })();
   </script>
+  <script src="/js/password-visibility.js" defer></script>
   <script src="/js/pwa.js" defer></script>
 </body>
 </html>
