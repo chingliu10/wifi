@@ -1,0 +1,32 @@
+{{#if total}}
+  <nav class="admin-pagination" aria-label="Pagination">
+    <div class="pagination-summary">
+      {{t 'common.showing'}} {{total}} {{t 'common.results'}} ·
+      {{t 'common.page'}} {{page}} {{t 'common.of'}} {{totalPages}}
+    </div>
+
+    <div class="pagination-controls">
+      {{#if hasPrevious}}
+        <a href="{{previousUrl}}" class="pagination-button">{{t 'common.previous'}}</a>
+      {{else}}
+        <span class="pagination-button disabled">{{t 'common.previous'}}</span>
+      {{/if}}
+
+      <div class="pagination-pages">
+        {{#each pages}}
+          {{#if current}}
+            <span class="pagination-page current" aria-current="page">{{number}}</span>
+          {{else}}
+            <a class="pagination-page" href="{{url}}">{{number}}</a>
+          {{/if}}
+        {{/each}}
+      </div>
+
+      {{#if hasNext}}
+        <a href="{{nextUrl}}" class="pagination-button">{{t 'common.next'}}</a>
+      {{else}}
+        <span class="pagination-button disabled">{{t 'common.next'}}</span>
+      {{/if}}
+    </div>
+  </nav>
+{{/if}}
