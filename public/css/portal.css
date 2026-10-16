@@ -36,7 +36,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -161,6 +162,105 @@ svg {
 .package-grid {
   display: grid;
   gap: 9px;
+}
+
+.package-select-wrap {
+  position: relative;
+}
+
+.package-select {
+  width: 100%;
+  height: 56px;
+  padding: 0 46px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  outline: none;
+  appearance: none;
+  color: var(--text);
+  background: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 130ms ease, box-shadow 130ms ease;
+}
+
+.package-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15,185,120,.12);
+}
+
+.package-select:invalid {
+  color: #7f8d85;
+  font-weight: 700;
+}
+
+.package-select option {
+  color: var(--text);
+  background: #fff;
+  font-weight: 700;
+}
+
+.package-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-54%);
+  pointer-events: none;
+  color: var(--brand);
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.package-selection-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #cce8dd;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f2fbf7, #eaf8f1);
+}
+
+.package-selection-summary[hidden] {
+  display: none;
+}
+
+.package-selection-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 7px;
+  border-radius: 50%;
+  color: var(--brand);
+  background: var(--accent-soft);
+}
+
+.package-selection-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.package-selection-copy small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.package-selection-copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.package-selection-price {
+  color: var(--brand);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .package-card {
@@ -639,6 +739,15 @@ svg {
     gap: 7px;
   }
 
+  .package-select {
+    height: 50px;
+    font-size: 14px;
+  }
+
+  .package-selection-summary {
+    padding: 9px 10px;
+  }
+
   .package-card-body {
     min-height: 61px;
     padding: 9px 12px 9px 9px;
@@ -726,6 +835,23 @@ svg {
 
   .package-grid {
     gap: 4px;
+  }
+
+  .package-select {
+    height: 43px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .package-selection-summary {
+    margin-top: 5px;
+    padding: 7px 9px;
+  }
+
+  .package-selection-icon {
+    width: 28px;
+    height: 28px;
+    padding: 6px;
   }
 
   .package-card-body {
