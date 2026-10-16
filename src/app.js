@@ -269,6 +269,29 @@ const processSplashPayDisbursementWebhook = async (payload) => {
 
   const mappedStatus = mapSplashPayPayoutStatus(payload);
 
+  if (
+    payout.status === 'paid' &&
+    mappedStatus &&
+    mappedStatus !== 'paid'
+  ) {
+    return {
+      ignored: true,
+      reference: payout.reference,
+      status: payout.status
+    };
+  }
+
+  if (
+    ['failed', 'cancelled'].includes(payout.status) &&
+    ['pending', 'processing'].includes(mappedStatus)
+  ) {
+    return {
+      ignored: true,
+      reference: payout.reference,
+      status: payout.status
+    };
+  }
+
   if (!mappedStatus) {
     return {
       ignored: true,
