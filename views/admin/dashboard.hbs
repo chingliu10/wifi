@@ -1,37 +1,37 @@
 <section class="page-head">
   <div>
-    <h2>{{#if selectedOrg}}{{selectedOrg.name}}{{else}}No client yet{{/if}}</h2>
-    <p>WiFi business overview</p>
+    <h2>{{#if selectedOrg}}{{selectedOrg.name}}{{else}}{{t 'dashboard.noClient'}}{{/if}}</h2>
+    <p>{{t 'dashboard.overview'}}</p>
   </div>
   {{#if isSuperAdmin}}
-    <a class="primary-link" href="/admin/clients/new">Add client</a>
+    <a class="primary-link" href="/admin/clients/new">{{t 'account.addClient'}}</a>
   {{/if}}
 </section>
 
 {{#if selectedOrg}}
   <section class="stats-grid">
     <article class="stat-card">
-      <span>Gross sales today</span>
+      <span>{{t 'dashboard.grossToday'}}</span>
       <strong>{{formatTzs stats.revenue_today}} TZS</strong>
-      <small>{{stats.payments_today}} successful payments</small>
+      <small>{{stats.payments_today}} {{t 'dashboard.successfulPayments'}}</small>
     </article>
 
     <article class="stat-card">
-      <span>Active now</span>
+      <span>{{t 'dashboard.activeNow'}}</span>
       <strong>{{stats.active_sessions}}</strong>
-      <small>active subscriptions</small>
+      <small>{{t 'dashboard.activeSubscriptions'}}</small>
     </article>
 
     <article class="stat-card">
-      <span>Customers</span>
+      <span>{{t 'dashboard.customers'}}</span>
       <strong>{{stats.customers}}</strong>
-      <small>paying devices</small>
+      <small>{{t 'dashboard.payingDevices'}}</small>
     </article>
 
     <article class="stat-card">
-      <span>Available balance</span>
+      <span>{{t 'dashboard.availableBalance'}}</span>
       <strong>{{formatTzs stats.available_balance}} TZS</strong>
-      <small>after payment processing and payouts</small>
+      <small>{{t 'dashboard.balanceHint'}}</small>
     </article>
   </section>
 
@@ -39,8 +39,8 @@
     <article class="panel">
       <div class="panel-head">
         <div>
-          <h3>Setup progress</h3>
-          <p>Get this client ready to sell WiFi.</p>
+          <h3>{{t 'dashboard.setupProgress'}}</h3>
+          <p>{{t 'dashboard.setupHint'}}</p>
         </div>
       </div>
 
@@ -57,64 +57,64 @@
     <article class="panel">
       <div class="panel-head">
         <div>
-          <h3>Infrastructure</h3>
-          <p>Current footprint</p>
+          <h3>{{t 'dashboard.infrastructure'}}</h3>
+          <p>{{t 'dashboard.currentFootprint'}}</p>
         </div>
       </div>
 
       <div class="mini-stats">
-        <div><span>Sites</span><strong>{{stats.sites}}</strong></div>
-        <div><span>Routers / APs</span><strong>{{stats.devices}}</strong></div>
-        <div><span>Gross collected</span><strong>{{formatTzs stats.collected_total}} TZS</strong></div>
+        <div><span>{{t 'dashboard.sites'}}</span><strong>{{stats.sites}}</strong></div>
+        <div><span>{{t 'dashboard.routers'}}</span><strong>{{stats.devices}}</strong></div>
+        <div><span>{{t 'dashboard.grossCollected'}}</span><strong>{{formatTzs stats.collected_total}} TZS</strong></div>
       </div>
     </article>
   </section>
 
   {{#if stats.unreconciled_payments}}
     <div class="notice">
-      {{stats.unreconciled_payments}} successful payment(s) still need fee reconciliation before the available balance is final.
+      {{stats.unreconciled_payments}} {{t 'dashboard.unreconciled'}}
     </div>
   {{/if}}
 
   <section class="panel table-panel">
     <div class="panel-head">
       <div>
-        <h3>Recent payments</h3>
-        <p>Latest hotspot activity</p>
+        <h3>{{t 'dashboard.recentPayments'}}</h3>
+        <p>{{t 'dashboard.latestActivity'}}</p>
       </div>
-      <a href="/admin/payments?org={{selectedOrg.id}}">View all</a>
+      <a href="/admin/payments?org={{selectedOrg.id}}">{{t 'dashboard.viewAll'}}</a>
     </div>
 
     <div class="table-wrap">
-      <table>
+      <table class="responsive-table">
         <thead>
           <tr>
-            <th>Customer</th>
-            <th>Site</th>
-            <th>Package</th>
-            <th>Gross</th>
-            <th>Net</th>
-            <th>Status</th>
+            <th>{{t 'common.customer'}}</th>
+            <th>{{t 'common.site'}}</th>
+            <th>{{t 'common.package'}}</th>
+            <th>{{t 'dashboard.gross'}}</th>
+            <th>{{t 'dashboard.net'}}</th>
+            <th>{{t 'common.status'}}</th>
           </tr>
         </thead>
         <tbody>
           {{#each recentPayments}}
             <tr>
-              <td><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
-              <td>{{site_name}}</td>
-              <td>{{formatPackageName package_name}}</td>
-              <td>{{formatTzs amount_tzs}} TZS</td>
-              <td>
+              <td data-label="{{t 'common.customer'}}"><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
+              <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+              <td data-label="{{t 'common.package'}}">{{formatPackageName package_name}}</td>
+              <td data-label="{{t 'dashboard.gross'}}">{{formatTzs amount_tzs}} TZS</td>
+              <td data-label="{{t 'dashboard.net'}}">
                 {{#if net_amount_tzs}}
                   {{formatTzs net_amount_tzs}} TZS
                 {{else}}
                   <span class="muted-value">—</span>
                 {{/if}}
               </td>
-              <td><span class="status-pill status-{{status}}">{{status}}</span></td>
+              <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{statusLabel status}}</span></td>
             </tr>
           {{else}}
-            <tr><td colspan="6" class="empty">No payments yet.</td></tr>
+            <tr><td colspan="6" class="empty">{{t 'dashboard.noPayments'}}</td></tr>
           {{/each}}
         </tbody>
       </table>
@@ -122,8 +122,8 @@
   </section>
 {{else}}
   <section class="empty-state">
-    <h2>Create your first client</h2>
-    <p>Create a client, then add its site, network device and packages.</p>
-    <a class="primary-link" href="/admin/clients/new">Add client</a>
+    <h2>{{t 'dashboard.createFirstClient'}}</h2>
+    <p>{{t 'dashboard.createFirstClientHint'}}</p>
+    <a class="primary-link" href="/admin/clients/new">{{t 'account.addClient'}}</a>
   </section>
 {{/if}}
