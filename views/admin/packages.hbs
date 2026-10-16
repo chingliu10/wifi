@@ -1,7 +1,7 @@
 <section class="page-head">
   <div>
-    <h2>Packages</h2>
-    <p>Create and manage the packages customers see on the captive portal.</p>
+    <h2>{{t 'packages.title'}}</h2>
+    <p>{{t 'packages.subtitle'}}</p>
   </div>
 </section>
 
@@ -10,8 +10,8 @@
     <section class="panel form-panel">
       <div class="panel-head">
         <div>
-          <h3>Add package</h3>
-          <p>Packages belong to one site.</p>
+          <h3>{{t 'packages.add'}}</h3>
+          <p>{{t 'packages.belongsToSite'}}</p>
         </div>
       </div>
 
@@ -20,7 +20,7 @@
 
         <div class="form-grid">
           <label>
-            <span>Site</span>
+            <span>{{t 'common.site'}}</span>
             <select name="siteId" required>
               {{#each sites}}
                 <option value="{{id}}">{{name}}</option>
@@ -29,72 +29,109 @@
           </label>
 
           <label>
-            <span>Package name</span>
-            <input name="packageName" required maxlength="100" placeholder="e.g. 7 Hours">
+            <span>{{t 'packages.name'}}</span>
+            <input name="packageName" required maxlength="100" placeholder="{{t 'packages.namePlaceholder'}}">
           </label>
 
           <label>
-            <span>Price (TZS)</span>
+            <span>{{t 'packages.priceTzs'}}</span>
             <input name="priceTzs" type="number" min="500" step="1" required placeholder="500">
           </label>
 
           <label>
-            <span>Duration</span>
+            <span>{{t 'common.duration'}}</span>
             <div class="duration-control">
               <input name="durationValue" type="number" min="1" step="1" required placeholder="7">
               <select name="durationUnit">
-                <option value="minutes">Minutes</option>
-                <option value="hours" selected>Hours</option>
-                <option value="days">Days</option>
+                <option value="minutes">{{t 'common.minutes'}}</option>
+                <option value="hours" selected>{{t 'common.hours'}}</option>
+                <option value="days">{{t 'common.days'}}</option>
               </select>
             </div>
           </label>
         </div>
 
         <div class="form-actions">
-          <button type="submit">Add package</button>
+          <button type="submit">{{t 'packages.addButton'}}</button>
         </div>
       </form>
     </section>
   {{else}}
-    <div class="notice">Create a site before adding packages.</div>
+    <div class="notice">{{t 'packages.createSiteFirst'}}</div>
   {{/if}}
+
+  <section class="panel payment-filter-panel">
+    <form method="GET" action="/admin/packages" class="admin-form admin-filter-form">
+      <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+      <div class="package-filter-grid">
+        <label>
+          <span>{{t 'common.search'}}</span>
+          <input type="search" name="search" value="{{filters.search}}" placeholder="{{t 'packages.searchPlaceholder'}}">
+        </label>
+
+        <label>
+          <span>{{t 'common.site'}}</span>
+          <select name="siteId">
+            <option value="">{{t 'common.allSites'}}</option>
+            {{#each sites}}
+              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+        </label>
+
+        <label>
+          <span>{{t 'common.status'}}</span>
+          <select name="packageStatus">
+            {{#each packageStatusOptions}}
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <a href="/admin/packages?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
+        <button type="submit">{{t 'common.filter'}}</button>
+      </div>
+    </form>
+  </section>
 
   <section class="panel table-panel package-table-panel">
     <div class="panel-head">
       <div>
-        <h3>Existing packages</h3>
-        <p>Edit package details or remove packages you no longer offer.</p>
+        <h3>{{t 'packages.existing'}}</h3>
+        <p>{{t 'packages.manageHint'}}</p>
       </div>
     </div>
 
     <div class="table-wrap">
-      <table>
+      <table class="responsive-table">
         <thead>
           <tr>
-            <th>Site</th>
-            <th>Package</th>
-            <th>Duration</th>
-            <th>Price</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>{{t 'common.site'}}</th>
+            <th>{{t 'common.package'}}</th>
+            <th>{{t 'common.duration'}}</th>
+            <th>{{t 'common.price'}}</th>
+            <th>{{t 'common.status'}}</th>
+            <th>{{t 'common.actions'}}</th>
           </tr>
         </thead>
         <tbody>
           {{#each packages}}
             <tr>
-              <td>{{site_name}}</td>
-              <td><strong>{{name}}</strong></td>
-              <td>{{duration_label}}</td>
-              <td>{{formatTzs price_tzs}} TZS</td>
-              <td>
+              <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+              <td data-label="{{t 'common.package'}}"><strong>{{name}}</strong></td>
+              <td data-label="{{t 'common.duration'}}">{{duration_label}}</td>
+              <td data-label="{{t 'common.price'}}">{{formatTzs price_tzs}} TZS</td>
+              <td data-label="{{t 'common.status'}}">
                 {{#if active}}
-                  <span class="status-pill status-paid">Active</span>
+                  <span class="status-pill status-paid">{{t 'common.active'}}</span>
                 {{else}}
-                  <span class="status-pill status-expired">Inactive</span>
+                  <span class="status-pill status-expired">{{t 'common.inactive'}}</span>
                 {{/if}}
               </td>
-              <td>
+              <td data-label="{{t 'common.actions'}}">
                 <div class="package-actions">
                   <button
                     type="button"
@@ -107,7 +144,7 @@
                     data-duration-unit="{{duration_unit}}"
                     data-active="{{#if active}}true{{else}}false{{/if}}"
                   >
-                    Edit
+                    {{t 'common.edit'}}
                   </button>
 
                   <button
@@ -117,17 +154,19 @@
                     data-package-name="{{name}}"
                     data-site-name="{{site_name}}"
                   >
-                    Delete
+                    {{t 'common.delete'}}
                   </button>
                 </div>
               </td>
             </tr>
           {{else}}
-            <tr><td colspan="6" class="empty">No packages yet.</td></tr>
+            <tr><td colspan="6" class="empty">{{t 'packages.noPackages'}}</td></tr>
           {{/each}}
         </tbody>
       </table>
     </div>
+
+    {{> admin-pagination pagination}}
   </section>
 
   <div id="package-edit-backdrop" class="admin-modal-backdrop" hidden>
@@ -139,10 +178,10 @@
     >
       <div class="admin-modal-head">
         <div>
-          <h3 id="package-edit-title">Edit package</h3>
-          <p>Update the package customers will see on the portal.</p>
+          <h3 id="package-edit-title">{{t 'packages.editTitle'}}</h3>
+          <p>{{t 'packages.editHint'}}</p>
         </div>
-        <button type="button" class="admin-modal-close" data-close-modal aria-label="Close">×</button>
+        <button type="button" class="admin-modal-close" data-close-modal aria-label="{{t 'common.close'}}">×</button>
       </div>
 
       <form id="package-edit-form" method="POST" class="admin-form">
@@ -150,22 +189,22 @@
 
         <div class="form-grid">
           <label>
-            <span>Site</span>
+            <span>{{t 'common.site'}}</span>
             <input id="edit-package-site" type="text" readonly>
           </label>
 
           <label>
-            <span>Package name</span>
+            <span>{{t 'packages.name'}}</span>
             <input id="edit-package-name" name="packageName" maxlength="100" required>
           </label>
 
           <label>
-            <span>Price (TZS)</span>
+            <span>{{t 'packages.priceTzs'}}</span>
             <input id="edit-package-price" name="priceTzs" type="number" min="500" step="1" required>
           </label>
 
           <label>
-            <span>Duration</span>
+            <span>{{t 'common.duration'}}</span>
             <div class="duration-control">
               <input
                 id="edit-package-duration-value"
@@ -176,9 +215,9 @@
                 required
               >
               <select id="edit-package-duration-unit" name="durationUnit">
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-                <option value="days">Days</option>
+                <option value="minutes">{{t 'common.minutes'}}</option>
+                <option value="hours">{{t 'common.hours'}}</option>
+                <option value="days">{{t 'common.days'}}</option>
               </select>
             </div>
           </label>
@@ -186,16 +225,16 @@
 
         <label class="package-active-control">
           <input id="edit-package-active" name="active" type="checkbox">
-          <span>Active — show this package on the customer portal</span>
+          <span>{{t 'packages.activePortal'}}</span>
         </label>
 
         <div class="modal-note">
-          Changes apply to future purchases. Existing paid subscriptions keep their original expiry time.
+          {{t 'packages.futureOnly'}}
         </div>
 
         <div class="form-actions admin-modal-actions">
-          <button type="button" class="secondary-button" data-close-modal>Cancel</button>
-          <button type="submit">Save changes</button>
+          <button type="button" class="secondary-button" data-close-modal>{{t 'common.cancel'}}</button>
+          <button type="submit">{{t 'packages.saveChanges'}}</button>
         </div>
       </form>
     </section>
@@ -210,10 +249,10 @@
     >
       <div class="admin-modal-head">
         <div>
-          <h3 id="package-delete-title">Delete package?</h3>
-          <p>This removes it from the package management screen and customer portal.</p>
+          <h3 id="package-delete-title">{{t 'packages.deleteTitle'}}</h3>
+          <p>{{t 'packages.deleteHint'}}</p>
         </div>
-        <button type="button" class="admin-modal-close" data-close-modal aria-label="Close">×</button>
+        <button type="button" class="admin-modal-close" data-close-modal aria-label="{{t 'common.close'}}">×</button>
       </div>
 
       <div class="delete-package-summary">
@@ -222,14 +261,14 @@
       </div>
 
       <div class="modal-note">
-        Previous payments and subscriptions are preserved for reporting.
+        {{t 'packages.historyPreserved'}}
       </div>
 
       <form id="package-delete-form" method="POST">
         <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
         <div class="form-actions admin-modal-actions">
-          <button type="button" class="secondary-button" data-close-modal>Cancel</button>
-          <button type="submit" class="danger-solid-button">Delete package</button>
+          <button type="button" class="secondary-button" data-close-modal>{{t 'common.cancel'}}</button>
+          <button type="submit" class="danger-solid-button">{{t 'packages.deleteButton'}}</button>
         </div>
       </form>
     </section>
