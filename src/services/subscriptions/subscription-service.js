@@ -9,7 +9,6 @@ const {
   createSubscriptionForPayment
 } = require('../../repositories/subscription-repository');
 const { authorizeSubscription } = require('../radius/radius-service');
-const omada = require('../omada/open-api-client');
 
 const recordPaymentWalletEntries = async ({ db, payment }) => {
   if (
@@ -156,53 +155,10 @@ const activateSubscriptionForPayment = async (paymentTransaction) => {
 
     await client.query('COMMIT');
 
-    let omadaAuth = {
-      attempted: false,
-      authorized: false
-    };
-
-    if (
-      omada.configured() &&
-      lockedPayment.external_portal_site_id &&
-      lockedPayment.client_mac
-    ) {
-      omadaAuth.attempted = true;
-
-      try {
-        await omada.authClient({
-          siteId: lockedPayment.external_portal_site_id,
-          clientMac: lockedPayment.client_mac
-        });
-
-        omadaAuth.authorized = true;
-
-        console.log('OMADA CLIENT AUTHORIZED AFTER PAYMENT:', {
-          reference: lockedPayment.reference,
-          siteId: lockedPayment.external_portal_site_id,
-          clientMac: lockedPayment.client_mac
-        });
-      } catch (error) {
-        omadaAuth.error = error.message;
-
-        /*
-         * The payment, subscription and RADIUS authorization are already
-         * valid. Do not roll them back if Omada's immediate portal release
-         * fails; the client can still re-authenticate through MAC auth.
-         */
-        console.error('OMADA POST-PAYMENT AUTH ERROR:', {
-          reference: lockedPayment.reference,
-          siteId: lockedPayment.external_portal_site_id,
-          clientMac: lockedPayment.client_mac,
-          error: error.message
-        });
-      }
-    }
-
     return {
       subscription,
       radiusRecords,
-      wallet,
-      omadaAuth
+      wallet
     };
   } catch (error) {
     await client.query('ROLLBACK');
