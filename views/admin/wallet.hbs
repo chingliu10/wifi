@@ -5,11 +5,29 @@
   </div>
 </section>
 
-<section class="stats-grid">
+{{#if withdrawalSuccess}}
+  <div class="notice notice-success">
+    {{t 'wallet.withdrawalRequested'}}
+  </div>
+{{/if}}
+
+{{#if withdrawalError}}
+  <div class="notice notice-error">
+    {{withdrawalError}}
+  </div>
+{{/if}}
+
+<section class="stats-grid wallet-stats-grid">
   <article class="stat-card">
     <span>{{t 'wallet.availableBalance'}}</span>
     <strong>{{formatTzs wallet.available_balance}} TZS</strong>
     <small>{{t 'wallet.amountOwed'}}</small>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'wallet.reservedBalance'}}</span>
+    <strong>{{formatTzs wallet.reserved_balance}} TZS</strong>
+    <small>{{t 'wallet.reservedHint'}}</small>
   </article>
 
   <article class="stat-card">
@@ -43,14 +61,184 @@
   </div>
 {{/if}}
 
-<section class="panel">
+{{#if selectedOrg}}
+  <section class="wallet-action-grid">
+    <article class="panel wallet-withdraw-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'wallet.withdrawTitle'}}</h3>
+          <p>{{t 'wallet.withdrawSubtitle'}}</p>
+        </div>
+      </div>
+
+      {{#if withdrawalPreview}}
+        <div class="withdraw-review">
+          <div class="withdraw-review-head">
+            <span class="status-pill status-paid">{{t 'wallet.recipientVerified'}}</span>
+            <strong>{{withdrawalPreview.recipientName}}</strong>
+            <small>{{withdrawalPreview.phone}} · {{withdrawalPreview.network}}</small>
+          </div>
+
+          <dl class="withdraw-summary">
+            <div>
+              <dt>{{t 'wallet.youReceive'}}</dt>
+              <dd>{{formatTzs withdrawalPreview.amountTzs}} TZS</dd>
+            </div>
+            <div>
+              <dt>{{t 'wallet.payoutFee'}}</dt>
+              <dd>{{formatTzs withdrawalPreview.feeTzs}} TZS</dd>
+            </div>
+            <div class="withdraw-total-row">
+              <dt>{{t 'wallet.totalDebit'}}</dt>
+              <dd>{{formatTzs withdrawalPreview.totalAmountTzs}} TZS</dd>
+            </div>
+          </dl>
+
+          <form method="POST" action="/admin/wallet/withdraw/confirm" class="admin-form">
+            <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+            <input type="hidden" name="phone" value="{{withdrawalPreview.phone}}">
+            <input type="hidden" name="network" value="{{withdrawalPreview.network}}">
+            <input type="hidden" name="amountTzs" value="{{withdrawalPreview.amountTzs}}">
+
+            <div class="form-actions wallet-confirm-actions">
+              <a href="/admin/wallet?org={{selectedOrg.id}}">{{t 'wallet.cancelReview'}}</a>
+              <button type="submit">{{t 'wallet.confirmWithdraw'}}</button>
+            </div>
+          </form>
+        </div>
+      {{else}}
+        <form method="POST" action="/admin/wallet/withdraw/verify" class="admin-form">
+          <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+          <div class="form-grid wallet-withdraw-form-grid">
+            <label>
+              <span>{{t 'wallet.phone'}}</span>
+              <input
+                name="phone"
+                inputmode="tel"
+                autocomplete="tel"
+                required
+                placeholder="07XXXXXXXX"
+                value="{{withdrawalForm.phone}}"
+              >
+            </label>
+
+            <label>
+              <span>{{t 'wallet.network'}}</span>
+              <select name="network" required>
+                {{#each payoutNetworks}}
+                  <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                {{/each}}
+              </select>
+            </label>
+
+            <label class="wallet-amount-field">
+              <span>{{t 'wallet.amount'}}</span>
+              <input
+                name="amountTzs"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                step="1"
+                required
+                placeholder="8000"
+                value="{{withdrawalForm.amountTzs}}"
+              >
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit">{{t 'wallet.verifyRecipient'}}</button>
+          </div>
+        </form>
+      {{/if}}
+    </article>
+
+    <article class="panel wallet-fee-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'wallet.feeTitle'}}</h3>
+        </div>
+      </div>
+
+      <div class="fee-tier-list">
+        <div class="fee-tier-row">
+          <span>{{t 'wallet.feeTier1'}}</span>
+          <strong>2,000 TZS</strong>
+        </div>
+        <div class="fee-tier-row">
+          <span>{{t 'wallet.feeTier2'}}</span>
+          <strong>4,500 TZS</strong>
+        </div>
+        <div class="fee-tier-row">
+          <span>{{t 'wallet.feeTier3'}}</span>
+          <strong>7,500 TZS</strong>
+        </div>
+      </div>
+
+      <div class="wallet-fee-note">
+        {{t 'wallet.feeSuccessOnly'}}
+      </div>
+    </article>
+  </section>
+
+  <section class="panel table-panel wallet-history-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'wallet.history'}}</h3>
+        <p>{{t 'wallet.historyHint'}}</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="responsive-table">
+        <thead>
+          <tr>
+            <th>{{t 'wallet.reference'}}</th>
+            <th>{{t 'wallet.recipient'}}</th>
+            <th>{{t 'wallet.network'}}</th>
+            <th>{{t 'wallet.youReceive'}}</th>
+            <th>{{t 'wallet.fee'}}</th>
+            <th>{{t 'wallet.total'}}</th>
+            <th>{{t 'common.status'}}</th>
+            <th>{{t 'wallet.requestedAt'}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each payouts}}
+            <tr>
+              <td data-label="{{t 'wallet.reference'}}"><code>{{reference}}</code></td>
+              <td data-label="{{t 'wallet.recipient'}}">
+                <strong>{{recipient_name}}</strong>
+                <small>{{recipient_phone}}</small>
+              </td>
+              <td data-label="{{t 'wallet.network'}}">{{network}}</td>
+              <td data-label="{{t 'wallet.youReceive'}}">{{formatTzs amount_tzs}} TZS</td>
+              <td data-label="{{t 'wallet.fee'}}">{{formatTzs fee_tzs}} TZS</td>
+              <td data-label="{{t 'wallet.total'}}">{{formatTzs total_amount_tzs}} TZS</td>
+              <td data-label="{{t 'common.status'}}">
+                <span class="status-pill status-{{status}}">{{statusLabel status}}</span>
+              </td>
+              <td data-label="{{t 'wallet.requestedAt'}}">{{formatDate created_at}}</td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="8" class="empty">{{t 'wallet.noWithdrawals'}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    {{> admin-pagination payoutPagination}}
+  </section>
+{{/if}}
+
+<section class="panel wallet-ledger-panel">
   <div class="panel-head">
     <div>
       <h3>{{t 'wallet.ledger'}}</h3>
       <p>{{wallet.entries}} {{t 'wallet.ledgerHint'}}</p>
     </div>
-  </div>
-  <div class="notice">
-    {{t 'wallet.payoutNotice'}}
   </div>
 </section>
