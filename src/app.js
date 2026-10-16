@@ -617,6 +617,7 @@ app.get('/packages', async (req, res) => {
         duration_seconds
       FROM packages
       WHERE active = true
+        AND deleted_at IS NULL
       ORDER BY sort_order
     `);
 
@@ -709,6 +710,7 @@ app.get('/portal', async (req, res) => {
         FROM packages
         WHERE site_id = $1
           AND active = true
+          AND deleted_at IS NULL
         ORDER BY sort_order
       `,
       [siteConfig.id]
@@ -837,6 +839,7 @@ app.post('/portal/pay', async (req, res) => {
         WHERE id = $1
           AND site_id = $2
           AND active = true
+          AND deleted_at IS NULL
         LIMIT 1
       `,
       [packageId, siteConfig.id]
