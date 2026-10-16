@@ -949,6 +949,29 @@ router.post('/sites/:id/wifi-networks/:ssidId/rename', async (req, res) => {
   }
 });
 
+const formatPackageDuration = (seconds) => {
+  const value = Number(seconds);
+
+  if (!Number.isFinite(value) || value <= 0) return '—';
+
+  if (value % 86400 === 0) {
+    const days = value / 86400;
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+
+  if (value % 3600 === 0) {
+    const hours = value / 3600;
+    return hours === 1 ? '1 hour' : `${hours} hours`;
+  }
+
+  if (value % 60 === 0) {
+    const minutes = value / 60;
+    return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+  }
+
+  return `${value} sec`;
+};
+
 router.get('/packages', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -986,7 +1009,10 @@ router.get('/packages', async (req, res) => {
             `,
             [selectedOrg.id]
           )
-        ).rows
+        ).rows.map((pkg) => ({
+          ...pkg,
+          duration_label: formatPackageDuration(pkg.duration_seconds)
+        }))
       : [];
 
     return renderAdmin(req, res, 'admin/packages', {
