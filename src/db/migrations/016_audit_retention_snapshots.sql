@@ -126,6 +126,33 @@ ALTER TABLE packages
     REFERENCES platform_users(id) ON DELETE RESTRICT;
 
 
+-- Legacy package deletions predate actor tracking, so their actor may be
+-- unknown. From this migration onward, every new soft-delete must identify
+-- the platform user who performed it.
+CREATE OR REPLACE FUNCTION enforce_package_soft_delete_actor()
+RETURNS TRIGGER AS $
+BEGIN
+  IF OLD.deleted_at IS NULL
+     AND NEW.deleted_at IS NOT NULL
+     AND NEW.deleted_by_user_id IS NULL THEN
+    RAISE EXCEPTION
+      'Package soft delete requires deleted_by_user_id (package %).',
+      OLD.id;
+  END IF;
+
+  RETURN NEW;
+END;
+$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_package_soft_delete_actor ON packages;
+
+CREATE TRIGGER trg_package_soft_delete_actor
+BEFORE UPDATE OF deleted_at, deleted_by_user_id
+ON packages
+FOR EACH ROW
+EXECUTE FUNCTION enforce_package_soft_delete_actor();
+
+
 -- Audit-critical records are never physically deleted. Operational removal must
 -- use active/deleted_at/status fields instead.
 CREATE OR REPLACE FUNCTION prevent_audit_hard_delete()
