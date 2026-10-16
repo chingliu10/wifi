@@ -1,7 +1,7 @@
 <section class="page-head">
   <div>
-    <h2>Payments</h2>
-    <p>Search, filter and review customer payment activity.</p>
+    <h2>{{t 'payments.title'}}</h2>
+    <p>{{t 'payments.subtitle'}}</p>
   </div>
 </section>
 
@@ -12,17 +12,17 @@
 
       <div class="payment-filter-grid">
         <label>
-          <span>Search</span>
+          <span>{{t 'common.search'}}</span>
           <input
             type="search"
             name="search"
             value="{{filters.search}}"
-            placeholder="Customer, phone or reference"
+            placeholder="{{t 'payments.searchPlaceholder'}}"
           >
         </label>
 
         <label>
-          <span>Status</span>
+          <span>{{t 'common.status'}}</span>
           <select name="status">
             {{#each statusOptions}}
               <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
@@ -31,9 +31,9 @@
         </label>
 
         <label>
-          <span>Site</span>
+          <span>{{t 'common.site'}}</span>
           <select name="siteId">
-            <option value="">All sites</option>
+            <option value="">{{t 'common.allSites'}}</option>
             {{#each sites}}
               <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
             {{/each}}
@@ -41,19 +41,19 @@
         </label>
 
         <label>
-          <span>From</span>
+          <span>{{t 'common.from'}}</span>
           <input type="date" name="dateFrom" value="{{filters.dateFrom}}">
         </label>
 
         <label>
-          <span>To</span>
+          <span>{{t 'common.to'}}</span>
           <input type="date" name="dateTo" value="{{filters.dateTo}}">
         </label>
       </div>
 
       <div class="form-actions">
-        <a href="/admin/payments?org={{selectedOrg.id}}">Clear</a>
-        <button type="submit">Filter payments</button>
+        <a href="/admin/payments?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
+        <button type="submit">{{t 'payments.filterButton'}}</button>
       </div>
     </form>
   </section>
@@ -61,49 +61,51 @@
 
 <section class="panel table-panel">
   <div class="table-wrap">
-    <table>
+    <table class="responsive-table">
       <thead>
         <tr>
-          <th>Customer</th>
-          <th>Site</th>
-          <th>Package</th>
-          <th>Gross</th>
-          <th>Net</th>
-          <th>Status</th>
-          <th>Paid at</th>
-          <th>Started</th>
-          <th>Reference</th>
+          <th>{{t 'common.customer'}}</th>
+          <th>{{t 'common.site'}}</th>
+          <th>{{t 'common.package'}}</th>
+          <th>{{t 'dashboard.gross'}}</th>
+          <th>{{t 'dashboard.net'}}</th>
+          <th>{{t 'common.status'}}</th>
+          <th>{{t 'payments.paidAt'}}</th>
+          <th>{{t 'payments.started'}}</th>
+          <th>{{t 'payments.reference'}}</th>
         </tr>
       </thead>
       <tbody>
         {{#each payments}}
           <tr>
-            <td><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
-            <td>{{site_name}}</td>
-            <td>{{formatPackageName package_name}}</td>
-            <td>{{formatTzs amount_tzs}} TZS</td>
-            <td>
+            <td data-label="{{t 'common.customer'}}"><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
+            <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+            <td data-label="{{t 'common.package'}}">{{formatPackageName package_name}}</td>
+            <td data-label="{{t 'dashboard.gross'}}">{{formatTzs amount_tzs}} TZS</td>
+            <td data-label="{{t 'dashboard.net'}}">
               {{#if net_amount_tzs}}
                 {{formatTzs net_amount_tzs}} TZS
               {{else}}
                 <span class="muted-value">—</span>
               {{/if}}
             </td>
-            <td><span class="status-pill status-{{status}}">{{status}}</span></td>
-            <td>
+            <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{statusLabel status}}</span></td>
+            <td data-label="{{t 'payments.paidAt'}}">
               {{#if paid_at}}
                 <strong>{{formatDate paid_at}}</strong>
               {{else}}
                 <span class="muted-value">—</span>
               {{/if}}
             </td>
-            <td>{{formatDate created_at}}</td>
-            <td><code>{{reference}}</code></td>
+            <td data-label="{{t 'payments.started'}}">{{formatDate created_at}}</td>
+            <td data-label="{{t 'payments.reference'}}"><code>{{reference}}</code></td>
           </tr>
         {{else}}
-          <tr><td colspan="9" class="empty">No payments match these filters.</td></tr>
+          <tr><td colspan="9" class="empty">{{t 'payments.noMatch'}}</td></tr>
         {{/each}}
       </tbody>
     </table>
   </div>
+
+  {{> admin-pagination pagination}}
 </section>
