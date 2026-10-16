@@ -447,6 +447,10 @@ router.post('/logout', async (req, res) => {
 
 router.use(requireAuth);
 
+router.get('/app', (req, res) => {
+  return res.redirect(302, '/admin');
+});
+
 router.use((req, res, next) => {
   const requested = req.query.lang;
   const language = normalizeLanguage(
