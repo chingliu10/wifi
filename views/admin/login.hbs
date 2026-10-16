@@ -1,16 +1,23 @@
 <main class="auth-shell">
   <section class="auth-card">
-    <div class="auth-brand">
-      <div class="brand-mark">S</div>
-      <div>
-        <strong>Solidus WiFi</strong>
-        <span>Business Management</span>
+    <div class="auth-card-top">
+      <div class="auth-brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>Solidus WiFi</strong>
+          <span>{{t 'login.management'}}</span>
+        </div>
+      </div>
+
+      <div class="language-switcher" aria-label="Language">
+        <button type="button" class="{{#if isEnglish}}active{{/if}}" data-admin-lang="en">EN</button>
+        <button type="button" class="{{#if isSwahili}}active{{/if}}" data-admin-lang="sw">SW</button>
       </div>
     </div>
 
     <div class="auth-copy">
-      <h1>Sign in</h1>
-      <p>Manage sites, devices, packages, customers and payments.</p>
+      <h1>{{t 'login.signIn'}}</h1>
+      <p>{{t 'login.subtitle'}}</p>
     </div>
 
     {{#if error}}
@@ -18,8 +25,10 @@
     {{/if}}
 
     <form method="POST" action="/admin/login" class="auth-form">
+      <input type="hidden" name="language" value="{{language}}">
+
       <label>
-        <span>Username</span>
+        <span>{{t 'login.username'}}</span>
         <input
           name="username"
           autocomplete="username"
@@ -30,7 +39,7 @@
       </label>
 
       <label>
-        <span>Password</span>
+        <span>{{t 'login.password'}}</span>
         <input
           name="password"
           type="password"
@@ -39,7 +48,7 @@
         >
       </label>
 
-      <button type="submit">Sign in</button>
+      <button type="submit">{{t 'login.signIn'}}</button>
     </form>
   </section>
 </main>
