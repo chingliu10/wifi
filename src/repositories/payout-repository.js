@@ -5,7 +5,12 @@ const getSpendableBalance = async (organizationId, client = pool) => {
     `
       SELECT
         COALESCE((
-          SELECT SUM(amount_tzs)
+          SELECT SUM(
+            CASE
+              WHEN entry_type = 'adjustment' AND amount_tzs > 0 THEN 0
+              ELSE amount_tzs
+            END
+          )
           FROM wallet_entries
           WHERE organization_id = $1
         ), 0)::NUMERIC(18,2)
