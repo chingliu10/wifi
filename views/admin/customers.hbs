@@ -1,54 +1,98 @@
 <section class="page-head">
   <div>
-    <h2>Customers</h2>
-    <p>Customer activity and payment history for this client.</p>
+    <h2>{{t 'customers.title'}}</h2>
+    <p>{{t 'customers.subtitle'}}</p>
   </div>
 </section>
 
+{{#if selectedOrg}}
+  <section class="panel payment-filter-panel">
+    <form method="GET" action="/admin/customers" class="admin-form">
+      <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+      <div class="customer-filter-grid">
+        <label>
+          <span>{{t 'common.search'}}</span>
+          <input
+            type="search"
+            name="search"
+            value="{{filters.search}}"
+            placeholder="{{t 'customers.searchPlaceholder'}}"
+          >
+        </label>
+
+        <label>
+          <span>{{t 'customers.access'}}</span>
+          <select name="access">
+            {{#each accessOptions}}
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <a href="/admin/customers?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
+        <button type="submit">{{t 'common.filter'}}</button>
+      </div>
+    </form>
+  </section>
+{{/if}}
+
 <section class="panel table-panel">
   <div class="table-wrap">
-    <table>
+    <table class="responsive-table">
       <thead>
         <tr>
-          <th>Customer</th>
-          <th>Paid orders</th>
-          <th>Total spent</th>
-          <th>Latest package</th>
-          <th>Latest payment</th>
-          <th>First seen</th>
-          <th>Last seen</th>
+          <th>{{t 'common.customer'}}</th>
+          <th>{{t 'customers.access'}}</th>
+          <th>{{t 'customers.paidOrders'}}</th>
+          <th>{{t 'customers.totalSpent'}}</th>
+          <th>{{t 'customers.latestPackage'}}</th>
+          <th>{{t 'customers.latestPayment'}}</th>
+          <th>{{t 'customers.firstSeen'}}</th>
+          <th>{{t 'customers.lastSeen'}}</th>
         </tr>
       </thead>
       <tbody>
         {{#each customers}}
           <tr>
-            <td>
+            <td data-label="{{t 'common.customer'}}">
               <strong>{{customer_name}}</strong>
               <small>{{phone}}</small>
             </td>
-            <td>{{paid_orders}}</td>
-            <td>{{formatTzs total_spent}} TZS</td>
-            <td>
+            <td data-label="{{t 'customers.access'}}">
+              {{#if access_active}}
+                <span class="status-pill status-paid">{{t 'customers.accessActive'}}</span>
+              {{else}}
+                <span class="status-pill status-expired">{{t 'customers.accessExpired'}}</span>
+              {{/if}}
+            </td>
+            <td data-label="{{t 'customers.paidOrders'}}">{{paid_orders}}</td>
+            <td data-label="{{t 'customers.totalSpent'}}">{{formatTzs total_spent}} TZS</td>
+            <td data-label="{{t 'customers.latestPackage'}}">
               {{#if latest_package}}
                 {{formatPackageName latest_package}}
               {{else}}
                 <span class="muted-value">—</span>
               {{/if}}
             </td>
-            <td>
+            <td data-label="{{t 'customers.latestPayment'}}">
               {{#if latest_payment_at}}
                 {{formatDate latest_payment_at}}
               {{else}}
-                <span class="muted-value">No successful payment</span>
+                <span class="muted-value">{{t 'customers.noSuccessfulPayment'}}</span>
               {{/if}}
             </td>
-            <td>{{formatDate first_seen}}</td>
-            <td>{{formatDate last_seen}}</td>
+            <td data-label="{{t 'customers.firstSeen'}}">{{formatDate first_seen}}</td>
+            <td data-label="{{t 'customers.lastSeen'}}">{{formatDate last_seen}}</td>
           </tr>
         {{else}}
-          <tr><td colspan="7" class="empty">No customers yet.</td></tr>
+          <tr><td colspan="8" class="empty">{{t 'customers.noCustomers'}}</td></tr>
         {{/each}}
       </tbody>
     </table>
   </div>
+
+  {{> admin-pagination pagination}}
 </section>
