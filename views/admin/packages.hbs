@@ -1,7 +1,7 @@
 <section class="page-head">
   <div>
     <h2>Packages</h2>
-    <p>Create the packages customers see on the captive portal.</p>
+    <p>Create and manage the packages customers see on the captive portal.</p>
   </div>
 </section>
 
@@ -30,12 +30,12 @@
 
           <label>
             <span>Package name</span>
-            <input name="packageName" required placeholder="e.g. 7 Hours">
+            <input name="packageName" required maxlength="100" placeholder="e.g. 7 Hours">
           </label>
 
           <label>
             <span>Price (TZS)</span>
-            <input name="priceTzs" type="number" min="500" required placeholder="500">
+            <input name="priceTzs" type="number" min="500" step="1" required placeholder="500">
           </label>
 
           <label>
@@ -60,54 +60,66 @@
     <div class="notice">Create a site before adding packages.</div>
   {{/if}}
 
-  <section class="panel table-panel">
+  <section class="panel table-panel package-table-panel">
+    <div class="panel-head">
+      <div>
+        <h3>Existing packages</h3>
+        <p>Edit package details or remove packages you no longer offer.</p>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Site</th><th>Package</th><th>Duration</th><th>Price</th><th>Active</th><th></th></tr></thead>
+        <thead>
+          <tr>
+            <th>Site</th>
+            <th>Package</th>
+            <th>Duration</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
         <tbody>
           {{#each packages}}
             <tr>
               <td>{{site_name}}</td>
-              <td>
-                <input
-                  type="text"
-                  name="packageName"
-                  value="{{name}}"
-                  maxlength="100"
-                  form="package-form-{{id}}"
-                  required
-                >
-              </td>
+              <td><strong>{{name}}</strong></td>
               <td>{{duration_label}}</td>
+              <td>{{formatTzs price_tzs}} TZS</td>
               <td>
-                <input
-                  class="price-input"
-                  type="number"
-                  name="priceTzs"
-                  min="500"
-                  value="{{price_tzs}}"
-                  form="package-form-{{id}}"
-                  required
-                >
+                {{#if active}}
+                  <span class="status-pill status-paid">Active</span>
+                {{else}}
+                  <span class="status-pill status-expired">Inactive</span>
+                {{/if}}
               </td>
               <td>
-                <input
-                  type="checkbox"
-                  name="active"
-                  form="package-form-{{id}}"
-                  {{#if active}}checked{{/if}}
-                >
-              </td>
-              <td>
-                <form
-                  id="package-form-{{id}}"
-                  method="POST"
-                  action="/admin/packages/{{id}}"
-                  class="inline-form"
-                >
-                  <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
-                  <button type="submit">Save</button>
-                </form>
+                <div class="package-actions">
+                  <button
+                    type="button"
+                    class="package-edit-button"
+                    data-package-id="{{id}}"
+                    data-package-name="{{name}}"
+                    data-site-name="{{site_name}}"
+                    data-price="{{price_tzs}}"
+                    data-duration-value="{{duration_value}}"
+                    data-duration-unit="{{duration_unit}}"
+                    data-active="{{#if active}}true{{else}}false{{/if}}"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    class="package-delete-button"
+                    data-package-id="{{id}}"
+                    data-package-name="{{name}}"
+                    data-site-name="{{site_name}}"
+                  >
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           {{else}}
@@ -117,4 +129,203 @@
       </table>
     </div>
   </section>
+
+  <div id="package-edit-backdrop" class="admin-modal-backdrop" hidden>
+    <section
+      class="admin-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="package-edit-title"
+    >
+      <div class="admin-modal-head">
+        <div>
+          <h3 id="package-edit-title">Edit package</h3>
+          <p>Update the package customers will see on the portal.</p>
+        </div>
+        <button type="button" class="admin-modal-close" data-close-modal aria-label="Close">×</button>
+      </div>
+
+      <form id="package-edit-form" method="POST" class="admin-form">
+        <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+        <div class="form-grid">
+          <label>
+            <span>Site</span>
+            <input id="edit-package-site" type="text" readonly>
+          </label>
+
+          <label>
+            <span>Package name</span>
+            <input id="edit-package-name" name="packageName" maxlength="100" required>
+          </label>
+
+          <label>
+            <span>Price (TZS)</span>
+            <input id="edit-package-price" name="priceTzs" type="number" min="500" step="1" required>
+          </label>
+
+          <label>
+            <span>Duration</span>
+            <div class="duration-control">
+              <input
+                id="edit-package-duration-value"
+                name="durationValue"
+                type="number"
+                min="1"
+                step="1"
+                required
+              >
+              <select id="edit-package-duration-unit" name="durationUnit">
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+          </label>
+        </div>
+
+        <label class="package-active-control">
+          <input id="edit-package-active" name="active" type="checkbox">
+          <span>Active — show this package on the customer portal</span>
+        </label>
+
+        <div class="modal-note">
+          Changes apply to future purchases. Existing paid subscriptions keep their original expiry time.
+        </div>
+
+        <div class="form-actions admin-modal-actions">
+          <button type="button" class="secondary-button" data-close-modal>Cancel</button>
+          <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="package-delete-backdrop" class="admin-modal-backdrop" hidden>
+    <section
+      class="admin-modal admin-modal-small"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="package-delete-title"
+    >
+      <div class="admin-modal-head">
+        <div>
+          <h3 id="package-delete-title">Delete package?</h3>
+          <p>This removes it from the package management screen and customer portal.</p>
+        </div>
+        <button type="button" class="admin-modal-close" data-close-modal aria-label="Close">×</button>
+      </div>
+
+      <div class="delete-package-summary">
+        <span id="delete-package-site"></span>
+        <strong id="delete-package-name"></strong>
+      </div>
+
+      <div class="modal-note">
+        Previous payments and subscriptions are preserved for reporting.
+      </div>
+
+      <form id="package-delete-form" method="POST">
+        <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+        <div class="form-actions admin-modal-actions">
+          <button type="button" class="secondary-button" data-close-modal>Cancel</button>
+          <button type="submit" class="danger-solid-button">Delete package</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const editBackdrop = document.getElementById('package-edit-backdrop');
+      const deleteBackdrop = document.getElementById('package-delete-backdrop');
+      const editForm = document.getElementById('package-edit-form');
+      const deleteForm = document.getElementById('package-delete-form');
+
+      const showModal = (backdrop) => {
+        backdrop.hidden = false;
+        document.body.classList.add('admin-modal-open');
+      };
+
+      const closeModal = (backdrop) => {
+        backdrop.hidden = true;
+
+        if (editBackdrop.hidden && deleteBackdrop.hidden) {
+          document.body.classList.remove('admin-modal-open');
+        }
+      };
+
+      document.querySelectorAll('.package-edit-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          const packageId = button.dataset.packageId;
+
+          editForm.action = '/admin/packages/' + encodeURIComponent(packageId);
+          document.getElementById('edit-package-site').value =
+            button.dataset.siteName || '';
+          document.getElementById('edit-package-name').value =
+            button.dataset.packageName || '';
+          document.getElementById('edit-package-price').value =
+            button.dataset.price || '';
+          document.getElementById('edit-package-duration-value').value =
+            button.dataset.durationValue || '';
+          document.getElementById('edit-package-duration-unit').value =
+            button.dataset.durationUnit || 'hours';
+          document.getElementById('edit-package-active').checked =
+            button.dataset.active === 'true';
+
+          showModal(editBackdrop);
+          setTimeout(() => {
+            document.getElementById('edit-package-name').focus();
+          }, 0);
+        });
+      });
+
+      document.querySelectorAll('.package-delete-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          const packageId = button.dataset.packageId;
+
+          deleteForm.action =
+            '/admin/packages/' + encodeURIComponent(packageId) + '/delete';
+          document.getElementById('delete-package-site').textContent =
+            button.dataset.siteName || '';
+          document.getElementById('delete-package-name').textContent =
+            button.dataset.packageName || '';
+
+          showModal(deleteBackdrop);
+        });
+      });
+
+      document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const backdrop = button.closest('.admin-modal-backdrop');
+
+          if (backdrop) {
+            closeModal(backdrop);
+          }
+        });
+      });
+
+      [editBackdrop, deleteBackdrop].forEach((backdrop) => {
+        backdrop.addEventListener('click', (event) => {
+          if (event.target === backdrop) {
+            closeModal(backdrop);
+          }
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') {
+          return;
+        }
+
+        if (!editBackdrop.hidden) {
+          closeModal(editBackdrop);
+        }
+
+        if (!deleteBackdrop.hidden) {
+          closeModal(deleteBackdrop);
+        }
+      });
+    })();
+  </script>
 {{/if}}
