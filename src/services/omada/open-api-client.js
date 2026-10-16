@@ -549,6 +549,46 @@ const getMacAuthSetting = async ({ siteId }) => {
   return data.result || null;
 };
 
+const listClients = async ({
+  siteId,
+  page = 1,
+  pageSize = 25
+}) => {
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.max(1, Math.min(Number(pageSize) || 25, 25));
+
+  const data = await openApi({
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}/clients`,
+    query: {
+      page: safePage,
+      pageSize: safePageSize
+    }
+  });
+
+  const result = data.result || {};
+  const rows = Array.isArray(result.data)
+    ? result.data
+    : Array.isArray(result)
+      ? result
+      : [];
+
+  const total = Number(
+    result.totalRows ??
+    result.total ??
+    result.totalNum ??
+    result.count ??
+    rows.length
+  );
+
+  return {
+    rows,
+    total: Number.isFinite(total) ? total : rows.length,
+    page: safePage,
+    pageSize: safePageSize
+  };
+};
+
 const listHotspotAuthedClients = async ({
   siteId,
   page = 1,
@@ -642,6 +682,7 @@ module.exports = {
   listRadiusProfiles,
   getMacAuthSetting,
   updateMacAuthSetting,
+  listClients,
   listHotspotAuthedClients,
   authClient,
   cancelAuthClient,
