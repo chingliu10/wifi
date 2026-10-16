@@ -69,22 +69,46 @@
             <tr>
               <td>{{site_name}}</td>
               <td>
-                <form method="POST" action="/admin/packages/{{id}}" class="inline-form">
-                  <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
-                  <input
-                    type="text"
-                    name="packageName"
-                    value="{{name}}"
-                    maxlength="100"
-                    required
-                  >
+                <input
+                  type="text"
+                  name="packageName"
+                  value="{{name}}"
+                  maxlength="100"
+                  form="package-form-{{id}}"
+                  required
+                >
               </td>
               <td>{{formatDuration duration_seconds}}</td>
               <td>
-                  <input class="price-input" type="number" name="priceTzs" min="500" value="{{price_tzs}}" required>
+                <input
+                  class="price-input"
+                  type="number"
+                  name="priceTzs"
+                  min="500"
+                  value="{{price_tzs}}"
+                  form="package-form-{{id}}"
+                  required
+                >
               </td>
-              <td><input type="checkbox" name="active" {{#if active}}checked{{/if}}></td>
-              <td><button type="submit">Save</button></form></td>
+              <td>
+                <input
+                  type="checkbox"
+                  name="active"
+                  form="package-form-{{id}}"
+                  {{#if active}}checked{{/if}}
+                >
+              </td>
+              <td>
+                <form
+                  id="package-form-{{id}}"
+                  method="POST"
+                  action="/admin/packages/{{id}}"
+                  class="inline-form"
+                >
+                  <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+                  <button type="submit">Save</button>
+                </form>
+              </td>
             </tr>
           {{else}}
             <tr><td colspan="6" class="empty">No packages yet.</td></tr>
