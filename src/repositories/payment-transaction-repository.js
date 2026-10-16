@@ -86,6 +86,9 @@ const findPaymentTransactionByReference = async (reference) => {
         pt.client_mac,
         pt.device_id,
         pt.amount_tzs,
+        pt.gateway_fee_tzs,
+        pt.net_amount_tzs,
+        pt.organization_id,
         pt.status,
         pt.provider,
         pt.provider_reference,
@@ -131,6 +134,9 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
         pt.client_mac,
         pt.device_id,
         pt.amount_tzs,
+        pt.gateway_fee_tzs,
+        pt.net_amount_tzs,
+        pt.organization_id,
         pt.status,
         pt.provider,
         pt.provider_reference,
@@ -179,6 +185,9 @@ const findPaymentTransactionByReferenceForUpdate = async ({
         pt.client_mac,
         pt.device_id,
         pt.amount_tzs,
+        pt.gateway_fee_tzs,
+        pt.net_amount_tzs,
+        pt.organization_id,
         pt.status,
         pt.provider,
         pt.provider_reference,
@@ -284,21 +293,29 @@ const findLatestCustomerByDeviceId = async (deviceId) => {
 const updatePaymentProviderDetails = async ({
   reference,
   provider,
-  providerReference
+  providerReference,
+  gatewayFeeTzs = null,
+  netAmountTzs = null
 }) => {
   const result = await pool.query(
     `
       UPDATE payment_transactions
       SET
         provider = $2,
-        provider_reference = $3,
+        provider_reference = COALESCE(provider_reference, $3),
+        gateway_fee_tzs = COALESCE(gateway_fee_tzs, $4),
+        net_amount_tzs = COALESCE(net_amount_tzs, $5),
         updated_at = NOW()
       WHERE reference = $1
         AND status = 'pending'
-        AND provider_reference IS NULL
+        AND (
+          provider_reference IS NULL
+          OR gateway_fee_tzs IS NULL
+          OR net_amount_tzs IS NULL
+        )
       RETURNING *
     `,
-    [reference, provider, providerReference]
+    [reference, provider, providerReference, gatewayFeeTzs, netAmountTzs]
   );
 
   return result.rows[0] || null;
