@@ -334,6 +334,89 @@ const getDeviceAdoptResult = async ({ siteId, deviceMac }) => {
   });
 };
 
+
+const getApChannelInfo = async ({ siteId, apMac }) => {
+  const data = await openApi({
+    method: 'POST',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/aps/channel-info',
+    body: {
+      macList: [apMac]
+    }
+  });
+
+  const result = data.result || data;
+
+  if (Array.isArray(result?.data)) {
+    return result.data;
+  }
+
+  if (Array.isArray(result)) {
+    return result;
+  }
+
+  return [];
+};
+
+const listSiteSsids = async ({ siteId }) => {
+  const data = await openApi({
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/wireless-network/ssids',
+    query: {
+      type: 1
+    }
+  });
+
+  return Array.isArray(data.result) ? data.result : [];
+};
+
+const quickCreateSsid = async ({ siteId, ssidName, band }) => {
+  const data = await openApi({
+    method: 'POST',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/wireless-network/quick-create-ssid',
+    body: {
+      ssidName,
+      band,
+      deviceType: 1,
+      security: 0,
+      guestNetEnable: false
+    }
+  });
+
+  return data.result;
+};
+
+const getSsidDetail = async ({ siteId, wlanId, ssidId }) => {
+  const data = await openApi({
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      `/wireless-network/wlans/${encodeURIComponent(wlanId)}` +
+      `/ssids/${encodeURIComponent(ssidId)}`
+  });
+
+  return data.result || null;
+};
+
+const updateSsidBasicConfig = async ({
+  siteId,
+  wlanId,
+  ssidId,
+  config
+}) => {
+  return openApi({
+    method: 'PATCH',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      `/wireless-network/wlans/${encodeURIComponent(wlanId)}` +
+      `/ssids/${encodeURIComponent(ssidId)}/update-basic-config`,
+    body: config
+  });
+};
+
 module.exports = {
   configured,
   getControllerInfo,
@@ -344,5 +427,10 @@ module.exports = {
   listPendingDevices,
   listDevices,
   startAdoptDevice,
-  getDeviceAdoptResult
+  getDeviceAdoptResult,
+  getApChannelInfo,
+  listSiteSsids,
+  quickCreateSsid,
+  getSsidDetail,
+  updateSsidBasicConfig
 };
