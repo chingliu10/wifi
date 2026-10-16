@@ -368,3 +368,165 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
     width:100%
   }
 }
+
+
+/* Account menu and password controls */
+.sidebar-account{
+  margin:0 0 12px;
+  border:1px solid #2b3546;
+  border-radius:11px;
+  background:#182132;
+  overflow:hidden
+}
+.sidebar-account summary{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  padding:10px 11px;
+  cursor:pointer;
+  list-style:none
+}
+.sidebar-account summary::-webkit-details-marker{display:none}
+.sidebar-account-avatar{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#14b8a6;
+  background:#203044;
+  font-size:10px
+}
+.sidebar-account-copy{
+  min-width:0;
+  display:grid;
+  gap:2px
+}
+.sidebar-account-copy strong{
+  overflow:hidden;
+  color:#fff;
+  font-size:12px;
+  white-space:nowrap;
+  text-overflow:ellipsis
+}
+.sidebar-account-copy small{
+  overflow:hidden;
+  color:#8f98aa;
+  font-size:9px;
+  white-space:nowrap;
+  text-overflow:ellipsis
+}
+.sidebar-account-chevron{
+  color:#8f98aa;
+  font-size:16px;
+  transition:transform .15s ease
+}
+.sidebar-account[open] .sidebar-account-chevron{transform:rotate(180deg)}
+.sidebar-account-menu{
+  display:grid;
+  padding:6px;
+  border-top:1px solid #2b3546;
+  background:#111827
+}
+.sidebar-account-menu a,
+.sidebar-account-menu button{
+  width:100%;
+  display:block;
+  padding:9px 10px;
+  border:0;
+  border-radius:8px;
+  color:#d5d9e2;
+  background:transparent;
+  font:inherit;
+  font-size:11px;
+  text-align:left;
+  text-decoration:none;
+  cursor:pointer
+}
+.sidebar-account-menu a:hover,
+.sidebar-account-menu button:hover{
+  color:#fff;
+  background:#1f2937
+}
+.sidebar-account-menu form{margin:0}
+
+.password-input-wrap{
+  position:relative;
+  width:100%
+}
+.password-input-wrap > input{
+  width:100%;
+  padding-right:44px!important
+}
+.password-toggle{
+  position:absolute;
+  top:50%;
+  right:7px;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  transform:translateY(-50%);
+  border:0;
+  border-radius:8px;
+  color:#697386;
+  background:transparent;
+  cursor:pointer
+}
+.password-toggle:hover,
+.password-toggle:focus-visible{
+  color:var(--accent);
+  background:#eef7f5;
+  outline:none
+}
+.password-toggle svg{
+  width:19px;
+  height:19px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.password-toggle.is-showing{
+  color:var(--accent);
+  background:#eef7f5
+}
+
+.account-security-panel{
+  max-width:640px
+}
+.account-password-form{
+  max-width:520px;
+  display:grid;
+  gap:14px
+}
+.account-password-form > label{
+  display:grid;
+  gap:6px
+}
+.account-password-form > label > span{
+  font-size:11px;
+  font-weight:700
+}
+.account-password-form > label > small{
+  color:var(--muted);
+  font-size:10px
+}
+.account-password-form input{
+  min-height:44px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  outline:none
+}
+.account-password-form input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(15,118,110,.10)
+}
+
+@media(max-width:760px){
+  .sidebar-account{margin-bottom:12px}
+  .account-security-panel{max-width:none}
+}
