@@ -506,6 +506,8 @@ const renderPaymentStatus = async (res, transaction, title = 'Payment status') =
     message: buildPaymentMessage(transaction, subscription),
     paymentActive,
     paymentPaid: transaction.status === 'paid',
+    paymentConnecting:
+      transaction.status === 'paid' && subscriptionActive && !paymentActive,
     showPayNow: transaction.status === 'pending' && !transaction.provider_reference,
     paymentInitiated: transaction.status === 'pending' && Boolean(transaction.provider_reference)
   });
