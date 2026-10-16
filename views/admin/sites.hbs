@@ -214,6 +214,104 @@
             </div>
           </section>
         </div>
+
+        <section class="wifi-manager">
+          <div class="wifi-manager-head">
+            <div>
+              <h4>Wi-Fi networks</h4>
+              <p>Solidus detects the adopted AP radios automatically. Customers can create or rename hotspot SSIDs without opening Omada.</p>
+            </div>
+          </div>
+
+          {{#if wifi_error}}
+            <div class="status-box-admin error">{{wifi_error}}</div>
+          {{/if}}
+
+          {{#if radio_capabilities}}
+            <div class="radio-capability-card">
+              <span>Detected radio capability</span>
+              <strong>
+                {{#each radio_capabilities.labels}}
+                  <span class="radio-chip">{{this}}</span>
+                {{else}}
+                  No supported radio detected
+                {{/each}}
+              </strong>
+              <small>Automatic mode uses only bands detected from the adopted AP.</small>
+            </div>
+
+            {{#if radio_capabilities.bandMask}}
+              <form method="POST" action="/admin/sites/{{id}}/wifi-networks" class="admin-form compact-form wifi-create-form">
+                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+
+                <div class="form-grid">
+                  <label>
+                    <span>Wi-Fi name (SSID)</span>
+                    <input name="ssidName" required maxlength="32" placeholder="e.g. MWANZA WIFI">
+                  </label>
+
+                  <label>
+                    <span>Bands</span>
+                    <select name="bandPreference">
+                      <option value="auto">Automatic — use detected radios</option>
+                      {{#if radio_capabilities.supports24}}
+                        <option value="1">2.4 GHz only</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supports5}}
+                        <option value="2">5 GHz only</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supports24And5}}
+                        <option value="3">2.4 + 5 GHz</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supports6}}
+                        <option value="4">6 GHz only</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supports24And6}}
+                        <option value="5">2.4 + 6 GHz</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supports5And6}}
+                        <option value="6">5 + 6 GHz</option>
+                      {{/if}}
+                      {{#if radio_capabilities.supportsAll}}
+                        <option value="7">2.4 + 5 + 6 GHz</option>
+                      {{/if}}
+                    </select>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit">Create hotspot Wi-Fi</button>
+                </div>
+              </form>
+            {{/if}}
+          {{else}}
+            <div class="radio-capability-card waiting">
+              <span>Radio detection</span>
+              <strong>Waiting for an adopted AP</strong>
+              <small>Once an AP is connected, Solidus will inspect its radios automatically.</small>
+            </div>
+          {{/if}}
+
+          <div class="wifi-network-list">
+            {{#each wifi_networks}}
+              <div class="wifi-network-row">
+                <div class="wifi-network-copy">
+                  <strong>{{name}}</strong>
+                  <small>WLAN: {{wlan_name}}</small>
+                </div>
+
+                <form method="POST" action="/admin/sites/{{site_id}}/wifi-networks/{{ssid_id}}/rename" class="wifi-rename-form">
+                  <input type="hidden" name="organizationId" value="{{@root.selectedOrg.id}}">
+                  <input type="hidden" name="wlanId" value="{{wlan_id}}">
+                  <input name="ssidName" value="{{name}}" required maxlength="32" aria-label="WiFi network name">
+                  <button type="submit">Rename</button>
+                </form>
+              </div>
+            {{else}}
+              <p class="muted-copy wifi-empty">No Wi-Fi networks found in this Omada site yet.</p>
+            {{/each}}
+          </div>
+        </section>
       {{/unless}}
     </article>
   {{else}}
