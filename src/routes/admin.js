@@ -2095,88 +2095,362 @@ router.get('/live-clients', async (req, res) => {
   }
 });
 
+const loadWalletPageData = async ({
+  selectedOrg,
+  payoutPage = 1
+}) => {
+  if (!selectedOrg) {
+    return {
+      wallet: {
+        available_balance: 0,
+        ledger_balance: 0,
+        reserved_balance: 0,
+        gateway_fees: 0,
+        platform_fees: 0,
+        payout_fees: 0,
+        paid_out: 0,
+        entries: 0
+      },
+      settlement: {
+        gross_collected: 0,
+        net_collected: 0,
+        unreconciled_payments: 0
+      },
+      payouts: [],
+      payoutPagination: buildPagination({
+        page: 1,
+        total: 0,
+        basePath: '/admin/wallet',
+        pageParam: 'payoutPage'
+      })
+    };
+  }
+
+  const [
+    walletResult,
+    reserveResult,
+    settlementResult,
+    payoutCountResult
+  ] = await Promise.all([
+    pool.query(
+      `
+        SELECT
+          COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS ledger_balance,
+          COALESCE(
+            -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
+            0
+          )::NUMERIC(18,2) AS gateway_fees,
+          COALESCE(
+            -SUM(amount_tzs) FILTER (WHERE entry_type = 'platform_fee'),
+            0
+          )::NUMERIC(18,2) AS platform_fees,
+          COALESCE(
+            -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_debit'),
+            0
+          )::NUMERIC(18,2) AS paid_out,
+          COALESCE(
+            -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_fee'),
+            0
+          )::NUMERIC(18,2) AS payout_fees,
+          COUNT(*)::INTEGER AS entries
+        FROM wallet_entries
+        WHERE organization_id = $1
+      `,
+      [selectedOrg.id]
+    ),
+    pool.query(
+      `
+        SELECT
+          COALESCE(SUM(total_amount_tzs), 0)::NUMERIC(18,2) AS reserved_balance
+        FROM payout_transactions
+        WHERE organization_id = $1
+          AND status IN ('pending', 'processing')
+      `,
+      [selectedOrg.id]
+    ),
+    pool.query(
+      `
+        SELECT
+          COALESCE(
+            SUM(amount_tzs) FILTER (WHERE status = 'paid'),
+            0
+          )::NUMERIC(18,2) AS gross_collected,
+          COALESCE(
+            SUM(net_amount_tzs) FILTER (
+              WHERE status = 'paid'
+                AND net_amount_tzs IS NOT NULL
+            ),
+            0
+          )::NUMERIC(18,2) AS net_collected,
+          COUNT(*) FILTER (
+            WHERE status = 'paid'
+              AND (
+                gateway_fee_tzs IS NULL
+                OR net_amount_tzs IS NULL
+              )
+          )::INTEGER AS unreconciled_payments
+        FROM payment_transactions
+        WHERE organization_id = $1
+      `,
+      [selectedOrg.id]
+    ),
+    pool.query(
+      `
+        SELECT COUNT(*)::INTEGER AS total
+        FROM payout_transactions
+        WHERE organization_id = $1
+      `,
+      [selectedOrg.id]
+    )
+  ]);
+
+  const ledgerBalance = Number(
+    walletResult.rows[0]?.ledger_balance || 0
+  );
+  const reservedBalance = Number(
+    reserveResult.rows[0]?.reserved_balance || 0
+  );
+  const payoutTotal = Number(
+    payoutCountResult.rows[0]?.total || 0
+  );
+
+  const payoutPagination = buildPagination({
+    page: payoutPage,
+    total: payoutTotal,
+    basePath: '/admin/wallet',
+    pageParam: 'payoutPage',
+    query: {
+      org: selectedOrg.id
+    }
+  });
+
+  const payoutOffset =
+    (payoutPagination.page - 1) * ADMIN_PAGE_SIZE;
+
+  const payoutResult = await pool.query(
+    `
+      SELECT
+        id,
+        reference,
+        provider_reference,
+        recipient_phone,
+        recipient_name,
+        network,
+        amount_tzs,
+        fee_tzs,
+        total_amount_tzs,
+        status,
+        created_at,
+        paid_at,
+        failed_at,
+        cancelled_at
+      FROM payout_transactions
+      WHERE organization_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `,
+    [selectedOrg.id, ADMIN_PAGE_SIZE, payoutOffset]
+  );
+
+  return {
+    wallet: {
+      ...walletResult.rows[0],
+      ledger_balance: ledgerBalance,
+      reserved_balance: reservedBalance,
+      available_balance: ledgerBalance - reservedBalance
+    },
+    settlement: settlementResult.rows[0],
+    payouts: payoutResult.rows,
+    payoutPagination
+  };
+};
+
+const buildPayoutNetworkOptions = (selectedNetwork = 'MPESA') =>
+  mobileMoneyNetworks.map((network) => ({
+    ...network,
+    selected: network.value === selectedNetwork
+  }));
+
+const renderWalletPage = async (req, res, {
+  organizations,
+  selectedOrg,
+  withdrawalPreview = null,
+  withdrawalForm = null,
+  withdrawalError = null,
+  withdrawalSuccess = false
+}) => {
+  const pageData = await loadWalletPageData({
+    selectedOrg,
+    payoutPage: getPage(req.query.payoutPage)
+  });
+
+  return renderAdmin(req, res, 'admin/wallet', {
+    titleKey: 'wallet.title',
+    organizations,
+    selectedOrg,
+    ...pageData,
+    withdrawalPreview,
+    withdrawalForm,
+    withdrawalError,
+    withdrawalSuccess,
+    payoutNetworks: buildPayoutNetworkOptions(
+      withdrawalPreview?.network ||
+      withdrawalForm?.network ||
+      'MPESA'
+    )
+  });
+};
+
 router.get('/wallet', async (req, res) => {
   try {
-    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    const { organizations, selectedOrg } =
+      await getSelectedOrganization(req);
 
-    const wallet = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS available_balance,
-                COALESCE(
-                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
-                  0
-                )::NUMERIC(18,2) AS gateway_fees,
-                COALESCE(
-                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'platform_fee'),
-                  0
-                )::NUMERIC(18,2) AS platform_fees,
-                COALESCE(
-                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_debit'),
-                  0
-                )::NUMERIC(18,2) AS paid_out,
-                COUNT(*)::INTEGER AS entries
-              FROM wallet_entries
-              WHERE organization_id = $1
-            `,
-            [selectedOrg.id]
-          )
-        ).rows[0]
-      : {
-          available_balance: 0,
-          gateway_fees: 0,
-          platform_fees: 0,
-          paid_out: 0,
-          entries: 0
-        };
-
-    const settlement = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                COALESCE(
-                  SUM(amount_tzs) FILTER (WHERE status = 'paid'),
-                  0
-                )::NUMERIC(18,2) AS gross_collected,
-                COALESCE(
-                  SUM(net_amount_tzs) FILTER (
-                    WHERE status = 'paid'
-                      AND net_amount_tzs IS NOT NULL
-                  ),
-                  0
-                )::NUMERIC(18,2) AS net_collected,
-                COUNT(*) FILTER (
-                  WHERE status = 'paid'
-                    AND (
-                      gateway_fee_tzs IS NULL
-                      OR net_amount_tzs IS NULL
-                    )
-                )::INTEGER AS unreconciled_payments
-              FROM payment_transactions
-              WHERE organization_id = $1
-            `,
-            [selectedOrg.id]
-          )
-        ).rows[0]
-      : {
-          gross_collected: 0,
-          net_collected: 0,
-          unreconciled_payments: 0
-        };
-
-    return renderAdmin(req, res, 'admin/wallet', {
-      titleKey: 'wallet.title',
+    return renderWalletPage(req, res, {
       organizations,
       selectedOrg,
-      wallet,
-      settlement
+      withdrawalSuccess:
+        String(req.query.withdrawal || '') === 'requested'
     });
   } catch (error) {
     console.error('ADMIN WALLET ERROR:', error);
     res.status(500).send('Unable to load wallet.');
+  }
+});
+
+router.post('/wallet/withdraw/verify', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } =
+      await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Select a client first.');
+    }
+
+    const withdrawalForm = {
+      phone: String(req.body.phone || '').trim(),
+      network: String(req.body.network || 'MPESA').trim(),
+      amountTzs: String(req.body.amountTzs || '').trim()
+    };
+
+    try {
+      const preview = await previewMobileMoneyPayout({
+        phone: withdrawalForm.phone,
+        network: withdrawalForm.network,
+        amountTzs: withdrawalForm.amountTzs
+      });
+
+      const pageData = await loadWalletPageData({
+        selectedOrg,
+        payoutPage: 1
+      });
+
+      if (
+        Number(pageData.wallet.available_balance) <
+        Number(preview.totalAmountTzs)
+      ) {
+        return renderAdmin(req, res, 'admin/wallet', {
+          titleKey: 'wallet.title',
+          organizations,
+          selectedOrg,
+          ...pageData,
+          withdrawalForm,
+          withdrawalPreview: null,
+          withdrawalError: req.t('wallet.insufficient'),
+          withdrawalSuccess: false,
+          payoutNetworks: buildPayoutNetworkOptions(
+            withdrawalForm.network
+          )
+        });
+      }
+
+      return renderAdmin(req, res, 'admin/wallet', {
+        titleKey: 'wallet.title',
+        organizations,
+        selectedOrg,
+        ...pageData,
+        withdrawalForm,
+        withdrawalPreview: preview,
+        withdrawalError: null,
+        withdrawalSuccess: false,
+        payoutNetworks: buildPayoutNetworkOptions(
+          preview.network
+        )
+      });
+    } catch (error) {
+      console.error('ADMIN PAYOUT VERIFY ERROR:', error);
+
+      return renderWalletPage(req, res, {
+        organizations,
+        selectedOrg,
+        withdrawalForm,
+        withdrawalError: error.message
+      });
+    }
+  } catch (error) {
+    console.error('ADMIN PAYOUT VERIFY PAGE ERROR:', error);
+    res.status(500).send('Unable to verify withdrawal.');
+  }
+});
+
+router.post('/wallet/withdraw/confirm', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } =
+      await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Select a client first.');
+    }
+
+    const phone = String(req.body.phone || '').trim();
+    const network = String(req.body.network || 'MPESA').trim();
+    const amountTzs = String(req.body.amountTzs || '').trim();
+    const reference =
+      'WDL-' +
+      selectedOrg.id +
+      '-' +
+      Date.now() +
+      '-' +
+      crypto.randomBytes(4).toString('hex').toUpperCase();
+
+    try {
+      await requestMobileMoneyPayout({
+        organizationId: selectedOrg.id,
+        requestedByUserId: req.authUser?.id,
+        reference,
+        phone,
+        network,
+        amountTzs,
+        remarks: 'Solidus WiFi wallet withdrawal'
+      });
+
+      return res.redirect(
+        '/admin/wallet?org=' +
+        encodeURIComponent(selectedOrg.id) +
+        '&withdrawal=requested'
+      );
+    } catch (error) {
+      console.error('ADMIN PAYOUT REQUEST ERROR:', error);
+
+      const withdrawalError =
+        error.code === 'INSUFFICIENT_WALLET_BALANCE'
+          ? req.t('wallet.insufficient')
+          : req.t('wallet.withdrawalFailed') + ' ' + error.message;
+
+      return renderWalletPage(req, res, {
+        organizations,
+        selectedOrg,
+        withdrawalForm: {
+          phone,
+          network,
+          amountTzs
+        },
+        withdrawalError
+      });
+    }
+  } catch (error) {
+    console.error('ADMIN PAYOUT CONFIRM PAGE ERROR:', error);
+    res.status(500).send('Unable to submit withdrawal.');
   }
 });
 
