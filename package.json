@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "bootstrap-admin": "node src/db/bootstrap-admin.js",
     "archive-seeded-demo": "node src/db/archive-seeded-demo.js",
-    "omada:test": "node src/scripts/test-omada-api.js"
+    "omada:test": "node src/scripts/test-omada-api.js",
+    "omada:portal-api": "node src/scripts/inspect-omada-portal-api.js"
   },
   "keywords": [],
   "author": "",
