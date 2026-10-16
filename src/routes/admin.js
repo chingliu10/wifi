@@ -1321,10 +1321,30 @@ router.get('/customers', async (req, res) => {
             `
               SELECT
                 pt.device_id,
-                MAX(pt.customer_name) FILTER (
-                  WHERE pt.customer_name IS NOT NULL
-                ) AS customer_name,
-                MAX(pt.phone) AS phone,
+                (
+                  ARRAY_AGG(
+                    pt.customer_name
+                    ORDER BY
+                      CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
+                      pt.paid_at DESC NULLS LAST,
+                      pt.created_at DESC
+                  ) FILTER (
+                    WHERE pt.customer_name IS NOT NULL
+                      AND BTRIM(pt.customer_name) <> ''
+                  )
+                )[1] AS customer_name,
+                (
+                  ARRAY_AGG(
+                    pt.phone
+                    ORDER BY
+                      CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
+                      pt.paid_at DESC NULLS LAST,
+                      pt.created_at DESC
+                  ) FILTER (
+                    WHERE pt.phone IS NOT NULL
+                      AND BTRIM(pt.phone) <> ''
+                  )
+                )[1] AS phone,
                 COUNT(*) FILTER (
                   WHERE pt.status = 'paid'
                 )::INTEGER AS paid_orders,
@@ -1333,8 +1353,24 @@ router.get('/customers', async (req, res) => {
                     WHERE pt.status = 'paid'
                   ),
                   0
-                )::BIGINT AS total_spent,
-                MAX(pt.created_at) AS last_seen
+                )::NUMERIC(18,2) AS total_spent,
+                MIN(pt.created_at) AS first_seen,
+                MAX(pt.created_at) AS last_seen,
+                MAX(pt.paid_at) FILTER (
+                  WHERE pt.status = 'paid'
+                ) AS latest_payment_at,
+                (
+                  SELECT p.name
+                  FROM payment_transactions latest_pt
+                  JOIN packages p ON p.id = latest_pt.package_id
+                  WHERE latest_pt.organization_id = $1
+                    AND latest_pt.device_id = pt.device_id
+                    AND latest_pt.status = 'paid'
+                  ORDER BY
+                    latest_pt.paid_at DESC NULLS LAST,
+                    latest_pt.created_at DESC
+                  LIMIT 1
+                ) AS latest_package
               FROM payment_transactions pt
               WHERE pt.organization_id = $1
               GROUP BY pt.device_id
