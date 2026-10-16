@@ -109,7 +109,8 @@ const findPaymentTransactionByReference = async (reference) => {
         p.site_id AS package_site_id,
         COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
         s.support_phone AS site_support_phone,
-        s.primary_color AS site_primary_color
+        s.primary_color AS site_primary_color,
+        s.external_portal_site_id
       FROM payment_transactions pt
       JOIN packages p ON p.id = pt.package_id
       JOIN sites s ON s.id = p.site_id
@@ -157,7 +158,8 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
         p.site_id AS package_site_id,
         COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
         s.support_phone AS site_support_phone,
-        s.primary_color AS site_primary_color
+        s.primary_color AS site_primary_color,
+        s.external_portal_site_id
       FROM payment_transactions pt
       JOIN packages p ON p.id = pt.package_id
       JOIN sites s ON s.id = p.site_id
@@ -208,7 +210,8 @@ const findPaymentTransactionByReferenceForUpdate = async ({
         p.site_id AS package_site_id,
         COALESCE(s.brand_name, s.name || ' WiFi') AS site_brand_name,
         s.support_phone AS site_support_phone,
-        s.primary_color AS site_primary_color
+        s.primary_color AS site_primary_color,
+        s.external_portal_site_id
       FROM payment_transactions pt
       JOIN packages p ON p.id = pt.package_id
       JOIN sites s ON s.id = p.site_id
