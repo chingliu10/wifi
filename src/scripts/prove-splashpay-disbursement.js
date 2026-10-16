@@ -260,7 +260,10 @@ const run = async () => {
         : formatTzs(status.totalAmountTzs) + ' TZS'
     );
   } catch (error) {
-    console.log('   Status lookup failed:', error.message);
+    console.log('   Status lookup unavailable:', error.message);
+    console.log(
+      '   The payout may still complete. Use the signed SplashPay webhook/dashboard as the final source of truth.'
+    );
   }
 
   console.log('');
