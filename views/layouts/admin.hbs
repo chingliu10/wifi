@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{language}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,76 +9,114 @@
 </head>
 <body>
   <div class="admin-app">
+    <button
+      class="sidebar-scrim"
+      id="sidebar-scrim"
+      type="button"
+      aria-label="{{t 'common.close'}}"
+      onclick="document.body.classList.remove('sidebar-open')"
+    ></button>
+
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">S</div>
         <div>
           <strong>Solidus WiFi</strong>
-          <span>{{#if isSuperAdmin}}Platform admin{{else}}Client portal{{/if}}</span>
+          <span>{{#if isSuperAdmin}}{{t 'role.platformAdmin'}}{{else}}{{t 'role.clientPortal'}}{{/if}}</span>
         </div>
       </div>
 
       {{#if selectedOrg}}
         <div class="org-card">
-          <span>{{#if isSuperAdmin}}Current client{{else}}Your business{{/if}}</span>
+          <span>{{#if isSuperAdmin}}{{t 'org.currentClient'}}{{else}}{{t 'org.yourBusiness'}}{{/if}}</span>
           <strong>{{selectedOrg.name}}</strong>
         </div>
       {{/if}}
 
       <nav class="nav">
-        <a href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Dashboard</a>
-        <a href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Payments</a>
-        <a href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Customers</a>
-        <a href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Packages</a>
-        <a href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Sites & devices</a>
-        <a href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Wallet & payouts</a>
+        <a href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.dashboard'}}</a>
+        <a href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.payments'}}</a>
+        <a href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.customers'}}</a>
+        <a href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.packages'}}</a>
+        <a href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.sites'}}</a>
+        <a href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.wallet'}}</a>
         {{#if isSuperAdmin}}
-          <a href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">Omada integration</a>
+          <a href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.omada'}}</a>
         {{/if}}
       </nav>
 
       <div class="sidebar-footer">
         {{#if isSuperAdmin}}
-          <a class="add-client-link" href="/admin/clients/new">+ Add client</a>
+          <a class="add-client-link" href="/admin/clients/new">+ {{t 'account.addClient'}}</a>
         {{/if}}
 
         <div class="signed-in-user">
-          <span>Signed in as</span>
+          <span>{{t 'account.signedInAs'}}</span>
           <strong>{{currentUser.full_name}}</strong>
           <small>{{currentUser.username}}</small>
         </div>
 
         <form method="POST" action="/admin/logout">
-          <button class="logout-button" type="submit">Sign out</button>
+          <button class="logout-button" type="submit">{{t 'account.signOut'}}</button>
         </form>
       </div>
     </aside>
 
     <main class="content">
       <header class="topbar">
-        <button class="menu-button" type="button" onclick="document.body.classList.toggle('sidebar-open')">☰</button>
+        <button
+          class="menu-button"
+          type="button"
+          aria-label="Menu"
+          onclick="document.body.classList.toggle('sidebar-open')"
+        >☰</button>
 
-        <div>
+        <div class="topbar-title">
           <p class="eyebrow">SOLIDUS WIFI</p>
           <h1>{{title}}</h1>
         </div>
 
-        {{#if isSuperAdmin}}
-          {{#if organizations}}
-            <form class="org-switcher" method="GET" action="/admin">
-              <label for="org">Client</label>
-              <select id="org" name="org" onchange="this.form.submit()">
-                {{#each organizations}}
-                  <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
-                {{/each}}
-              </select>
-            </form>
+        <div class="topbar-actions">
+          <div class="language-switcher" aria-label="Language">
+            <button type="button" class="{{#if isEnglish}}active{{/if}}" data-admin-lang="en">EN</button>
+            <button type="button" class="{{#if isSwahili}}active{{/if}}" data-admin-lang="sw">SW</button>
+          </div>
+
+          {{#if isSuperAdmin}}
+            {{#if organizations}}
+              <form class="org-switcher" method="GET" action="/admin">
+                <label for="org">{{t 'org.client'}}</label>
+                <select id="org" name="org" onchange="this.form.submit()">
+                  {{#each organizations}}
+                    <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+                  {{/each}}
+                </select>
+              </form>
+            {{/if}}
           {{/if}}
-        {{/if}}
+        </div>
       </header>
 
       {{{body}}}
     </main>
   </div>
+
+  <script>
+    (() => {
+      document.querySelectorAll('[data-admin-lang]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('lang', button.dataset.adminLang);
+          window.location.assign(url.toString());
+        });
+      });
+
+      document.querySelectorAll('.sidebar .nav a').forEach((link) => {
+        link.addEventListener('click', () => {
+          document.body.classList.remove('sidebar-open');
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
