@@ -30,7 +30,12 @@
 
       <label>
         <span>Temporary password</span>
-        <input name="ownerPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Minimum 8 characters">
+        <input name="ownerPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required placeholder="Minimum 8 characters">
+      </label>
+
+      <label>
+        <span>Confirm temporary password</span>
+        <input name="ownerPasswordConfirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required placeholder="Repeat password">
       </label>
     </div>
 
