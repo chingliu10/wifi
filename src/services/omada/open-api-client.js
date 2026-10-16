@@ -372,6 +372,45 @@ const listSiteSsids = async ({ siteId }) => {
   return Array.isArray(data.result) ? data.result : [];
 };
 
+const listWlanGroups = async ({ siteId }) => {
+  const data = await openApi({
+    path:
+      `/openapi/v2/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/wireless-network/wlans',
+    query: {
+      page: 1,
+      pageSize: 1000
+    }
+  });
+
+  return data.result?.gridWlanGroup?.data || [];
+};
+
+const createSsidV2 = async ({
+  siteId,
+  wlanId,
+  ssidName,
+  band
+}) => {
+  const data = await openApi({
+    method: 'POST',
+    path:
+      `/openapi/v2/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      `/wireless-network/wlans/${encodeURIComponent(wlanId)}/ssids`,
+    body: {
+      name: ssidName,
+      band,
+      security: 0,
+      deviceType: 1,
+      guestNetEnable: false,
+      broadcast: true,
+      vlanEnable: false
+    }
+  });
+
+  return data.result;
+};
+
 const quickCreateSsid = async ({ siteId, ssidName, band }) => {
   const data = await openApi({
     method: 'POST',
@@ -430,6 +469,8 @@ module.exports = {
   getDeviceAdoptResult,
   getApChannelInfo,
   listSiteSsids,
+  listWlanGroups,
+  createSsidV2,
   quickCreateSsid,
   getSsidDetail,
   updateSsidBasicConfig
