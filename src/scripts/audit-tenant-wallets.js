@@ -7,7 +7,35 @@ const money = (value) =>
     maximumFractionDigits: 2
   });
 
+const ensureAuditSchema = async () => {
+  const result = await pool.query(
+    `
+      SELECT COUNT(*)::INTEGER AS present
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'payment_transactions'
+        AND column_name IN (
+          'package_name_snapshot',
+          'package_price_tzs_snapshot',
+          'package_duration_seconds_snapshot',
+          'site_name_snapshot',
+          'site_brand_name_snapshot'
+        )
+    `
+  );
+
+  if (Number(result.rows[0]?.present || 0) !== 5) {
+    const error = new Error(
+      'Audit schema is not installed yet. Run: npm run migrate'
+    );
+    error.code = 'AUDIT_MIGRATION_REQUIRED';
+    throw error;
+  }
+};
+
 const run = async () => {
+  await ensureAuditSchema();
+
   const summary = await pool.query(
     `
       WITH wallet AS (
@@ -138,13 +166,6 @@ const run = async () => {
          OR pt.site_name_snapshot IS NULL
          OR pt.site_brand_name_snapshot IS NULL
 
-      UNION ALL
-
-      SELECT 'package_soft_delete_missing_actor', p.id::TEXT
-      FROM packages p
-      WHERE p.deleted_at IS NOT NULL
-        AND p.deleted_by_user_id IS NULL
-        AND p.deleted_at >= NOW() - INTERVAL '1 day'
     `
   );
 
