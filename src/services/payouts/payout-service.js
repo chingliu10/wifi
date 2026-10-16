@@ -7,6 +7,7 @@ const {
 } = require('./providers/splashpay-provider');
 const {
   createPayoutReservation,
+  findPayoutByReference,
   updatePayoutProviderState,
   completePayout,
   failPayout
@@ -135,18 +136,44 @@ const requestMobileMoneyPayout = async ({
     amountTzs
   });
 
-  const reservation = await createPayoutReservation({
-    organizationId,
-    requestedByUserId,
-    reference,
-    recipientPhone: preview.phone,
-    recipientName: preview.recipientName,
-    network: preview.network,
-    amountTzs: preview.amountTzs,
-    feeTzs: preview.feeTzs,
-    totalAmountTzs: preview.totalAmountTzs,
-    remarks
-  });
+  let reservation;
+
+  try {
+    reservation = await createPayoutReservation({
+      organizationId,
+      requestedByUserId,
+      reference,
+      recipientPhone: preview.phone,
+      recipientName: preview.recipientName,
+      network: preview.network,
+      amountTzs: preview.amountTzs,
+      feeTzs: preview.feeTzs,
+      totalAmountTzs: preview.totalAmountTzs,
+      remarks
+    });
+  } catch (error) {
+    if (error.code !== '23505') {
+      throw error;
+    }
+
+    const existing = await findPayoutByReference(reference);
+
+    if (
+      existing &&
+      Number(existing.organization_id) === Number(organizationId) &&
+      String(existing.recipient_phone) === String(preview.phone) &&
+      String(existing.network) === String(preview.network) &&
+      Number(existing.amount_tzs) === Number(preview.amountTzs)
+    ) {
+      return {
+        payout: existing,
+        preview,
+        duplicate: true
+      };
+    }
+
+    throw error;
+  }
 
   let provider;
 
