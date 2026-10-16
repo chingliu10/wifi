@@ -549,6 +549,24 @@ const getMacAuthSetting = async ({ siteId }) => {
   return data.result || null;
 };
 
+const authClient = async ({ siteId, clientMac }) => {
+  const normalizedMac = String(clientMac || '')
+    .trim()
+    .replace(/:/g, '-')
+    .toUpperCase();
+
+  if (!normalizedMac) {
+    throw new Error('clientMac is required');
+  }
+
+  return openApi({
+    method: 'POST',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      `/hotspot/clients/${encodeURIComponent(normalizedMac)}/auth`
+  });
+};
+
 const cancelAuthClient = async ({ siteId, clientMac }) => {
   const normalizedMac = String(clientMac || '')
     .trim()
@@ -604,6 +622,7 @@ module.exports = {
   listRadiusProfiles,
   getMacAuthSetting,
   updateMacAuthSetting,
+  authClient,
   cancelAuthClient,
   getPortalCandidates,
   createPortal
