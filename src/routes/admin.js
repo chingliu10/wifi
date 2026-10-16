@@ -12,6 +12,7 @@ const {
   createClientOwner
 } = require('../services/auth-service');
 const omada = require('../services/omada/open-api-client');
+const { normalizeLanguage, translate } = require('../i18n/admin');
 const {
   provisionSite,
   recordProvisionError,
@@ -27,6 +28,76 @@ const {
 } = require('../services/omada/wifi-service');
 
 const router = express.Router();
+
+const ADMIN_PAGE_SIZE = 25;
+
+const readCookie = (req, name) => {
+  const cookieHeader = String(req.headers.cookie || '');
+
+  for (const pair of cookieHeader.split(';')) {
+    const [key, ...valueParts] = pair.trim().split('=');
+
+    if (key === name) {
+      return decodeURIComponent(valueParts.join('=') || '');
+    }
+  }
+
+  return null;
+};
+
+const getPage = (value) => {
+  const page = Number.parseInt(String(value || '1'), 10);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+};
+
+const buildPagination = ({
+  page,
+  total,
+  basePath,
+  query = {}
+}) => {
+  const totalPages = Math.max(1, Math.ceil(Number(total || 0) / ADMIN_PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const buildUrl = (targetPage) => {
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries({
+      ...query,
+      page: targetPage
+    })) {
+      if (value !== undefined && value !== null && String(value) !== '') {
+        params.set(key, String(value));
+      }
+    }
+
+    return basePath + '?' + params.toString();
+  };
+
+  const start = Math.max(1, currentPage - 2);
+  const end = Math.min(totalPages, currentPage + 2);
+  const pages = [];
+
+  for (let number = start; number <= end; number += 1) {
+    pages.push({
+      number,
+      current: number === currentPage,
+      url: buildUrl(number)
+    });
+  }
+
+  return {
+    page: currentPage,
+    pageSize: ADMIN_PAGE_SIZE,
+    total: Number(total || 0),
+    totalPages,
+    hasPrevious: currentPage > 1,
+    hasNext: currentPage < totalPages,
+    previousUrl: currentPage > 1 ? buildUrl(currentPage - 1) : null,
+    nextUrl: currentPage < totalPages ? buildUrl(currentPage + 1) : null,
+    pages
+  };
+};
+
 
 const slugify = (value) =>
   String(value || '')
@@ -187,15 +258,23 @@ const getSelectedOrganization = async (req) => {
   return { organizations: options, selectedOrg };
 };
 
-const renderAdmin = (req, res, view, data) =>
-  res.render(view, {
+const renderAdmin = (req, res, view, data) => {
+  const title = data.titleKey
+    ? req.t(data.titleKey)
+    : data.title || 'Solidus WiFi';
+
+  return res.render(view, {
     layout: 'admin',
-    title: data.title || 'Solidus WiFi',
+    ...data,
+    title,
+    language: req.language,
+    isEnglish: req.language === 'en',
+    isSwahili: req.language === 'sw',
     currentUser: req.authUser,
     isSuperAdmin: req.authUser?.role === 'super_admin',
-    isClientOwner: req.authUser?.role === 'client_owner',
-    ...data
+    isClientOwner: req.authUser?.role === 'client_owner'
   });
+};
 
 router.get('/login', async (req, res) => {
   try {
@@ -262,6 +341,26 @@ router.post('/logout', async (req, res) => {
 });
 
 router.use(requireAuth);
+
+router.use((req, res, next) => {
+  const requested = req.query.lang;
+  const language = normalizeLanguage(
+    requested || readCookie(req, 'solidus_admin_lang') || 'en'
+  );
+
+  if (requested) {
+    res.cookie('solidus_admin_lang', language, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: String(req.headers['x-forwarded-proto'] || req.protocol) === 'https',
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
+  }
+
+  req.language = language;
+  req.t = (key) => translate(language, key);
+  next();
+});
 
 router.get('/', async (req, res) => {
   try {
