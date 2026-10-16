@@ -466,6 +466,61 @@ const updateSsidBasicConfig = async ({
   });
 };
 
+
+const listPortals = async ({ siteId }) => {
+  const data = await openApi({
+    path: `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}/portals`
+  });
+
+  const result = data.result;
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  return result || [];
+};
+
+const getPortalDetail = async ({ siteId, portalId }) => {
+  const data = await openApi({
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      `/portal/${encodeURIComponent(portalId)}`
+  });
+
+  return data.result || null;
+};
+
+const listRadiusProfiles = async ({ siteId }) => {
+  const data = await openApi({
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/profiles/radius'
+  });
+
+  const result = data.result;
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  return result || [];
+};
+
+const getMacAuthSetting = async ({ siteId }) => {
+  const data = await openApi({
+    path: `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}/mac-auth`
+  });
+
+  return data.result || null;
+};
+
+const getPortalCandidates = async ({ siteId, body = {} }) => {
+  const data = await openApi({
+    method: 'POST',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/hotspot/portal/candidates',
+    body
+  });
+
+  return data.result || null;
+};
+
 module.exports = {
   configured,
   getControllerInfo,
@@ -484,5 +539,10 @@ module.exports = {
   createSsidV2,
   quickCreateSsid,
   getSsidDetail,
-  updateSsidBasicConfig
+  updateSsidBasicConfig,
+  listPortals,
+  getPortalDetail,
+  listRadiusProfiles,
+  getMacAuthSetting,
+  getPortalCandidates
 };
