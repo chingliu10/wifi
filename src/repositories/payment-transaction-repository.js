@@ -213,6 +213,52 @@ const findPaymentTransactionByReferenceForUpdate = async ({
   return result.rows[0] || null;
 };
 
+const findRecentReusablePayment = async ({
+  deviceId,
+  packageId,
+  phone,
+  clientMac,
+  amountTzs,
+  windowSeconds = 120
+}) => {
+  const safeWindowSeconds = Math.max(
+    15,
+    Math.min(Number(windowSeconds) || 120, 600)
+  );
+
+  const result = await pool.query(
+    `
+      SELECT reference
+      FROM payment_transactions
+      WHERE device_id = $1
+        AND package_id = $2
+        AND phone = $3
+        AND client_mac = $4
+        AND amount_tzs = $5
+        AND status IN ('pending', 'paid')
+        AND created_at >= NOW() - ($6 * INTERVAL '1 second')
+      ORDER BY
+        CASE WHEN status = 'paid' THEN 0 ELSE 1 END,
+        created_at DESC
+      LIMIT 1
+    `,
+    [
+      deviceId,
+      packageId,
+      phone,
+      clientMac,
+      amountTzs,
+      safeWindowSeconds
+    ]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return findPaymentTransactionByReference(result.rows[0].reference);
+};
+
 const findLatestCustomerByDeviceId = async (deviceId) => {
   const result = await pool.query(
     `
@@ -323,6 +369,7 @@ module.exports = {
   findPaymentTransactionByReference,
   findPaymentTransactionByProviderReference,
   findPaymentTransactionByReferenceForUpdate,
+  findRecentReusablePayment,
   findLatestCustomerByDeviceId,
   updatePaymentProviderDetails,
   updatePaymentStatus,
