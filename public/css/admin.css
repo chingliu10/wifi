@@ -705,6 +705,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
     margin-bottom:10px
   }
 
+  .org-card-superadmin{display:none}
+
   .sidebar-org-switcher{
     display:grid;
     gap:6px;
