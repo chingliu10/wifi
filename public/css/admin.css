@@ -210,3 +210,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
   .pagination-pages .pagination-page:nth-child(n+4){display:none}
   .responsive-table td{grid-template-columns:100px minmax(0,1fr)}
 }
+
+.auth-card-top{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.live-client-error{margin:14px 0}
+@media(max-width:430px){.auth-card{padding:22px}.auth-card-top{align-items:flex-start}.auth-card-top .language-switcher{margin-left:auto}}
