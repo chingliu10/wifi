@@ -243,8 +243,23 @@ const createSiteWifiNetwork = async ({
     capabilities
   });
 
-  await omada.quickCreateSsid({
+  const wlanGroups = await omada.listWlanGroups({
+    siteId: site.external_portal_site_id
+  });
+
+  const wlan =
+    wlanGroups.find((group) => group.primary === true) ||
+    wlanGroups[0];
+
+  if (!wlan?.wlanId) {
+    throw new Error(
+      'Omada did not return a WLAN group for this site'
+    );
+  }
+
+  await omada.createSsidV2({
     siteId: site.external_portal_site_id,
+    wlanId: wlan.wlanId,
     ssidName: name,
     band
   });
@@ -252,7 +267,8 @@ const createSiteWifiNetwork = async ({
   return {
     name,
     band,
-    bandLabels: describeBandMask(band)
+    bandLabels: describeBandMask(band),
+    wlanId: wlan.wlanId
   };
 };
 
