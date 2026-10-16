@@ -1376,6 +1376,41 @@ app.get('/api/payments/:reference/status', async (req, res) => {
 });
 
 
+app.post('/api/disbursements/splashpay/webhook', async (req, res) => {
+  try {
+    if (!verifySplashPayWebhook(req)) {
+      console.warn('SPLASHPAY DISBURSEMENT WEBHOOK REJECTED: invalid signature');
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid webhook signature'
+      });
+    }
+
+    const result = await processSplashPayDisbursementWebhook(
+      req.body || {}
+    );
+
+    console.log('SPLASHPAY DISBURSEMENT WEBHOOK PROCESSED:', result);
+
+    return res.status(200).json({
+      success: true,
+      ignored: result.ignored,
+      reference: result.reference,
+      status: result.status
+    });
+  } catch (error) {
+    console.error('SPLASHPAY DISBURSEMENT WEBHOOK ERROR:', error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error:
+        error.statusCode && error.statusCode < 500
+          ? error.message
+          : 'Unable to process SplashPay disbursement webhook'
+    });
+  }
+});
+
 app.post('/api/payments/splashpay/webhook', async (req, res) => {
   try {
     if (!verifySplashPayWebhook(req)) {
@@ -1387,6 +1422,21 @@ app.post('/api/payments/splashpay/webhook', async (req, res) => {
     }
 
     const payload = req.body || {};
+    const eventName = String(payload.event || '').toLowerCase();
+
+    if (eventName.startsWith('disbursement.')) {
+      const result = await processSplashPayDisbursementWebhook(payload);
+
+      console.log('SPLASHPAY DISBURSEMENT WEBHOOK PROCESSED ON SHARED ENDPOINT:', result);
+
+      return res.status(200).json({
+        success: true,
+        ignored: result.ignored,
+        reference: result.reference,
+        status: result.status
+      });
+    }
+
     const data = payload.data || payload;
 
     const reference = data.reference || payload.reference;
