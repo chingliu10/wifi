@@ -758,7 +758,8 @@ router.post('/clients', requireSuperAdmin, async (req, res) => {
       ownerName,
       ownerPhone,
       ownerUsername,
-      ownerPassword
+      ownerPassword,
+      ownerPasswordConfirm
     } = req.body;
 
     const orgName = String(organizationName || '').trim();
@@ -770,8 +771,17 @@ router.post('/clients', requireSuperAdmin, async (req, res) => {
       );
     }
 
-    if (String(ownerPassword).length < 8) {
-      return res.status(400).send('Owner password must be at least 8 characters.');
+    if (
+      String(ownerPassword).length < 8 ||
+      String(ownerPassword).length > 128
+    ) {
+      return res.status(400).send(
+        'Owner password must be between 8 and 128 characters.'
+      );
+    }
+
+    if (ownerPassword !== ownerPasswordConfirm) {
+      return res.status(400).send('Owner passwords do not match.');
     }
 
     const baseSlug = slugify(orgName) || 'client';
