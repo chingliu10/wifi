@@ -21,6 +21,13 @@ const {
 const {
   findSubscriptionByPaymentTransactionId
 } = require('./repositories/subscription-repository');
+const {
+  findPayoutByReference,
+  findPayoutByProviderReference,
+  updatePayoutProviderState,
+  completePayout,
+  failPayout
+} = require('./repositories/payout-repository');
 const { initiatePayment, checkPaymentStatus } = require('./services/payments/payment-service');
 const {
   activateSubscriptionForPayment
