@@ -47,6 +47,49 @@ const upsertRadcheck = async ({
   return insertResult.rows[0];
 };
 
+const upsertRadreply = async ({
+  db,
+  username,
+  attribute,
+  op,
+  value
+}) => {
+  const updateResult = await query(
+    db,
+    `
+      UPDATE radreply
+      SET
+        op = $3,
+        value = $4
+      WHERE username = $1
+        AND attribute = $2
+      RETURNING *
+    `,
+    [username, attribute, op, value]
+  );
+
+  if (updateResult.rows[0]) {
+    return updateResult.rows[0];
+  }
+
+  const insertResult = await query(
+    db,
+    `
+      INSERT INTO radreply (
+        username,
+        attribute,
+        op,
+        value
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `,
+    [username, attribute, op, value]
+  );
+
+  return insertResult.rows[0];
+};
+
 const upsertRadiusAuthorization = async ({
   db,
   subscriptionId,
@@ -105,6 +148,7 @@ const findRadcheckByUsername = async ({ db, username }) => {
 
 module.exports = {
   upsertRadcheck,
+  upsertRadreply,
   upsertRadiusAuthorization,
   findRadcheckByUsername
 };
