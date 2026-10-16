@@ -1,0 +1,76 @@
+<section class="page-head">
+  <div>
+    <h2>{{t 'live.title'}}</h2>
+    <p>{{t 'live.subtitle'}}</p>
+  </div>
+
+  {{#if selectedSite}}
+    <a class="primary-link" href="/admin/live-clients?org={{selectedOrg.id}}&siteId={{selectedSite.id}}">
+      {{t 'live.refresh'}}
+    </a>
+  {{/if}}
+</section>
+
+{{#if selectedOrg}}
+  {{#if siteOptions}}
+    <section class="panel payment-filter-panel">
+      <form method="GET" action="/admin/live-clients" class="admin-form">
+        <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+        <div class="customer-filter-grid">
+          <label>
+            <span>{{t 'live.site'}}</span>
+            <select name="siteId" onchange="this.form.submit()">
+              {{#each siteOptions}}
+                <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+      </form>
+    </section>
+
+    {{#if error}}
+      <div class="notice live-client-error">{{error}}</div>
+    {{/if}}
+
+    <section class="panel table-panel">
+      <div class="table-wrap">
+        <table class="responsive-table">
+          <thead>
+            <tr>
+              <th>{{t 'live.deviceName'}}</th>
+              <th>{{t 'live.mac'}}</th>
+              <th>{{t 'live.ip'}}</th>
+              <th>{{t 'live.ssid'}}</th>
+              <th>{{t 'live.ap'}}</th>
+              <th>{{t 'live.signal'}}</th>
+              <th>{{t 'live.uptime'}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each clients}}
+              <tr>
+                <td data-label="{{t 'live.deviceName'}}"><strong>{{name}}</strong></td>
+                <td data-label="{{t 'live.mac'}}"><code>{{mac}}</code></td>
+                <td data-label="{{t 'live.ip'}}">{{ip}}</td>
+                <td data-label="{{t 'live.ssid'}}">{{ssid}}</td>
+                <td data-label="{{t 'live.ap'}}">{{ap}}</td>
+                <td data-label="{{t 'live.signal'}}">{{signal}}</td>
+                <td data-label="{{t 'live.uptime'}}">{{uptime}}</td>
+              </tr>
+            {{else}}
+              <tr><td colspan="7" class="empty">{{t 'live.noClients'}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{> admin-pagination pagination}}
+    </section>
+  {{else}}
+    <section class="empty-state">
+      <p>{{t 'live.notLinked'}}</p>
+    </section>
+  {{/if}}
+{{/if}}
