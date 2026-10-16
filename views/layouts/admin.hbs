@@ -29,6 +29,13 @@
     ></button>
 
     <aside class="sidebar" id="sidebar">
+      <button
+        class="sidebar-close-button"
+        type="button"
+        aria-label="{{t 'nav.closeMenu'}}"
+        onclick="document.body.classList.remove('sidebar-open')"
+      >×</button>
+
       <div class="brand">
         <div class="brand-mark">S</div>
         <div>
@@ -42,22 +49,60 @@
           <span>{{#if isSuperAdmin}}{{t 'org.currentClient'}}{{else}}{{t 'org.yourBusiness'}}{{/if}}</span>
           <strong>{{selectedOrg.name}}</strong>
         </div>
+
+        {{#if isSuperAdmin}}
+          {{#if organizations}}
+            <form class="sidebar-org-switcher" method="GET" action="/admin">
+              <label for="sidebar-org">{{t 'org.client'}}</label>
+              <select id="sidebar-org" name="org" onchange="this.form.submit()">
+                {{#each organizations}}
+                  <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+                {{/each}}
+              </select>
+            </form>
+          {{/if}}
+        {{/if}}
       {{/if}}
 
-      <nav class="nav">
-        <a data-nav-path="/admin" href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.dashboard'}}</a>
-        <a data-nav-path="/admin/payments" href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.payments'}}</a>
-        <a data-nav-path="/admin/customers" href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.customers'}}</a>
-        <a data-nav-path="/admin/live-clients" href="/admin/live-clients{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.liveClients'}}</a>
-        <a data-nav-path="/admin/packages" href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.packages'}}</a>
-        <a data-nav-path="/admin/sites" href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.sites'}}</a>
-        <a data-nav-path="/admin/wallet" href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.wallet'}}</a>
+      <nav class="nav" aria-label="{{t 'nav.navigation'}}">
+        <div class="nav-group">
+          <span class="nav-group-label">{{t 'nav.operations'}}</span>
+          <a data-nav-path="/admin" href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10.5V20h13v-9.5"></path><path d="M9.5 20v-6h5v6"></path></svg></span><span>{{t 'nav.dashboard'}}</span></a>
+          <a data-nav-path="/admin/payments" href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 9h18"></path><path d="M7 15h4"></path></svg></span><span>{{t 'nav.payments'}}</span></a>
+          <a data-nav-path="/admin/customers" href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-4 2.5-6 5.5-6s4.8 2 5.5 6"></path><circle cx="17.5" cy="9" r="2.5"></circle><path d="M15.5 14c2.8.2 4.4 1.8 5 5"></path></svg></span><span>{{t 'nav.customers'}}</span></a>
+          <a data-nav-path="/admin/live-clients" href="/admin/live-clients{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8.5a11 11 0 0 1 16 0"></path><path d="M7.5 12a6.5 6.5 0 0 1 9 0"></path><path d="M10.5 15.5a2.5 2.5 0 0 1 3 0"></path><circle cx="12" cy="19" r="1"></circle></svg></span><span>{{t 'nav.liveClients'}}</span></a>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-label">{{t 'nav.manage'}}</span>
+          <a data-nav-path="/admin/packages" href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"></path><path d="M4 7v10l8 4 8-4V7"></path><path d="M12 11v10"></path></svg></span><span>{{t 'nav.packages'}}</span></a>
+          <a data-nav-path="/admin/sites" href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"></rect><rect x="13" y="13" width="7" height="7" rx="1"></rect><path d="M11 7.5h3.5A2.5 2.5 0 0 1 17 10v3"></path></svg></span><span>{{t 'nav.sites'}}</span></a>
+          <a data-nav-path="/admin/wallet" href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v9H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12"></path><path d="M16 11h5v4h-5a2 2 0 0 1 0-4Z"></path></svg></span><span>{{t 'nav.wallet'}}</span></a>
+        </div>
+
         {{#if isSuperAdmin}}
-          <a data-nav-path="/admin/integrations/omada" href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.omada'}}</a>
+          <div class="nav-group">
+            <span class="nav-group-label">{{t 'nav.system'}}</span>
+            <a data-nav-path="/admin/integrations/omada" href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M4.2 7.5a9 9 0 0 1 15.6 0"></path><path d="M7.4 10a5.5 5.5 0 0 1 9.2 0"></path><path d="M12 15v5"></path></svg></span><span>{{t 'nav.omada'}}</span></a>
+          </div>
         {{/if}}
       </nav>
 
       <div class="sidebar-footer">
+        <div class="sidebar-account-mobile">
+          <div class="sidebar-account-identity">
+            <span class="sidebar-account-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5.5 19c.8-4 3-6 6.5-6s5.7 2 6.5 6"></path></svg></span>
+            <div>
+              <strong>{{currentUser.full_name}}</strong>
+              <small>{{currentUser.username}}</small>
+            </div>
+          </div>
+          <a href="/admin/account/password">{{t 'account.changePassword'}}</a>
+          <form method="POST" action="/admin/logout">
+            <button type="submit">{{t 'account.signOut'}}</button>
+          </form>
+        </div>
+
         {{#if isSuperAdmin}}
           <a class="add-client-link" href="/admin/clients/new">+ {{t 'account.addClient'}}</a>
         {{/if}}
@@ -71,7 +116,6 @@
           <span aria-hidden="true">↓</span>
           {{t 'pwa.installButton'}}
         </button>
-
       </div>
     </aside>
 
@@ -142,6 +186,29 @@
     </main>
   </div>
 
+  <nav class="mobile-bottom-nav" aria-label="{{t 'nav.navigation'}}">
+    <a data-mobile-nav-path="/admin" href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10.5V20h13v-9.5"></path><path d="M9.5 20v-6h5v6"></path></svg></span>
+      <small>{{t 'nav.dashboard'}}</small>
+    </a>
+    <a data-mobile-nav-path="/admin/payments" href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 9h18"></path><path d="M7 15h4"></path></svg></span>
+      <small>{{t 'nav.payments'}}</small>
+    </a>
+    <a data-mobile-nav-path="/admin/customers" href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-4 2.5-6 5.5-6s4.8 2 5.5 6"></path><circle cx="17.5" cy="9" r="2.5"></circle><path d="M15.5 14c2.8.2 4.4 1.8 5 5"></path></svg></span>
+      <small>{{t 'nav.customers'}}</small>
+    </a>
+    <a data-mobile-nav-path="/admin/wallet" href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 0 1 2 2v9H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12"></path><path d="M16 11h5v4h-5a2 2 0 0 1 0-4Z"></path></svg></span>
+      <small>{{t 'nav.wallet'}}</small>
+    </a>
+    <button class="mobile-more-button" id="mobile-more-button" type="button">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></span>
+      <small>{{t 'nav.more'}}</small>
+    </button>
+  </nav>
+
   <aside class="pwa-install-banner" id="pwa-install-banner" hidden>
     <div class="pwa-install-copy">
       <div class="pwa-install-mark" aria-hidden="true">S</div>
@@ -175,17 +242,16 @@
       });
 
       const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
-      document.querySelectorAll('.sidebar .nav a[data-nav-path]').forEach((link) => {
-        const navPath = link.dataset.navPath;
+      const pathMatches = (navPath) => {
         const normalizedNavPath = navPath.replace(/\/$/, '');
+        return normalizedNavPath === '/admin'
+          ? currentPath === '/admin'
+          : currentPath === normalizedNavPath ||
+            currentPath.startsWith(normalizedNavPath + '/');
+      };
 
-        const isActive =
-          normalizedNavPath === '/admin'
-            ? currentPath === '/admin'
-            : currentPath === normalizedNavPath ||
-              currentPath.startsWith(normalizedNavPath + '/');
-
-        if (isActive) {
+      document.querySelectorAll('.sidebar .nav a[data-nav-path]').forEach((link) => {
+        if (pathMatches(link.dataset.navPath)) {
           link.classList.add('active');
           link.setAttribute('aria-current', 'page');
         }
@@ -194,6 +260,33 @@
           document.body.classList.remove('sidebar-open');
         });
       });
+
+      const primaryMobilePaths = [
+        '/admin',
+        '/admin/payments',
+        '/admin/customers',
+        '/admin/wallet'
+      ];
+      let primaryMobileMatch = false;
+
+      document.querySelectorAll('[data-mobile-nav-path]').forEach((link) => {
+        if (pathMatches(link.dataset.mobileNavPath)) {
+          primaryMobileMatch = true;
+          link.classList.add('active');
+          link.setAttribute('aria-current', 'page');
+        }
+      });
+
+      const moreButton = document.getElementById('mobile-more-button');
+      if (moreButton) {
+        if (!primaryMobileMatch && currentPath.startsWith('/admin')) {
+          moreButton.classList.add('active');
+        }
+
+        moreButton.addEventListener('click', () => {
+          document.body.classList.add('sidebar-open');
+        });
+      }
 
 
       document.querySelectorAll('.topbar-account').forEach((account) => {
