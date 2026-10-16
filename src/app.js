@@ -12,6 +12,7 @@ const {
   createPaymentTransaction,
   findPaymentTransactionByReference,
   findPaymentTransactionByProviderReference,
+  findRecentReusablePayment,
   findLatestCustomerByDeviceId,
   updatePaymentProviderDetails,
   updatePaymentStatus
@@ -749,6 +750,9 @@ app.get('/portal', async (req, res) => {
 });
 
 app.post('/portal/pay', async (req, res) => {
+  let paymentLockClient = null;
+  let paymentLockKey = null;
+
   try {
     const {
       customerName,
@@ -834,23 +838,97 @@ app.post('/portal/pay', async (req, res) => {
       });
     }
 
-    const reference = generatePaymentReference();
-    const transaction = await createPaymentTransaction({
-      reference,
-      customerName: normalizedCustomerName,
-      phone: normalizedPhoneInput,
-      packageId: packageData.id,
-      clientMac: normalizedClientMac,
+    /*
+     * Captive-portal browsers can submit the same form more than once.
+     * Serialize identical attempts across all Node instances with a
+     * PostgreSQL advisory lock, then reuse the same merchant reference.
+     * SplashPay also receives that same reference as its Idempotency-Key.
+     */
+    paymentLockKey = [
+      'portal-pay',
       deviceId,
+      packageData.id,
+      normalizedPhoneInput,
+      normalizedClientMac,
+      packageData.price_tzs
+    ].join(':');
+
+    paymentLockClient = await pool.connect();
+    await paymentLockClient.query(
+      'SELECT pg_advisory_lock(hashtext($1))',
+      [paymentLockKey]
+    );
+
+    let transaction = await findRecentReusablePayment({
+      deviceId,
+      packageId: packageData.id,
+      phone: normalizedPhoneInput,
+      clientMac: normalizedClientMac,
       amountTzs: packageData.price_tzs,
-      status: 'pending',
-      site,
-      apMac,
-      ssidName,
-      redirectUrl,
-      radioId
+      windowSeconds: Number(process.env.PAYMENT_DEDUP_WINDOW_SECONDS || 120)
     });
 
+    if (transaction) {
+      console.log('PORTAL PAYMENT REUSED:', {
+        reference: transaction.reference,
+        status: transaction.status,
+        providerReference: transaction.provider_reference || null,
+        deviceId,
+        packageId: packageData.id
+      });
+
+      if (transaction.status === 'paid') {
+        try {
+          await activateSubscriptionForPayment(transaction);
+        } catch (error) {
+          console.error('PORTAL PAYMENT PROVISIONING RETRY ERROR:', error);
+        }
+
+        transaction = await findPaymentTransactionByReference(
+          transaction.reference
+        );
+
+        return await renderPaymentStatus(
+          res,
+          transaction,
+          'Malipo yamefanikiwa'
+        );
+      }
+
+      if (transaction.provider_reference) {
+        return await renderPaymentStatus(
+          res,
+          transaction,
+          'Angalia simu yako'
+        );
+      }
+    } else {
+      const reference = generatePaymentReference();
+
+      await createPaymentTransaction({
+        reference,
+        customerName: normalizedCustomerName,
+        phone: normalizedPhoneInput,
+        packageId: packageData.id,
+        clientMac: normalizedClientMac,
+        deviceId,
+        amountTzs: packageData.price_tzs,
+        status: 'pending',
+        site,
+        apMac,
+        ssidName,
+        redirectUrl,
+        radioId
+      });
+
+      transaction = await findPaymentTransactionByReference(reference);
+    }
+
+    /*
+     * A reused pending transaction with no provider reference is retried
+     * with the SAME merchant reference. This prevents a second charge even
+     * if the first HTTP response was lost after SplashPay accepted it.
+     */
     const providerResult = await initiatePayment({
       transaction,
       packageData
@@ -874,10 +952,25 @@ app.post('/portal/pay', async (req, res) => {
   } catch (error) {
     console.error('PORTAL PAY ERROR:', error);
 
-    res.status(500).render('portal/confirm', {
+    return res.status(500).render('portal/confirm', {
       title: 'Payment request',
       error: 'Imeshindikana kuandaa malipo. Tafadhali jaribu tena.'
     });
+  } finally {
+    if (paymentLockClient) {
+      if (paymentLockKey) {
+        try {
+          await paymentLockClient.query(
+            'SELECT pg_advisory_unlock(hashtext($1))',
+            [paymentLockKey]
+          );
+        } catch (error) {
+          console.error('PORTAL PAYMENT LOCK RELEASE ERROR:', error);
+        }
+      }
+
+      paymentLockClient.release();
+    }
   }
 });
 
