@@ -21,7 +21,8 @@
     "omada:ext-portal-proof": "node src/scripts/prove-external-portal-auth.js",
     "omada:hotspot-login-test": "node src/scripts/test-hotspot-operator-login.js",
     "splashpay:payout-proof": "node src/scripts/prove-splashpay-disbursement.js",
-    "wallet:audit": "node src/scripts/audit-tenant-wallets.js"
+    "wallet:audit": "node src/scripts/audit-tenant-wallets.js",
+    "wallet:reconcile-payout": "node src/scripts/reconcile-historical-payout.js"
   },
   "keywords": [],
   "author": "",
