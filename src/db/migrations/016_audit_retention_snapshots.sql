@@ -43,7 +43,7 @@ ALTER TABLE payment_transactions
   ALTER COLUMN site_brand_name_snapshot SET NOT NULL;
 
 CREATE OR REPLACE FUNCTION snapshot_payment_transaction_audit_fields()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $audit_snapshot$
 DECLARE
   package_row RECORD;
 BEGIN
@@ -70,7 +70,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$audit_snapshot$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_payment_transaction_audit_snapshot
   ON payment_transactions;
@@ -85,7 +85,7 @@ EXECUTE FUNCTION snapshot_payment_transaction_audit_fields();
 -- Snapshot fields are historical facts. Status/provider/provisioning fields may
 -- change as a transaction progresses, but the purchased product snapshot may not.
 CREATE OR REPLACE FUNCTION preserve_payment_transaction_audit_snapshot()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $audit_preserve$
 BEGIN
   IF NEW.package_id IS DISTINCT FROM OLD.package_id
      OR NEW.site_id IS DISTINCT FROM OLD.site_id
@@ -108,7 +108,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql;
+$audit_preserve$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_preserve_payment_transaction_audit_snapshot
   ON payment_transactions;
@@ -130,7 +130,7 @@ ALTER TABLE packages
 -- unknown. From this migration onward, every new soft-delete must identify
 -- the platform user who performed it.
 CREATE OR REPLACE FUNCTION enforce_package_soft_delete_actor()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $audit_package_delete$
 BEGIN
   IF OLD.deleted_at IS NULL
      AND NEW.deleted_at IS NOT NULL
@@ -142,7 +142,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$ LANGUAGE plpgsql;
+$audit_package_delete$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_package_soft_delete_actor ON packages;
 
@@ -156,13 +156,13 @@ EXECUTE FUNCTION enforce_package_soft_delete_actor();
 -- Audit-critical records are never physically deleted. Operational removal must
 -- use active/deleted_at/status fields instead.
 CREATE OR REPLACE FUNCTION prevent_audit_hard_delete()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $audit_no_delete$
 BEGIN
   RAISE EXCEPTION
     'Hard delete blocked for audit-protected table %. Use deactivation/soft delete instead.',
     TG_TABLE_NAME;
 END;
-$$ LANGUAGE plpgsql;
+$audit_no_delete$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_no_delete_organizations ON organizations;
 CREATE TRIGGER trg_no_delete_organizations
@@ -213,13 +213,13 @@ FOR EACH ROW EXECUTE FUNCTION prevent_audit_hard_delete();
 -- Ledger rows are append-only: neither update nor delete is allowed. Corrections
 -- must be represented by a new compensating entry, preserving the audit trail.
 CREATE OR REPLACE FUNCTION prevent_wallet_entry_mutation()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $audit_wallet$
 BEGIN
   RAISE EXCEPTION
     'Wallet ledger is append-only. Create a compensating entry instead of updating/deleting row %.',
     OLD.id;
 END;
-$$ LANGUAGE plpgsql;
+$audit_wallet$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_wallet_entries_append_only ON wallet_entries;
 CREATE TRIGGER trg_wallet_entries_append_only
