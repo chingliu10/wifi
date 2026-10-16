@@ -14,6 +14,7 @@ const {
   findPaymentTransactionByProviderReference,
   findRecentReusablePayment,
   findLatestCustomerByDeviceId,
+  updatePaymentPortalContext,
   updatePaymentProviderDetails,
   updatePaymentStatus
 } = require('./repositories/payment-transaction-repository');
@@ -910,6 +911,20 @@ app.post('/portal/pay', async (req, res) => {
     });
 
     if (transaction) {
+      await updatePaymentPortalContext({
+        reference: transaction.reference,
+        clientIp: String(clientIp).trim(),
+        site,
+        apMac,
+        ssidName,
+        redirectUrl,
+        radioId
+      });
+
+      transaction = await findPaymentTransactionByReference(
+        transaction.reference
+      );
+
       console.log('PORTAL PAYMENT REUSED:', {
         reference: transaction.reference,
         status: transaction.status,
