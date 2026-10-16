@@ -122,7 +122,7 @@
             <tr>
               <td data-label="{{t 'common.site'}}">{{site_name}}</td>
               <td data-label="{{t 'common.package'}}"><strong>{{name}}</strong></td>
-              <td data-label="{{t 'common.duration'}}">{{duration_label}}</td>
+              <td data-label="{{t 'common.duration'}}">{{duration_value}} {{durationUnitLabel duration_unit}}</td>
               <td data-label="{{t 'common.price'}}">{{formatTzs price_tzs}} TZS</td>
               <td data-label="{{t 'common.status'}}">
                 {{#if active}}
