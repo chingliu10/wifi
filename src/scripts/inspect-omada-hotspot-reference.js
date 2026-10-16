@@ -29,7 +29,11 @@ const printJson = (value) =>
 
 const schemaNames = [
   'PortalSetting',
+  'ExternalServerPortalSetting',
+  'AuthTimeoutSetting',
   'CreateRadiusProfileOpenApiVO',
+  'RadiusAuthServerOpenApiVO',
+  'RadiusAcctServerOpenApiVO',
   'UpdateMacAuthOpenApiVO',
   'PortalCandidatesOpenApiVO'
 ];
@@ -50,6 +54,14 @@ const printSite = async (site) => {
   console.log('SITE:', site.name || '(unnamed)');
   console.log('SITE ID:', siteId);
   console.log('########################################');
+
+  try {
+    const ssids = await omada.listSiteSsids({ siteId });
+    console.log('\nSSIDS:');
+    printJson(ssids);
+  } catch (error) {
+    console.log('\nSSIDS ERROR:', error.message);
+  }
 
   try {
     const portals = await omada.listPortals({ siteId });
