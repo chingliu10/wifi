@@ -19,8 +19,8 @@
       {{#if paymentActive}}
         <section class="state-card payment-state payment-state-success">
           <div class="state-icon state-icon-success" aria-hidden="true">✓</div>
-          <h2 id="confirm-title">Malipo yamefanikiwa</h2>
-          <p>Kifurushi chako kimewashwa. Tunaunganisha internet yako sasa.</p>
+          <h2 id="confirm-title">Umeunganishwa</h2>
+          <p>Internet yako imewashwa.</p>
 
           <div class="state-summary">
             <div>
@@ -38,6 +38,31 @@
           <p class="state-note">Subiri sekunde chache. Kama internet bado haijaanza, zima Wi-Fi kisha washa tena mara moja.</p>
         </section>
       {{else}}
+        {{#if paymentPaid}}
+          <section class="state-card payment-state">
+            <div class="state-spinner" aria-hidden="true"></div>
+            <h2 id="confirm-title">Malipo yamefanikiwa</h2>
+            <p>Tunaunganisha internet yako sasa.</p>
+
+            <div class="state-summary">
+              <div>
+                <span>Kifurushi</span>
+                <strong>{{formatPackageName package.name}}</strong>
+              </div>
+              {{#if subscription}}
+                <div>
+                  <span>Internet hadi</span>
+                  <strong>{{formatDate subscription.expires_at}}</strong>
+                </div>
+              {{/if}}
+            </div>
+
+            <div class="waiting-line" id="access-waiting">
+              <span class="waiting-dot" aria-hidden="true"></span>
+              Tunaunganisha kifaa chako…
+            </div>
+          </section>
+        {{else}}
         <section class="state-card payment-state">
           {{#if paymentInitiated}}
             <div class="state-spinner" aria-hidden="true"></div>
@@ -74,6 +99,7 @@
             {{/if}}
           {{/if}}
         </section>
+        {{/if}}
       {{/if}}
     {{/if}}
 
@@ -124,7 +150,11 @@
         const data = await response.json();
         failures = 0;
 
-        if (data.status !== 'pending' || data.accessActive === true) {
+        const terminal = ['failed', 'cancelled', 'expired'].includes(
+          data.status
+        );
+
+        if (data.accessActive === true || terminal) {
           stopped = true;
           window.location.reload();
           return;
@@ -147,6 +177,54 @@
     };
 
     setTimeout(checkStatus, 2000);
+  })();
+</script>
+{{/if}}
+
+
+{{#if paymentConnecting}}
+<script>
+  (() => {
+    const reference = {{{json transaction.reference}}};
+    const waiting = document.getElementById('access-waiting');
+    let stopped = false;
+
+    const checkAccess = async () => {
+      if (stopped) return;
+
+      try {
+        const response = await fetch(
+          '/api/payments/' + encodeURIComponent(reference) + '/status',
+          { cache: 'no-store' }
+        );
+
+        if (!response.ok) {
+          throw new Error('Access status request failed');
+        }
+
+        const data = await response.json();
+
+        if (data.accessActive === true) {
+          stopped = true;
+          window.location.reload();
+          return;
+        }
+
+        if (waiting) {
+          waiting.innerHTML =
+            '<span class="waiting-dot" aria-hidden="true"></span>Tunaunganisha kifaa chako…';
+        }
+      } catch (error) {
+        if (waiting) {
+          waiting.innerHTML =
+            '<span class="waiting-dot" aria-hidden="true"></span>Bado tunajaribu kukuunganisha…';
+        }
+      }
+
+      setTimeout(checkAccess, 3000);
+    };
+
+    setTimeout(checkAccess, 1500);
   })();
 </script>
 {{/if}}
