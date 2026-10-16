@@ -35,7 +35,7 @@
 
           <label>
             <span>Price (TZS)</span>
-            <input name="priceTzs" type="number" min="1" required placeholder="500">
+            <input name="priceTzs" type="number" min="500" required placeholder="500">
           </label>
 
           <label>
@@ -43,7 +43,8 @@
             <div class="duration-control">
               <input name="durationValue" type="number" min="1" step="1" required placeholder="7">
               <select name="durationUnit">
-                <option value="hours">Hours</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours" selected>Hours</option>
                 <option value="days">Days</option>
               </select>
             </div>
@@ -67,12 +68,20 @@
           {{#each packages}}
             <tr>
               <td>{{site_name}}</td>
-              <td><strong>{{formatPackageName name}}</strong></td>
-              <td>{{duration_seconds}} sec</td>
               <td>
                 <form method="POST" action="/admin/packages/{{id}}" class="inline-form">
                   <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
-                  <input class="price-input" type="number" name="priceTzs" min="1" value="{{price_tzs}}" required>
+                  <input
+                    type="text"
+                    name="packageName"
+                    value="{{name}}"
+                    maxlength="100"
+                    required
+                  >
+              </td>
+              <td>{{formatDuration duration_seconds}}</td>
+              <td>
+                  <input class="price-input" type="number" name="priceTzs" min="500" value="{{price_tzs}}" required>
               </td>
               <td><input type="checkbox" name="active" {{#if active}}checked{{/if}}></td>
               <td><button type="submit">Save</button></form></td>
