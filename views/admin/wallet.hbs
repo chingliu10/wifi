@@ -19,15 +19,15 @@
   </article>
 
   <article class="stat-card">
-    <span>Gateway fees</span>
+    <span>Payment provider fees</span>
     <strong>{{formatTzs wallet.gateway_fees}} TZS</strong>
-    <small>SplashPay processing deductions</small>
+    <small>Charged by the payment provider, not Solidus</small>
   </article>
 
   <article class="stat-card">
     <span>Net collected</span>
     <strong>{{formatTzs settlement.net_collected}} TZS</strong>
-    <small>gross minus captured gateway fees</small>
+    <small>gross minus payment provider fees</small>
   </article>
 
   <article class="stat-card">
@@ -45,7 +45,7 @@
 
 {{#if settlement.unreconciled_payments}}
   <div class="notice">
-    {{settlement.unreconciled_payments}} successful payment(s) do not yet have an exact gateway fee/net amount. They are excluded from the reconciled wallet balance until resolved.
+    {{settlement.unreconciled_payments}} successful payment(s) do not yet have an exact payment provider fee/net amount. They are excluded from the reconciled wallet balance until resolved.
   </div>
 {{/if}}
 
