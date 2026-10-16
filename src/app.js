@@ -504,6 +504,30 @@ app.engine('hbs', engine({
   defaultLayout: 'main',
   helpers: {
     formatTzs: (amount) => Number(amount).toLocaleString('en-US'),
+    formatDuration: (seconds) => {
+      const value = Number(seconds);
+
+      if (!Number.isFinite(value) || value <= 0) {
+        return '—';
+      }
+
+      if (value % 86400 === 0) {
+        const days = value / 86400;
+        return days === 1 ? '1 day' : `${days} days`;
+      }
+
+      if (value % 3600 === 0) {
+        const hours = value / 3600;
+        return hours === 1 ? '1 hour' : `${hours} hours`;
+      }
+
+      if (value % 60 === 0) {
+        const minutes = value / 60;
+        return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+      }
+
+      return `${value} sec`;
+    },
     formatPackageName: (name) => {
       const labels = {
         '7 Hours': 'Masaa 7',
