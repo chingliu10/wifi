@@ -45,15 +45,15 @@
       {{/if}}
 
       <nav class="nav">
-        <a href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.dashboard'}}</a>
-        <a href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.payments'}}</a>
-        <a href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.customers'}}</a>
-        <a href="/admin/live-clients{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.liveClients'}}</a>
-        <a href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.packages'}}</a>
-        <a href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.sites'}}</a>
-        <a href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.wallet'}}</a>
+        <a data-nav-path="/admin" href="/admin{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.dashboard'}}</a>
+        <a data-nav-path="/admin/payments" href="/admin/payments{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.payments'}}</a>
+        <a data-nav-path="/admin/customers" href="/admin/customers{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.customers'}}</a>
+        <a data-nav-path="/admin/live-clients" href="/admin/live-clients{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.liveClients'}}</a>
+        <a data-nav-path="/admin/packages" href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.packages'}}</a>
+        <a data-nav-path="/admin/sites" href="/admin/sites{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.sites'}}</a>
+        <a data-nav-path="/admin/wallet" href="/admin/wallet{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.wallet'}}</a>
         {{#if isSuperAdmin}}
-          <a href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.omada'}}</a>
+          <a data-nav-path="/admin/integrations/omada" href="/admin/integrations/omada{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">{{t 'nav.omada'}}</a>
         {{/if}}
       </nav>
 
@@ -174,7 +174,22 @@
         });
       });
 
-      document.querySelectorAll('.sidebar .nav a').forEach((link) => {
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+      document.querySelectorAll('.sidebar .nav a[data-nav-path]').forEach((link) => {
+        const navPath = link.dataset.navPath;
+        const normalizedNavPath = navPath.replace(/\/$/, '');
+
+        const isActive =
+          normalizedNavPath === '/admin'
+            ? currentPath === '/admin'
+            : currentPath === normalizedNavPath ||
+              currentPath.startsWith(normalizedNavPath + '/');
+
+        if (isActive) {
+          link.classList.add('active');
+          link.setAttribute('aria-current', 'page');
+        }
+
         link.addEventListener('click', () => {
           document.body.classList.remove('sidebar-open');
         });
