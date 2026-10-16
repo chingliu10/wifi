@@ -1000,6 +1000,24 @@ const formatPackageDuration = (seconds) => {
   return `${value} sec`;
 };
 
+const splitPackageDuration = (seconds) => {
+  const value = Number(seconds);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return { value: 1, unit: 'minutes' };
+  }
+
+  if (value % 86400 === 0) {
+    return { value: value / 86400, unit: 'days' };
+  }
+
+  if (value % 3600 === 0) {
+    return { value: value / 3600, unit: 'hours' };
+  }
+
+  return { value: Math.max(1, Math.round(value / 60)), unit: 'minutes' };
+};
+
 router.get('/packages', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -1033,14 +1051,24 @@ router.get('/packages', async (req, res) => {
               FROM packages p
               JOIN sites s ON s.id = p.site_id
               WHERE s.organization_id = $1
+                AND p.deleted_at IS NULL
               ORDER BY s.name, p.sort_order, p.id
             `,
             [selectedOrg.id]
           )
-        ).rows.map((pkg) => ({
-          ...pkg,
-          duration_label: formatPackageDuration(pkg.duration_seconds)
-        }))
+        ).rows.map((pkg) => {
+          const duration = splitPackageDuration(pkg.duration_seconds);
+
+          return {
+            ...pkg,
+            duration_label: formatPackageDuration(pkg.duration_seconds),
+            duration_value: duration.value,
+            duration_unit: duration.unit,
+            duration_minutes_selected: duration.unit === 'minutes',
+            duration_hours_selected: duration.unit === 'hours',
+            duration_days_selected: duration.unit === 'days'
+          };
+        })
       : [];
 
     return renderAdmin(req, res, 'admin/packages', {
@@ -1151,38 +1179,103 @@ router.post('/packages/:id', async (req, res) => {
     const packageId = Number(req.params.id);
     const packageName = String(req.body.packageName || '').trim();
     const priceTzs = Number(req.body.priceTzs);
+    const durationValue = Number(req.body.durationValue);
+    const durationUnit = String(req.body.durationUnit || 'hours');
     const active = req.body.active === 'on';
+
+    const multipliers = {
+      minutes: 60,
+      hours: 3600,
+      days: 86400
+    };
+
+    const multiplier = multipliers[durationUnit];
+    const durationSeconds = durationValue * multiplier;
 
     if (
       !selectedOrg ||
       !packageId ||
       !packageName ||
       !Number.isInteger(priceTzs) ||
-      priceTzs < 500
+      priceTzs < 500 ||
+      !Number.isFinite(durationValue) ||
+      durationValue <= 0 ||
+      !multiplier
     ) {
-      return res.status(400).send('Package price must be at least TZS 500.');
+      return res.status(400).send('Invalid package details.');
     }
 
-    await pool.query(
+    const updated = await pool.query(
       `
         UPDATE packages p
         SET
           name = $1,
           price_tzs = $2,
-          active = $3,
+          duration_seconds = $3,
+          active = $4,
           updated_at = NOW()
         FROM sites s
-        WHERE p.id = $4
+        WHERE p.id = $5
+          AND p.deleted_at IS NULL
           AND s.id = p.site_id
-          AND s.organization_id = $5
+          AND s.organization_id = $6
+        RETURNING p.id
       `,
-      [packageName, priceTzs, active, packageId, selectedOrg.id]
+      [
+        packageName,
+        priceTzs,
+        Math.round(durationSeconds),
+        active,
+        packageId,
+        selectedOrg.id
+      ]
     );
+
+    if (!updated.rows[0]) {
+      return res.status(404).send('Package not found.');
+    }
 
     res.redirect('/admin/packages?org=' + selectedOrg.id);
   } catch (error) {
     console.error('ADMIN PACKAGE UPDATE ERROR:', error);
     res.status(500).send('Unable to update package.');
+  }
+});
+
+router.post('/packages/:id/delete', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const packageId = Number(req.params.id);
+
+    if (!selectedOrg || !packageId) {
+      return res.status(400).send('Invalid package.');
+    }
+
+    const deleted = await pool.query(
+      `
+        UPDATE packages p
+        SET
+          active = FALSE,
+          deleted_at = NOW(),
+          updated_at = NOW()
+        FROM sites s
+        WHERE p.id = $1
+          AND p.deleted_at IS NULL
+          AND s.id = p.site_id
+          AND s.organization_id = $2
+        RETURNING p.id
+      `,
+      [packageId, selectedOrg.id]
+    );
+
+    if (!deleted.rows[0]) {
+      return res.status(404).send('Package not found.');
+    }
+
+    res.redirect('/admin/packages?org=' + selectedOrg.id);
+  } catch (error) {
+    console.error('ADMIN PACKAGE DELETE ERROR:', error);
+    res.status(500).send('Unable to delete package.');
   }
 });
 
