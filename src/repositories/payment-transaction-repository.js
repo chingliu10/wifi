@@ -6,6 +6,7 @@ const createPaymentTransaction = async ({
   phone,
   packageId,
   clientMac,
+  clientIp = null,
   deviceId,
   amountTzs,
   status,
@@ -27,6 +28,7 @@ const createPaymentTransaction = async ({
         site_id,
         organization_id,
         client_mac,
+        client_ip,
         device_id,
         amount_tzs,
         status,
@@ -47,8 +49,8 @@ const createPaymentTransaction = async ({
           JOIN sites s ON s.id = p.site_id
           WHERE p.id = $4
         ),
-        $5, $6, $7, $8,
-        $9, $10, $11, $12, $13, $14, $15
+        $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14, $15, $16
       )
       RETURNING *
     `,
@@ -58,6 +60,7 @@ const createPaymentTransaction = async ({
       phone,
       packageId,
       clientMac,
+      clientIp,
       deviceId,
       amountTzs,
       status,
@@ -84,6 +87,7 @@ const findPaymentTransactionByReference = async (reference) => {
         pt.phone,
         pt.package_id,
         pt.client_mac,
+        pt.client_ip,
         pt.device_id,
         pt.amount_tzs,
         pt.gateway_fee_tzs,
@@ -103,6 +107,8 @@ const findPaymentTransactionByReference = async (reference) => {
         pt.provisioning_status,
         pt.provisioning_error,
         pt.provisioned_at,
+        pt.omada_portal_authorized_at,
+        pt.omada_portal_auth_error,
         p.name AS package_name,
         p.price_tzs AS package_price_tzs,
         p.duration_seconds AS package_duration_seconds,
@@ -133,6 +139,7 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
         pt.phone,
         pt.package_id,
         pt.client_mac,
+        pt.client_ip,
         pt.device_id,
         pt.amount_tzs,
         pt.gateway_fee_tzs,
@@ -152,6 +159,8 @@ const findPaymentTransactionByProviderReference = async (providerReference) => {
         pt.provisioning_status,
         pt.provisioning_error,
         pt.provisioned_at,
+        pt.omada_portal_authorized_at,
+        pt.omada_portal_auth_error,
         p.name AS package_name,
         p.price_tzs AS package_price_tzs,
         p.duration_seconds AS package_duration_seconds,
@@ -185,6 +194,7 @@ const findPaymentTransactionByReferenceForUpdate = async ({
         pt.phone,
         pt.package_id,
         pt.client_mac,
+        pt.client_ip,
         pt.device_id,
         pt.amount_tzs,
         pt.gateway_fee_tzs,
@@ -204,6 +214,8 @@ const findPaymentTransactionByReferenceForUpdate = async ({
         pt.provisioning_status,
         pt.provisioning_error,
         pt.provisioned_at,
+        pt.omada_portal_authorized_at,
+        pt.omada_portal_auth_error,
         p.name AS package_name,
         p.price_tzs AS package_price_tzs,
         p.duration_seconds AS package_duration_seconds,
@@ -349,6 +361,46 @@ const updatePaymentStatus = async ({
   return result.rows[0] || null;
 };
 
+const markPaymentOmadaPortalAuthorized = async ({
+  db,
+  reference
+}) => {
+  const result = await db.query(
+    `
+      UPDATE payment_transactions
+      SET
+        omada_portal_authorized_at = NOW(),
+        omada_portal_auth_error = NULL,
+        updated_at = NOW()
+      WHERE reference = $1
+      RETURNING *
+    `,
+    [reference]
+  );
+
+  return result.rows[0] || null;
+};
+
+const markPaymentOmadaPortalAuthFailed = async ({
+  reference,
+  error
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE payment_transactions
+      SET
+        omada_portal_auth_error = $2,
+        updated_at = NOW()
+      WHERE reference = $1
+        AND omada_portal_authorized_at IS NULL
+      RETURNING *
+    `,
+    [reference, String(error || '').slice(0, 1000)]
+  );
+
+  return result.rows[0] || null;
+};
+
 const markPaymentProvisioningActive = async ({ db, reference }) => {
   const result = await db.query(
     `
@@ -393,6 +445,8 @@ module.exports = {
   findLatestCustomerByDeviceId,
   updatePaymentProviderDetails,
   updatePaymentStatus,
+  markPaymentOmadaPortalAuthorized,
+  markPaymentOmadaPortalAuthFailed,
   markPaymentProvisioningActive,
   markPaymentProvisioningFailed
 };
