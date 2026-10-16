@@ -129,6 +129,7 @@ const updatePayoutProviderState = async (data) => {
         END,
         updated_at = NOW()
       WHERE reference = $1
+        AND status IN ('pending', 'processing')
       RETURNING *
     `,
     [
