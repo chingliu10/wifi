@@ -1,6 +1,6 @@
 <section class="page-head">
   <div>
-    <h2>Sites & devices</h2>
+    <h2>{{t 'sites.title'}}</h2>
     <p>{{#if selectedOrg}}{{selectedOrg.name}}{{/if}}</p>
   </div>
 </section>
@@ -9,8 +9,8 @@
 <section class="panel form-panel">
   <div class="panel-head">
     <div>
-      <h3>Create site</h3>
-      <p>Create the physical WiFi location. Solidus can create the matching Omada site automatically.</p>
+      <h3>{{t 'sites.create'}}</h3>
+      <p>{{t 'sites.createHint'}}</p>
     </div>
   </div>
 
@@ -19,28 +19,28 @@
 
     <div class="form-grid">
       <label>
-        <span>Site name</span>
+        <span>{{t 'sites.siteName'}}</span>
         <input name="siteName" required placeholder="e.g. Mwanza Main Branch">
       </label>
 
       <label>
-        <span>Portal brand name</span>
+        <span>{{t 'sites.brandName'}}</span>
         <input name="brandName" placeholder="e.g. Mwanza WiFi">
       </label>
 
       <label>
-        <span>Support phone</span>
+        <span>{{t 'sites.supportPhone'}}</span>
         <input name="supportPhone" placeholder="07XXXXXXXX">
       </label>
 
       <label>
-        <span>Brand colour</span>
+        <span>{{t 'sites.brandColour'}}</span>
         <input name="primaryColor" value="#0B6B47" placeholder="#0B6B47">
       </label>
     </div>
 
     <div class="form-actions">
-      <button type="submit">Create site</button>
+      <button type="submit">{{t 'sites.createButton'}}</button>
     </div>
   </form>
 </section>
@@ -58,48 +58,48 @@
         </div>
 
         {{#if omada_provisioned}}
-          <span class="connection-badge connected">Omada site ready</span>
+          <span class="connection-badge connected">{{t 'sites.omadaReady'}}</span>
         {{else}}
-          <span class="connection-badge waiting">Omada not provisioned</span>
+          <span class="connection-badge waiting">{{t 'sites.omadaNotReady'}}</span>
         {{/if}}
       </div>
 
       <div class="site-meta-grid">
         <div>
-          <span>Detected devices</span>
+          <span>{{t 'sites.detectedDevices'}}</span>
           <strong>{{device_count}}</strong>
         </div>
         <div>
-          <span>Support</span>
+          <span>{{t 'sites.support'}}</span>
           <strong>{{support_phone}}</strong>
         </div>
         <div>
-          <span>Controller site</span>
-          <strong>{{#if external_portal_site_id}}Linked{{else}}Not linked{{/if}}</strong>
+          <span>{{t 'sites.controllerSite'}}</span>
+          <strong>{{#if external_portal_site_id}}{{t 'sites.linked'}}{{else}}{{t 'sites.notLinked'}}{{/if}}</strong>
         </div>
       </div>
 
       {{#if omada_sync_error}}
         <div class="status-box-admin error">
-          Omada provisioning error: {{omada_sync_error}}
+          {{t 'sites.provisionError'}}: {{omada_sync_error}}
         </div>
       {{/if}}
 
       {{#unless omada_provisioned}}
         <div class="connect-omada">
           <div class="connect-copy">
-            <h4>Step 1 — Create the Omada site</h4>
+            <h4>{{t 'sites.step1Title'}}</h4>
             {{#if ../omadaApiEnabled}}
-              <p>Solidus will create the matching site inside the central Omada Controller and generate a device account for adoption.</p>
+              <p>{{t 'sites.step1Auto'}}</p>
             {{else}}
-              <p>Omada automation has not been enabled by Solidus yet. The platform administrator must connect the controller Open API first.</p>
+              <p>{{t 'sites.step1Disabled'}}</p>
             {{/if}}
           </div>
 
           {{#if ../omadaApiEnabled}}
             <form method="POST" action="/admin/sites/{{id}}/omada/provision" class="inline-action-form">
               <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
-              <button type="submit" class="primary-action-button">Provision Omada site</button>
+              <button type="submit" class="primary-action-button">{{t 'sites.provisionButton'}}</button>
             </form>
           {{/if}}
         </div>
@@ -108,26 +108,26 @@
           <section class="onboarding-step">
             <div class="step-number">1</div>
             <div class="step-content">
-              <h4>Use this account on the factory-reset EAP</h4>
-              <p>When the EAP asks you to create its local administrator account, use these exact credentials. Solidus uses the same account to adopt the AP automatically.</p>
+              <h4>{{t 'sites.useAccount'}}</h4>
+              <p>{{t 'sites.useAccountHint'}}</p>
 
               {{#if credential_error}}
                 <div class="status-box-admin error">{{credential_error}}</div>
               {{else}}
                 <div class="credential-grid">
                   <label>
-                    <span>Local EAP username</span>
+                    <span>{{t 'sites.localUsername'}}</span>
                     <div class="copy-field">
                       <input id="device-user-{{id}}" readonly value="{{device_username}}">
-                      <button type="button" data-copy-target="device-user-{{id}}">Copy</button>
+                      <button type="button" data-copy-target="device-user-{{id}}">{{t 'sites.copy'}}</button>
                     </div>
                   </label>
 
                   <label>
-                    <span>Local EAP password</span>
+                    <span>{{t 'sites.localPassword'}}</span>
                     <div class="copy-field">
                       <input id="device-pass-{{id}}" readonly value="{{device_password}}">
-                      <button type="button" data-copy-target="device-pass-{{id}}">Copy</button>
+                      <button type="button" data-copy-target="device-pass-{{id}}">{{t 'sites.copy'}}</button>
                     </div>
                   </label>
                 </div>
@@ -138,12 +138,12 @@
           <section class="onboarding-step">
             <div class="step-number">2</div>
             <div class="step-content">
-              <h4>Point the EAP to Solidus Omada</h4>
-              <p>On the EAP: System → Controller Settings → Controller Inform URL. Paste the value below and save.</p>
+              <h4>{{t 'sites.pointEap'}}</h4>
+              <p>{{t 'sites.pointEapHint'}}</p>
 
               <div class="copy-field inform-field">
                 <input id="inform-host-{{id}}" readonly value="{{inform_host}}">
-                <button type="button" data-copy-target="inform-host-{{id}}">Copy</button>
+                <button type="button" data-copy-target="inform-host-{{id}}">{{t 'sites.copy'}}</button>
               </div>
             </div>
           </section>
@@ -151,37 +151,37 @@
           <section class="onboarding-step">
             <div class="step-number">3</div>
             <div class="step-content">
-              <h4>Claim this AP</h4>
-              <p>Enter the AP MAC printed on the device label. Solidus will wait for that exact AP to appear as Pending and then adopt it into this site automatically.</p>
+              <h4>{{t 'sites.claimAp'}}</h4>
+              <p>{{t 'sites.claimApHint'}}</p>
 
               <form method="POST" action="/admin/sites/{{id}}/omada/claim" class="admin-form compact-form">
                 <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
 
                 <div class="form-grid">
                   <label>
-                    <span>AP MAC address</span>
+                    <span>{{t 'sites.apMacAddress'}}</span>
                     <input name="apMac" required placeholder="10:5A:95:51:F0:C4">
                   </label>
                 </div>
 
                 <details class="existing-credentials">
-                  <summary>I already created a different local EAP username/password</summary>
-                  <p>Only use this for an AP that was configured before Solidus generated the credentials above.</p>
+                  <summary>{{t 'sites.existingCredentials'}}</summary>
+                  <p>{{t 'sites.existingCredentialsHint'}}</p>
 
                   <div class="form-grid">
                     <label>
-                      <span>Existing EAP username</span>
+                      <span>{{t 'sites.existingUsername'}}</span>
                       <input name="localUsername" autocomplete="off">
                     </label>
                     <label>
-                      <span>Existing EAP password</span>
+                      <span>{{t 'sites.existingPassword'}}</span>
                       <input name="localPassword" type="password" autocomplete="new-password">
                     </label>
                   </div>
                 </details>
 
                 <div class="form-actions">
-                  <button type="submit">Start automatic adoption</button>
+                  <button type="submit">{{t 'sites.startAdoption'}}</button>
                 </div>
               </form>
             </div>
@@ -190,14 +190,14 @@
           <section class="onboarding-step">
             <div class="step-number">4</div>
             <div class="step-content">
-              <h4>Adoption status</h4>
+              <h4>{{t 'sites.adoptionStatus'}}</h4>
 
               <div class="claim-list">
                 {{#each claims}}
                   <div class="claim-row">
                     <div>
                       <strong>{{ap_mac}}</strong>
-                      <small>Last checked: {{#if last_checked_at}}{{formatDate last_checked_at}}{{else}}waiting{{/if}}</small>
+                      <small>{{t 'sites.lastChecked'}}: {{#if last_checked_at}}{{formatDate last_checked_at}}{{else}}{{t 'sites.waiting'}}{{/if}}</small>
                     </div>
                     <span class="claim-status status-{{status}}">{{status}}</span>
                   </div>
@@ -206,11 +206,11 @@
                     <div class="claim-error">{{last_error}}</div>
                   {{/if}}
                 {{else}}
-                  <p class="muted-copy">No AP claimed yet.</p>
+                  <p class="muted-copy">{{t 'sites.noClaim'}}</p>
                 {{/each}}
               </div>
 
-              <p class="worker-note">You can leave this page. Solidus checks pending AP claims automatically in the background.</p>
+              <p class="worker-note">{{t 'sites.workerNote'}}</p>
             </div>
           </section>
         </div>
@@ -218,8 +218,8 @@
         <section class="wifi-manager">
           <div class="wifi-manager-head">
             <div>
-              <h4>Wi-Fi networks</h4>
-              <p>Solidus detects the adopted AP radios automatically. Customers can create or rename hotspot SSIDs without opening Omada.</p>
+              <h4>{{t 'sites.wifiNetworks'}}</h4>
+              <p>{{t 'sites.wifiNetworksHint'}}</p>
             </div>
           </div>
 
@@ -229,15 +229,15 @@
 
           {{#if radio_capabilities}}
             <div class="radio-capability-card">
-              <span>Detected radio capability</span>
+              <span>{{t 'sites.detectedRadio'}}</span>
               <strong>
                 {{#each radio_capabilities.labels}}
                   <span class="radio-chip">{{this}}</span>
                 {{else}}
-                  No supported radio detected
+                  {{t 'sites.noRadio'}}
                 {{/each}}
               </strong>
-              <small>Automatic mode uses only bands detected from the adopted AP.</small>
+              <small>{{t 'sites.autoBandHint'}}</small>
             </div>
 
             {{#if radio_capabilities.bandMask}}
@@ -246,14 +246,14 @@
 
                 <div class="form-grid">
                   <label>
-                    <span>Wi-Fi name (SSID)</span>
+                    <span>{{t 'sites.wifiName'}}</span>
                     <input name="ssidName" required maxlength="32" placeholder="e.g. MWANZA WIFI">
                   </label>
 
                   <label>
-                    <span>Bands</span>
+                    <span>{{t 'sites.bands'}}</span>
                     <select name="bandPreference">
-                      <option value="auto">Automatic — use detected radios</option>
+                      <option value="auto">{{t 'sites.autoBands'}}</option>
                       {{#if radio_capabilities.supports24}}
                         <option value="1">2.4 GHz only</option>
                       {{/if}}
@@ -280,15 +280,15 @@
                 </div>
 
                 <div class="form-actions">
-                  <button type="submit">Create hotspot Wi-Fi</button>
+                  <button type="submit">{{t 'sites.createHotspot'}}</button>
                 </div>
               </form>
             {{/if}}
           {{else}}
             <div class="radio-capability-card waiting">
-              <span>Radio detection</span>
-              <strong>Waiting for an adopted AP</strong>
-              <small>Once an AP is connected, Solidus will inspect its radios automatically.</small>
+              <span>{{t 'sites.radioDetection'}}</span>
+              <strong>{{t 'sites.waitingAdoptedAp'}}</strong>
+              <small>{{t 'sites.radioWaitHint'}}</small>
             </div>
           {{/if}}
 
@@ -297,66 +297,105 @@
               <div class="wifi-network-row">
                 <div class="wifi-network-copy">
                   <strong>{{name}}</strong>
-                  <small>WLAN: {{wlan_name}}</small>
+                  <small>{{t 'sites.wlan'}}: {{wlan_name}}</small>
                 </div>
 
                 <form method="POST" action="/admin/sites/{{site_id}}/wifi-networks/{{ssid_id}}/rename" class="wifi-rename-form">
                   <input type="hidden" name="organizationId" value="{{@root.selectedOrg.id}}">
                   <input type="hidden" name="wlanId" value="{{wlan_id}}">
                   <input name="ssidName" value="{{name}}" required maxlength="32" aria-label="WiFi network name">
-                  <button type="submit">Rename</button>
+                  <button type="submit">{{t 'sites.rename'}}</button>
                 </form>
               </div>
             {{else}}
-              <p class="muted-copy wifi-empty">No Wi-Fi networks found in this Omada site yet.</p>
+              <p class="muted-copy wifi-empty">{{t 'sites.noWifi'}}</p>
             {{/each}}
           </div>
         </section>
       {{/unless}}
     </article>
   {{else}}
-    <div class="empty-state">No sites yet. Create the first site above.</div>
+    <div class="empty-state">{{t 'sites.noSites'}}</div>
   {{/each}}
+</section>
+
+<section class="panel payment-filter-panel device-filter-panel">
+  <form method="GET" action="/admin/sites" class="admin-form">
+    <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+    <div class="device-filter-grid">
+      <label>
+        <span>{{t 'sites.searchDevices'}}</span>
+        <input type="search" name="deviceSearch" value="{{deviceFilters.search}}" placeholder="{{t 'sites.searchDevicesPlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'common.site'}}</span>
+        <select name="deviceSiteId">
+          <option value="">{{t 'common.allSites'}}</option>
+          {{#each deviceSiteOptions}}
+            <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'common.status'}}</span>
+        <select name="deviceStatus">
+          {{#each deviceStatusOptions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <a href="/admin/sites?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
+      <button type="submit">{{t 'common.filter'}}</button>
+    </div>
+  </form>
 </section>
 
 <section class="panel table-panel device-table-panel">
   <div class="panel-head">
     <div>
-      <h3>Managed devices</h3>
-      <p>APs appear here after Omada adoption completes.</p>
+      <h3>{{t 'sites.managedDevices'}}</h3>
+      <p>{{t 'sites.devicesHint'}}</p>
     </div>
   </div>
 
   <div class="table-wrap">
-    <table>
+    <table class="responsive-table">
       <thead>
         <tr>
-          <th>Device</th>
-          <th>Site</th>
-          <th>AP MAC</th>
-          <th>Model</th>
-          <th>IP</th>
-          <th>Last seen</th>
-          <th>Status</th>
+          <th>{{t 'sites.device'}}</th>
+          <th>{{t 'common.site'}}</th>
+          <th>{{t 'sites.apMac'}}</th>
+          <th>{{t 'sites.model'}}</th>
+          <th>{{t 'sites.ip'}}</th>
+          <th>{{t 'sites.lastSeen'}}</th>
+          <th>{{t 'common.status'}}</th>
         </tr>
       </thead>
       <tbody>
         {{#each devices}}
           <tr>
-            <td><strong>{{name}}</strong><small>{{brand}}</small></td>
-            <td>{{site_name}}</td>
-            <td><code>{{ap_mac}}</code></td>
-            <td>{{model}}</td>
-            <td>{{management_ip}}</td>
-            <td>{{#if last_seen_at}}{{formatDate last_seen_at}}{{else}}—{{/if}}</td>
-            <td><span class="status-pill status-paid">{{#if active}}managed{{else}}disabled{{/if}}</span></td>
+            <td data-label="{{t 'sites.device'}}"><strong>{{name}}</strong><small>{{brand}}</small></td>
+            <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+            <td data-label="{{t 'sites.apMac'}}"><code>{{ap_mac}}</code></td>
+            <td data-label="{{t 'sites.model'}}">{{model}}</td>
+            <td data-label="{{t 'sites.ip'}}">{{management_ip}}</td>
+            <td data-label="{{t 'sites.lastSeen'}}">{{#if last_seen_at}}{{formatDate last_seen_at}}{{else}}—{{/if}}</td>
+            <td data-label="{{t 'common.status'}}"><span class="status-pill status-paid">{{#if active}}{{t 'sites.managed'}}{{else}}{{t 'sites.disabled'}}{{/if}}</span></td>
           </tr>
         {{else}}
-          <tr><td colspan="7" class="empty">No managed APs yet.</td></tr>
+          <tr><td colspan="7" class="empty">{{t 'sites.noDevices'}}</td></tr>
         {{/each}}
       </tbody>
     </table>
   </div>
+
+  {{> admin-pagination devicePagination}}
 </section>
 {{/if}}
 
@@ -375,7 +414,7 @@
         }
 
         const original = button.textContent;
-        button.textContent = 'Copied';
+        button.textContent = '{{#if isSwahili}}Imenakiliwa{{else}}Copied{{/if}}';
         setTimeout(() => {
           button.textContent = original;
         }, 1200);
