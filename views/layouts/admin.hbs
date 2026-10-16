@@ -4,7 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Solidus WiFi">
   <title>{{title}} · Solidus WiFi</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/pwa/solidus-wifi-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/pwa/solidus-wifi-192.svg">
   <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
@@ -57,6 +65,16 @@
           <small>{{currentUser.username}}</small>
         </div>
 
+        <button
+          class="pwa-sidebar-button"
+          id="pwa-install-button"
+          type="button"
+          hidden
+        >
+          <span aria-hidden="true">↓</span>
+          {{t 'pwa.installButton'}}
+        </button>
+
         <form method="POST" action="/admin/logout">
           <button class="logout-button" type="submit">{{t 'account.signOut'}}</button>
         </form>
@@ -102,6 +120,28 @@
     </main>
   </div>
 
+  <aside class="pwa-install-banner" id="pwa-install-banner" hidden>
+    <div class="pwa-install-copy">
+      <div class="pwa-install-mark" aria-hidden="true">S</div>
+      <div>
+        <strong>{{t 'pwa.installTitle'}}</strong>
+        <p
+          id="pwa-install-text"
+          data-ios-text="{{t 'pwa.installIosText'}}"
+        >{{t 'pwa.installText'}}</p>
+      </div>
+    </div>
+
+    <div class="pwa-install-actions">
+      <button type="button" class="secondary-button" id="pwa-banner-later">
+        {{t 'pwa.installLater'}}
+      </button>
+      <button type="button" class="pwa-install-primary" id="pwa-banner-install">
+        {{t 'pwa.installNow'}}
+      </button>
+    </div>
+  </aside>
+
   <script>
     (() => {
       document.querySelectorAll('[data-admin-lang]').forEach((button) => {
@@ -119,5 +159,6 @@
       });
     })();
   </script>
+  <script src="/js/pwa.js" defer></script>
 </body>
 </html>
