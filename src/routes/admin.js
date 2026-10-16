@@ -369,7 +369,7 @@ router.get('/', async (req, res) => {
 
     if (!selectedOrg) {
       return renderAdmin(req, res, 'admin/dashboard', {
-        title: 'Dashboard',
+        titleKey: 'dashboard.title',
         organizations,
         selectedOrg: null,
         stats: {},
@@ -532,7 +532,7 @@ router.get('/', async (req, res) => {
     const setup = setupResult.rows[0];
 
     return renderAdmin(req, res, 'admin/dashboard', {
-      title: 'Dashboard',
+      titleKey: 'dashboard.title',
       organizations,
       selectedOrg,
       stats: {
@@ -544,11 +544,11 @@ router.get('/', async (req, res) => {
       },
       recentPayments: recentPaymentsResult.rows,
       checklist: [
-        { label: 'Create your first site', done: setup.has_site },
-        { label: 'Add a router / access point', done: setup.has_device },
-        { label: 'Set packages and prices', done: setup.has_package },
-        { label: 'Brand the customer portal', done: setup.has_branding },
-        { label: 'Receive the first payment', done: setup.has_payment }
+        { label: req.t('checklist.site'), done: setup.has_site },
+        { label: req.t('checklist.device'), done: setup.has_device },
+        { label: req.t('checklist.package'), done: setup.has_package },
+        { label: req.t('checklist.branding'), done: setup.has_branding },
+        { label: req.t('checklist.payment'), done: setup.has_payment }
       ]
     });
   } catch (error) {
@@ -807,40 +807,135 @@ router.get('/sites', async (req, res) => {
       });
     }
 
-    const devices = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                nd.id,
-                nd.site_id,
-                nd.name,
-                nd.nas_identifier,
-                nd.brand,
-                nd.model,
-                nd.management_ip,
-                nd.ap_mac,
-                nd.device_type,
-                nd.ssid_name,
-                nd.last_seen_at,
-                nd.active,
-                s.name AS site_name
-              FROM network_devices nd
-              JOIN sites s ON s.id = nd.site_id
-              WHERE s.organization_id = $1
-              ORDER BY s.name, nd.name
-            `,
-            [selectedOrg.id]
-          )
-        ).rows
-      : [];
+    const deviceSearch = String(req.query.deviceSearch || '')
+      .trim()
+      .slice(0, 100);
+    const deviceSiteId = Number(req.query.deviceSiteId) || null;
+    const deviceStatus = ['active', 'inactive'].includes(
+      String(req.query.deviceStatus || '')
+    )
+      ? String(req.query.deviceStatus)
+      : '';
+    const devicePage = getPage(req.query.devicePage);
+
+    let devices = [];
+    let deviceTotal = 0;
+
+    if (selectedOrg) {
+      const values = [
+        selectedOrg.id,
+        deviceSearch,
+        deviceSiteId,
+        deviceStatus
+      ];
+
+      const where = `
+        s.organization_id = $1
+        AND (
+          $2::text = ''
+          OR nd.name ILIKE '%' || $2 || '%'
+          OR COALESCE(nd.ap_mac, '') ILIKE '%' || $2 || '%'
+          OR COALESCE(nd.model, '') ILIKE '%' || $2 || '%'
+          OR COALESCE(nd.management_ip::text, '') ILIKE '%' || $2 || '%'
+        )
+        AND ($3::bigint IS NULL OR nd.site_id = $3)
+        AND (
+          $4::text = ''
+          OR ($4 = 'active' AND nd.active = TRUE)
+          OR ($4 = 'inactive' AND nd.active = FALSE)
+        )
+      `;
+
+      const countResult = await pool.query(
+        `
+          SELECT COUNT(*)::INTEGER AS total
+          FROM network_devices nd
+          JOIN sites s ON s.id = nd.site_id
+          WHERE ${where}
+        `,
+        values
+      );
+
+      deviceTotal = countResult.rows[0]?.total || 0;
+      const paginationPreview = buildPagination({
+        page: devicePage,
+        total: deviceTotal,
+        basePath: '/admin/sites',
+        pageParam: 'devicePage'
+      });
+      const offset =
+        (paginationPreview.page - 1) * ADMIN_PAGE_SIZE;
+
+      devices = (
+        await pool.query(
+          `
+            SELECT
+              nd.id,
+              nd.site_id,
+              nd.name,
+              nd.nas_identifier,
+              nd.brand,
+              nd.model,
+              nd.management_ip,
+              nd.ap_mac,
+              nd.device_type,
+              nd.ssid_name,
+              nd.last_seen_at,
+              nd.active,
+              s.name AS site_name
+            FROM network_devices nd
+            JOIN sites s ON s.id = nd.site_id
+            WHERE ${where}
+            ORDER BY s.name, nd.name
+            LIMIT $5 OFFSET $6
+          `,
+          [...values, ADMIN_PAGE_SIZE, offset]
+        )
+      ).rows;
+    }
+
+    const deviceSiteOptions = sitesWithKeys.map((site) => ({
+      id: site.id,
+      name: site.name,
+      selected: deviceSiteId === Number(site.id)
+    }));
+
+    const deviceStatusOptions = [
+      { value: '', label: req.t('common.allStatuses') },
+      { value: 'active', label: req.t('common.active') },
+      { value: 'inactive', label: req.t('common.inactive') }
+    ].map((option) => ({
+      ...option,
+      selected: option.value === deviceStatus
+    }));
+
+    const devicePagination = buildPagination({
+      page: devicePage,
+      total: deviceTotal,
+      basePath: '/admin/sites',
+      pageParam: 'devicePage',
+      query: {
+        org: selectedOrg?.id,
+        deviceSearch,
+        deviceSiteId: deviceSiteId || '',
+        deviceStatus
+      }
+    });
 
     return renderAdmin(req, res, 'admin/sites', {
-      title: 'Sites & devices',
+      titleKey: 'sites.title',
       organizations,
       selectedOrg,
       sites: siteViews,
       devices,
+      deviceSiteOptions,
+      deviceStatusOptions,
+      deviceFilters: {
+        search: deviceSearch,
+        siteId: deviceSiteId,
+        status: deviceStatus
+      },
+      devicePagination,
       omadaApiEnabled: omada.configured()
     });
   } catch (error) {
@@ -1874,7 +1969,7 @@ router.get('/wallet', async (req, res) => {
         };
 
     return renderAdmin(req, res, 'admin/wallet', {
-      title: 'Wallet & payouts',
+      titleKey: 'wallet.title',
       organizations,
       selectedOrg,
       wallet,
