@@ -99,6 +99,78 @@ const buildPagination = ({
   };
 };
 
+const formatLiveClientDuration = (value) => {
+  const seconds = Number(value);
+
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return value ? String(value) : '—';
+  }
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m`;
+};
+
+const normalizeLiveClient = (client) => {
+  const signalValue =
+    client.rssi ??
+    client.signal ??
+    client.signalLevel ??
+    client.signalStrength ??
+    null;
+
+  const durationValue =
+    client.uptime ??
+    client.duration ??
+    client.connectDuration ??
+    client.connectedTime ??
+    null;
+
+  return {
+    name:
+      client.name ||
+      client.clientName ||
+      client.deviceName ||
+      client.hostname ||
+      client.hostName ||
+      '—',
+    mac:
+      client.mac ||
+      client.clientMac ||
+      client.macAddress ||
+      '—',
+    ip:
+      client.ip ||
+      client.clientIp ||
+      client.ipAddress ||
+      '—',
+    ssid:
+      client.ssid ||
+      client.ssidName ||
+      client.wlanName ||
+      '—',
+    ap:
+      client.apName ||
+      client.deviceName ||
+      client.apMac ||
+      client.gatewayName ||
+      '—',
+    signal:
+      signalValue === null || signalValue === undefined
+        ? '—'
+        : String(signalValue).includes('dBm')
+          ? String(signalValue)
+          : String(signalValue) + ' dBm',
+    uptime: formatLiveClientDuration(durationValue)
+  };
+};
+
+
 
 const slugify = (value) =>
   String(value || '')
@@ -1893,6 +1965,102 @@ router.get('/customers', async (req, res) => {
   } catch (error) {
     console.error('ADMIN CUSTOMERS ERROR:', error);
     res.status(500).send('Unable to load customers.');
+  }
+});
+
+router.get('/live-clients', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    const page = getPage(req.query.page);
+
+    const linkedSites = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT
+                id,
+                name,
+                external_portal_site_id
+              FROM sites
+              WHERE organization_id = $1
+                AND active = TRUE
+                AND external_portal_site_id IS NOT NULL
+              ORDER BY name
+            `,
+            [selectedOrg.id]
+          )
+        ).rows
+      : [];
+
+    const requestedSiteId = Number(req.query.siteId);
+    const selectedSite =
+      linkedSites.find((site) => Number(site.id) === requestedSiteId) ||
+      linkedSites[0] ||
+      null;
+
+    const siteOptions = linkedSites.map((site) => ({
+      ...site,
+      selected: selectedSite && Number(site.id) === Number(selectedSite.id)
+    }));
+
+    let clients = [];
+    let error = null;
+    let pagination = buildPagination({
+      page: 1,
+      total: 0,
+      basePath: '/admin/live-clients',
+      query: {
+        org: selectedOrg?.id,
+        siteId: selectedSite?.id
+      }
+    });
+
+    if (selectedSite) {
+      try {
+        const result = await omada.listClients({
+          siteId: selectedSite.external_portal_site_id,
+          page,
+          pageSize: ADMIN_PAGE_SIZE
+        });
+
+        clients = result.rows.map(normalizeLiveClient);
+
+        const inferredTotal =
+          result.total ??
+          (
+            (page - 1) * ADMIN_PAGE_SIZE +
+            clients.length +
+            (clients.length === ADMIN_PAGE_SIZE ? 1 : 0)
+          );
+
+        pagination = buildPagination({
+          page,
+          total: inferredTotal,
+          basePath: '/admin/live-clients',
+          query: {
+            org: selectedOrg.id,
+            siteId: selectedSite.id
+          }
+        });
+      } catch (omadaError) {
+        console.error('ADMIN LIVE CLIENTS OMADA ERROR:', omadaError);
+        error = req.t('live.unavailable');
+      }
+    }
+
+    return renderAdmin(req, res, 'admin/live-clients', {
+      titleKey: 'live.title',
+      organizations,
+      selectedOrg,
+      selectedSite,
+      siteOptions,
+      clients,
+      pagination,
+      error
+    });
+  } catch (error) {
+    console.error('ADMIN LIVE CLIENTS ERROR:', error);
+    res.status(500).send('Unable to load live clients.');
   }
 });
 
