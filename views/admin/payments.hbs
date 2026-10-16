@@ -1,14 +1,79 @@
 <section class="page-head">
   <div>
     <h2>Payments</h2>
-    <p>Latest customer payments.</p>
+    <p>Search, filter and review customer payment activity.</p>
   </div>
 </section>
+
+{{#if selectedOrg}}
+  <section class="panel payment-filter-panel">
+    <form method="GET" action="/admin/payments" class="admin-form">
+      <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+      <div class="payment-filter-grid">
+        <label>
+          <span>Search</span>
+          <input
+            type="search"
+            name="search"
+            value="{{filters.search}}"
+            placeholder="Customer, phone or reference"
+          >
+        </label>
+
+        <label>
+          <span>Status</span>
+          <select name="status">
+            {{#each statusOptions}}
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </label>
+
+        <label>
+          <span>Site</span>
+          <select name="siteId">
+            <option value="">All sites</option>
+            {{#each sites}}
+              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+        </label>
+
+        <label>
+          <span>From</span>
+          <input type="date" name="dateFrom" value="{{filters.dateFrom}}">
+        </label>
+
+        <label>
+          <span>To</span>
+          <input type="date" name="dateTo" value="{{filters.dateTo}}">
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <a href="/admin/payments?org={{selectedOrg.id}}">Clear</a>
+        <button type="submit">Filter payments</button>
+      </div>
+    </form>
+  </section>
+{{/if}}
 
 <section class="panel table-panel">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Customer</th><th>Site</th><th>Package</th><th>Amount</th><th>Status</th><th>Reference</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Site</th>
+          <th>Package</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Paid at</th>
+          <th>Started</th>
+          <th>Reference</th>
+        </tr>
+      </thead>
       <tbody>
         {{#each payments}}
           <tr>
@@ -17,10 +82,18 @@
             <td>{{formatPackageName package_name}}</td>
             <td>{{formatTzs amount_tzs}} TZS</td>
             <td><span class="status-pill status-{{status}}">{{status}}</span></td>
+            <td>
+              {{#if paid_at}}
+                <strong>{{formatDate paid_at}}</strong>
+              {{else}}
+                <span class="muted-value">—</span>
+              {{/if}}
+            </td>
+            <td>{{formatDate created_at}}</td>
             <td><code>{{reference}}</code></td>
           </tr>
         {{else}}
-          <tr><td colspan="6" class="empty">No payments yet.</td></tr>
+          <tr><td colspan="8" class="empty">No payments match these filters.</td></tr>
         {{/each}}
       </tbody>
     </table>
