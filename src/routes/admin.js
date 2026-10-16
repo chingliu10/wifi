@@ -680,7 +680,12 @@ router.get('/', async (req, res) => {
           SELECT
             (
               COALESCE((
-                SELECT SUM(amount_tzs)
+                SELECT SUM(
+                  CASE
+                    WHEN entry_type = 'adjustment' AND amount_tzs > 0 THEN 0
+                    ELSE amount_tzs
+                  END
+                )
                 FROM wallet_entries
                 WHERE organization_id = $1
               ), 0)
@@ -2224,7 +2229,15 @@ const loadWalletPageData = async ({
     pool.query(
       `
         SELECT
-          COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS ledger_balance,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN entry_type = 'adjustment' AND amount_tzs > 0 THEN 0
+                ELSE amount_tzs
+              END
+            ),
+            0
+          )::NUMERIC(18,2) AS ledger_balance,
           COALESCE(
             -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
             0
