@@ -1162,6 +1162,43 @@ router.get('/payments', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
 
+    const allowedStatuses = new Set([
+      'paid',
+      'pending',
+      'failed',
+      'cancelled',
+      'expired'
+    ]);
+
+    const status = allowedStatuses.has(String(req.query.status || '').toLowerCase())
+      ? String(req.query.status).toLowerCase()
+      : '';
+    const siteId = Number(req.query.siteId) || null;
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.dateFrom || ''))
+      ? String(req.query.dateFrom)
+      : '';
+    const dateTo = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.dateTo || ''))
+      ? String(req.query.dateTo)
+      : '';
+
+    const sites = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT id, name
+              FROM sites
+              WHERE organization_id = $1
+              ORDER BY name
+            `,
+            [selectedOrg.id]
+          )
+        ).rows.map((site) => ({
+          ...site,
+          selected: siteId === Number(site.id)
+        }))
+      : [];
+
     const payments = selectedOrg
       ? (
           await pool.query(
@@ -1175,24 +1212,67 @@ router.get('/payments', async (req, res) => {
                 pt.provider,
                 pt.created_at,
                 pt.paid_at,
+                pt.provisioning_status,
                 p.name AS package_name,
+                s.id AS site_id,
                 s.name AS site_name
               FROM payment_transactions pt
               JOIN packages p ON p.id = pt.package_id
               JOIN sites s ON s.id = p.site_id
               WHERE pt.organization_id = $1
+                AND ($2::text = '' OR pt.status = $2)
+                AND ($3::bigint IS NULL OR s.id = $3)
+                AND (
+                  $4::text = ''
+                  OR COALESCE(pt.customer_name, '') ILIKE '%' || $4 || '%'
+                  OR COALESCE(pt.phone, '') ILIKE '%' || $4 || '%'
+                  OR COALESCE(pt.reference, '') ILIKE '%' || $4 || '%'
+                )
+                AND ($5::text = '' OR pt.created_at >= $5::date)
+                AND (
+                  $6::text = ''
+                  OR pt.created_at < ($6::date + INTERVAL '1 day')
+                )
               ORDER BY pt.created_at DESC
-              LIMIT 100
+              LIMIT 250
             `,
-            [selectedOrg.id]
+            [
+              selectedOrg.id,
+              status,
+              siteId,
+              search,
+              dateFrom,
+              dateTo
+            ]
           )
         ).rows
       : [];
+
+    const statusOptions = [
+      { value: '', label: 'All statuses' },
+      { value: 'paid', label: 'Paid' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'failed', label: 'Failed' },
+      { value: 'cancelled', label: 'Cancelled' },
+      { value: 'expired', label: 'Expired' }
+    ].map((option) => ({
+      ...option,
+      selected: option.value === status
+    }));
 
     return renderAdmin(req, res, 'admin/payments', {
       title: 'Payments',
       organizations,
       selectedOrg,
+      sites,
+      statusOptions,
+      filters: {
+        status,
+        siteId,
+        search,
+        dateFrom,
+        dateTo
+      },
       payments
     });
   } catch (error) {
