@@ -350,6 +350,19 @@ const renderAdmin = (req, res, view, data) => {
 };
 
 router.get('/login', async (req, res) => {
+  const language = normalizeLanguage(
+    req.query.lang || readCookie(req, 'solidus_admin_lang') || 'en'
+  );
+
+  if (req.query.lang) {
+    res.cookie('solidus_admin_lang', language, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: String(req.headers['x-forwarded-proto'] || req.protocol) === 'https',
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
+  }
+
   try {
     const user = await getUserFromRequest(req);
 
@@ -362,11 +375,18 @@ router.get('/login', async (req, res) => {
 
   res.render('admin/login', {
     layout: 'auth',
-    title: 'Sign in'
+    title: translate(language, 'login.signIn'),
+    language,
+    isEnglish: language === 'en',
+    isSwahili: language === 'sw'
   });
 });
 
 router.post('/login', async (req, res) => {
+  const language = normalizeLanguage(
+    req.body.language || readCookie(req, 'solidus_admin_lang') || 'en'
+  );
+
   try {
     const user = await authenticateUser({
       username: req.body.username,
@@ -376,9 +396,12 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).render('admin/login', {
         layout: 'auth',
-        title: 'Sign in',
+        title: translate(language, 'login.signIn'),
+        language,
+        isEnglish: language === 'en',
+        isSwahili: language === 'sw',
         username: String(req.body.username || '').trim(),
-        error: 'Username or password is incorrect.'
+        error: translate(language, 'login.invalid')
       });
     }
 
@@ -391,9 +414,12 @@ router.post('/login', async (req, res) => {
 
     res.status(500).render('admin/login', {
       layout: 'auth',
-      title: 'Sign in',
+      title: translate(language, 'login.signIn'),
+      language,
+      isEnglish: language === 'en',
+      isSwahili: language === 'sw',
       username: String(req.body.username || '').trim(),
-      error: 'Unable to sign in right now.'
+      error: translate(language, 'login.error')
     });
   }
 });
