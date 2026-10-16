@@ -949,6 +949,8 @@ router.get('/sites', async (req, res) => {
         ).rows
       : [];
 
+    const supportUpdatedSiteId =
+      Number(req.query.supportUpdated) || null;
     const siteViews = [];
 
     for (const site of sitesWithKeys) {
@@ -998,6 +1000,8 @@ router.get('/sites', async (req, res) => {
         radio_capabilities: radioCapabilities,
         wifi_networks: wifiNetworks,
         wifi_error: wifiErrors.join(' '),
+        support_updated:
+          supportUpdatedSiteId === Number(site.id),
         claims: claims.filter(
           (claim) => Number(claim.site_id) === Number(site.id)
         )
