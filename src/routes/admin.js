@@ -54,7 +54,8 @@ const buildPagination = ({
   page,
   total,
   basePath,
-  query = {}
+  query = {},
+  pageParam = 'page'
 }) => {
   const totalPages = Math.max(1, Math.ceil(Number(total || 0) / ADMIN_PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, page), totalPages);
@@ -63,7 +64,7 @@ const buildPagination = ({
 
     for (const [key, value] of Object.entries({
       ...query,
-      page: targetPage
+      [pageParam]: targetPage
     })) {
       if (value !== undefined && value !== null && String(value) !== '') {
         params.set(key, String(value));
