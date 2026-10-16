@@ -2373,6 +2373,7 @@ router.post('/wallet/withdraw/verify', async (req, res) => {
         ...pageData,
         withdrawalForm,
         withdrawalPreview: preview,
+        withdrawalRequestKey: crypto.randomBytes(12).toString('hex'),
         withdrawalError: null,
         withdrawalSuccess: false,
         payoutNetworks: buildPayoutNetworkOptions(
