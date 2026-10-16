@@ -371,72 +371,80 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
 
 
 /* Account menu and password controls */
-.sidebar-account{
-  margin:0 0 12px;
-  border:1px solid #2b3546;
-  border-radius:11px;
-  background:#182132;
-  overflow:hidden
+.topbar-account{
+  position:relative;
+  flex:0 0 auto
 }
-.sidebar-account summary{
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr) auto;
-  align-items:center;
-  gap:9px;
-  padding:10px 11px;
-  cursor:pointer;
+.topbar-account summary{
   list-style:none
 }
-.sidebar-account summary::-webkit-details-marker{display:none}
-.sidebar-account-avatar{
-  width:28px;
-  height:28px;
+.topbar-account summary::-webkit-details-marker{display:none}
+.topbar-account-button{
+  width:40px;
+  height:40px;
   display:grid;
   place-items:center;
+  border:1px solid var(--line);
   border-radius:50%;
-  color:#14b8a6;
-  background:#203044;
-  font-size:10px
+  color:var(--accent);
+  background:#fff;
+  cursor:pointer;
+  box-shadow:0 2px 8px rgba(17,24,39,.04)
 }
-.sidebar-account-copy{
-  min-width:0;
+.topbar-account-button:hover,
+.topbar-account[open] .topbar-account-button{
+  border-color:#b8d8d0;
+  background:var(--accent-soft)
+}
+.topbar-account-button svg{
+  width:20px;
+  height:20px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round
+}
+.topbar-account-menu{
+  position:absolute;
+  z-index:120;
+  top:48px;
+  right:0;
+  width:220px;
+  padding:7px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 18px 45px rgba(17,24,39,.16)
+}
+.topbar-account-user{
   display:grid;
-  gap:2px
+  gap:2px;
+  padding:9px 10px 10px;
+  border-bottom:1px solid var(--line)
 }
-.sidebar-account-copy strong{
+.topbar-account-user strong{
   overflow:hidden;
-  color:#fff;
   font-size:12px;
   white-space:nowrap;
   text-overflow:ellipsis
 }
-.sidebar-account-copy small{
+.topbar-account-user small{
   overflow:hidden;
-  color:#8f98aa;
-  font-size:9px;
+  color:var(--muted);
+  font-size:10px;
   white-space:nowrap;
   text-overflow:ellipsis
 }
-.sidebar-account-chevron{
-  color:#8f98aa;
-  font-size:16px;
-  transition:transform .15s ease
-}
-.sidebar-account[open] .sidebar-account-chevron{transform:rotate(180deg)}
-.sidebar-account-menu{
-  display:grid;
-  padding:6px;
-  border-top:1px solid #2b3546;
-  background:#111827
-}
-.sidebar-account-menu a,
-.sidebar-account-menu button{
+.topbar-account-menu a,
+.topbar-account-menu button{
   width:100%;
   display:block;
+  margin:0;
   padding:9px 10px;
   border:0;
   border-radius:8px;
-  color:#d5d9e2;
+  color:var(--text);
   background:transparent;
   font:inherit;
   font-size:11px;
@@ -444,12 +452,12 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
   text-decoration:none;
   cursor:pointer
 }
-.sidebar-account-menu a:hover,
-.sidebar-account-menu button:hover{
-  color:#fff;
-  background:#1f2937
+.topbar-account-menu a:hover,
+.topbar-account-menu button:hover{
+  color:var(--accent);
+  background:#f0f8f6
 }
-.sidebar-account-menu form{margin:0}
+.topbar-account-menu form{margin:0}
 
 .password-input-wrap{
   position:relative;
@@ -527,6 +535,14 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
 }
 
 @media(max-width:760px){
-  .sidebar-account{margin-bottom:12px}
+  .topbar-account-button{
+    width:36px;
+    height:36px
+  }
+  .topbar-account-menu{
+    top:44px;
+    right:0;
+    width:min(220px,calc(100vw - 24px))
+  }
   .account-security-panel{max-width:none}
 }
