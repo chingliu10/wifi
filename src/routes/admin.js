@@ -631,8 +631,8 @@ router.get('/', async (req, res) => {
             pt.net_amount_tzs,
             pt.status,
             pt.paid_at,
-            p.name AS package_name,
-            s.name AS site_name
+            COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+            COALESCE(pt.site_name_snapshot, s.name) AS site_name
           FROM payment_transactions pt
           JOIN packages p ON p.id = pt.package_id
           JOIN sites s ON s.id = p.site_id
@@ -1788,6 +1788,7 @@ router.post('/packages/:id/delete', async (req, res) => {
         SET
           active = FALSE,
           deleted_at = NOW(),
+          deleted_by_user_id = $3,
           updated_at = NOW()
         FROM sites s
         WHERE p.id = $1
@@ -1796,7 +1797,7 @@ router.post('/packages/:id/delete', async (req, res) => {
           AND s.organization_id = $2
         RETURNING p.id
       `,
-      [packageId, selectedOrg.id]
+      [packageId, selectedOrg.id, req.authUser.id]
     );
 
     if (!deleted.rows[0]) {
@@ -1916,9 +1917,9 @@ router.get('/payments', async (req, res) => {
               pt.created_at,
               pt.paid_at,
               pt.provisioning_status,
-              p.name AS package_name,
+              COALESCE(pt.package_name_snapshot, p.name) AS package_name,
               s.id AS site_id,
-              s.name AS site_name
+              COALESCE(pt.site_name_snapshot, s.name) AS site_name
             FROM payment_transactions pt
             JOIN packages p ON p.id = pt.package_id
             JOIN sites s ON s.id = p.site_id
@@ -2035,7 +2036,10 @@ router.get('/customers', async (req, res) => {
               WHERE pt.status = 'paid'
             ) AS latest_payment_at,
             (
-              SELECT p.name
+              SELECT COALESCE(
+                latest_pt.package_name_snapshot,
+                p.name
+              )
               FROM payment_transactions latest_pt
               JOIN packages p ON p.id = latest_pt.package_id
               WHERE latest_pt.organization_id = $1
