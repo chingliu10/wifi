@@ -590,6 +590,16 @@ app.engine('hbs', engine({
     statusLabel: (status, options) => {
       const language = options?.data?.root?.language || 'en';
       return translate(language, 'status.' + String(status || '').toLowerCase());
+    },
+    durationUnitLabel: (unit, options) => {
+      const language = options?.data?.root?.language || 'en';
+      const key = {
+        minutes: 'common.minutes',
+        hours: 'common.hours',
+        days: 'common.days'
+      }[String(unit || '').toLowerCase()];
+
+      return key ? translate(language, key) : String(unit || '');
     }
   }
 }));
