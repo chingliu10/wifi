@@ -26,6 +26,11 @@ const {
   createSiteWifiNetwork,
   renameSiteWifiNetwork
 } = require('../services/omada/wifi-service');
+const {
+  previewMobileMoneyPayout,
+  requestMobileMoneyPayout,
+  mobileMoneyNetworks
+} = require('../services/payouts/payout-service');
 
 const router = express.Router();
 
