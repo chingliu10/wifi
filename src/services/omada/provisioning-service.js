@@ -141,7 +141,7 @@ const provisionSite = async (siteId) => {
       name: omadaName,
       region: String(process.env.OMADA_DEFAULT_REGION || 'Tanzania').trim(),
       timeZone: String(
-        process.env.OMADA_DEFAULT_TIMEZONE || 'Africa/Dar_es_Salaam'
+        process.env.OMADA_DEFAULT_TIMEZONE || 'Asia/Baghdad'
       ).trim(),
       scenario,
       username,
