@@ -17,7 +17,8 @@
     "omada:unauth-client": "node src/scripts/unauth-client.js",
     "omada:hotspot-check": "node src/scripts/check-hotspot.js",
     "omada:mac-auth-check": "node src/scripts/check-mac-auth.js",
-    "omada:auth-record-check": "node src/scripts/check-omada-auth-record.js"
+    "omada:auth-record-check": "node src/scripts/check-omada-auth-record.js",
+    "omada:ext-portal-proof": "node src/scripts/prove-external-portal-auth.js"
   },
   "keywords": [],
   "author": "",
