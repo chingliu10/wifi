@@ -3,7 +3,7 @@
   "name": "Solidus WiFi",
   "short_name": "Solidus WiFi",
   "description": "Manage Solidus WiFi sites, customers, packages, payments and wallet.",
-  "start_url": "/admin/",
+  "start_url": "/admin/app",
   "scope": "/admin/",
   "display": "standalone",
   "background_color": "#f5f7fb",
@@ -34,5 +34,8 @@
       "short_name": "Wallet",
       "url": "/admin/wallet"
     }
-  ]
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-new"
+  }
 }
