@@ -1120,6 +1120,14 @@ const splitPackageDuration = (seconds) => {
 router.get('/packages', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const siteId = Number(req.query.siteId) || null;
+    const packageStatus = ['active', 'inactive'].includes(
+      String(req.query.packageStatus || '')
+    )
+      ? String(req.query.packageStatus)
+      : '';
+    const page = getPage(req.query.page);
 
     const sites = selectedOrg
       ? (
@@ -1133,49 +1141,123 @@ router.get('/packages', async (req, res) => {
             `,
             [selectedOrg.id]
           )
-        ).rows
+        ).rows.map((site) => ({
+          ...site,
+          selected: siteId === Number(site.id)
+        }))
       : [];
 
-    const packages = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                p.id,
-                p.name,
-                p.price_tzs,
-                p.duration_seconds,
-                p.active,
-                s.name AS site_name
-              FROM packages p
-              JOIN sites s ON s.id = p.site_id
-              WHERE s.organization_id = $1
-                AND p.deleted_at IS NULL
-              ORDER BY s.name, p.sort_order, p.id
-            `,
-            [selectedOrg.id]
-          )
-        ).rows.map((pkg) => {
-          const duration = splitPackageDuration(pkg.duration_seconds);
+    let packages = [];
+    let total = 0;
 
-          return {
-            ...pkg,
-            duration_label: formatPackageDuration(pkg.duration_seconds),
-            duration_value: duration.value,
-            duration_unit: duration.unit,
-            duration_minutes_selected: duration.unit === 'minutes',
-            duration_hours_selected: duration.unit === 'hours',
-            duration_days_selected: duration.unit === 'days'
-          };
-        })
-      : [];
+    if (selectedOrg) {
+      const values = [
+        selectedOrg.id,
+        search,
+        siteId,
+        packageStatus
+      ];
+
+      const where = `
+        s.organization_id = $1
+        AND p.deleted_at IS NULL
+        AND (
+          $2::text = ''
+          OR p.name ILIKE '%' || $2 || '%'
+        )
+        AND ($3::bigint IS NULL OR p.site_id = $3)
+        AND (
+          $4::text = ''
+          OR ($4 = 'active' AND p.active = TRUE)
+          OR ($4 = 'inactive' AND p.active = FALSE)
+        )
+      `;
+
+      const countResult = await pool.query(
+        `
+          SELECT COUNT(*)::INTEGER AS total
+          FROM packages p
+          JOIN sites s ON s.id = p.site_id
+          WHERE ${where}
+        `,
+        values
+      );
+
+      total = countResult.rows[0]?.total || 0;
+      const paginationPreview = buildPagination({
+        page,
+        total,
+        basePath: '/admin/packages'
+      });
+      const offset = (paginationPreview.page - 1) * ADMIN_PAGE_SIZE;
+
+      packages = (
+        await pool.query(
+          `
+            SELECT
+              p.id,
+              p.name,
+              p.price_tzs,
+              p.duration_seconds,
+              p.active,
+              s.name AS site_name
+            FROM packages p
+            JOIN sites s ON s.id = p.site_id
+            WHERE ${where}
+            ORDER BY s.name, p.sort_order, p.id
+            LIMIT $5 OFFSET $6
+          `,
+          [...values, ADMIN_PAGE_SIZE, offset]
+        )
+      ).rows.map((pkg) => {
+        const duration = splitPackageDuration(pkg.duration_seconds);
+
+        return {
+          ...pkg,
+          duration_label: formatPackageDuration(pkg.duration_seconds),
+          duration_value: duration.value,
+          duration_unit: duration.unit,
+          duration_minutes_selected: duration.unit === 'minutes',
+          duration_hours_selected: duration.unit === 'hours',
+          duration_days_selected: duration.unit === 'days'
+        };
+      });
+    }
+
+    const packageStatusOptions = [
+      { value: '', label: req.t('common.allStatuses') },
+      { value: 'active', label: req.t('common.active') },
+      { value: 'inactive', label: req.t('common.inactive') }
+    ].map((option) => ({
+      ...option,
+      selected: option.value === packageStatus
+    }));
+
+    const pagination = buildPagination({
+      page,
+      total,
+      basePath: '/admin/packages',
+      query: {
+        org: selectedOrg?.id,
+        search,
+        siteId: siteId || '',
+        packageStatus
+      }
+    });
 
     return renderAdmin(req, res, 'admin/packages', {
-      title: 'Packages',
+      titleKey: 'packages.title',
       organizations,
       selectedOrg,
       sites,
-      packages
+      packages,
+      packageStatusOptions,
+      filters: {
+        search,
+        siteId,
+        packageStatus
+      },
+      pagination
     });
   } catch (error) {
     console.error('ADMIN PACKAGES ERROR:', error);
@@ -1401,6 +1483,7 @@ router.get('/payments', async (req, res) => {
     const dateTo = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.dateTo || ''))
       ? String(req.query.dateTo)
       : '';
+    const page = getPage(req.query.page);
 
     const sites = selectedOrg
       ? (
@@ -1419,71 +1502,113 @@ router.get('/payments', async (req, res) => {
         }))
       : [];
 
-    const payments = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                pt.reference,
-                pt.customer_name,
-                pt.phone,
-                pt.amount_tzs,
-                pt.gateway_fee_tzs,
-                pt.net_amount_tzs,
-                pt.status,
-                pt.provider,
-                pt.created_at,
-                pt.paid_at,
-                pt.provisioning_status,
-                p.name AS package_name,
-                s.id AS site_id,
-                s.name AS site_name
-              FROM payment_transactions pt
-              JOIN packages p ON p.id = pt.package_id
-              JOIN sites s ON s.id = p.site_id
-              WHERE pt.organization_id = $1
-                AND ($2::text = '' OR pt.status = $2)
-                AND ($3::bigint IS NULL OR s.id = $3)
-                AND (
-                  $4::text = ''
-                  OR COALESCE(pt.customer_name, '') ILIKE '%' || $4 || '%'
-                  OR COALESCE(pt.phone, '') ILIKE '%' || $4 || '%'
-                  OR COALESCE(pt.reference, '') ILIKE '%' || $4 || '%'
-                )
-                AND ($5::text = '' OR pt.created_at >= $5::date)
-                AND (
-                  $6::text = ''
-                  OR pt.created_at < ($6::date + INTERVAL '1 day')
-                )
-              ORDER BY pt.created_at DESC
-              LIMIT 250
-            `,
-            [
-              selectedOrg.id,
-              status,
-              siteId,
-              search,
-              dateFrom,
-              dateTo
-            ]
-          )
-        ).rows
-      : [];
+    let payments = [];
+    let total = 0;
+
+    if (selectedOrg) {
+      const values = [
+        selectedOrg.id,
+        status,
+        siteId,
+        search,
+        dateFrom,
+        dateTo
+      ];
+
+      const where = `
+        pt.organization_id = $1
+        AND ($2::text = '' OR pt.status = $2)
+        AND ($3::bigint IS NULL OR s.id = $3)
+        AND (
+          $4::text = ''
+          OR COALESCE(pt.customer_name, '') ILIKE '%' || $4 || '%'
+          OR COALESCE(pt.phone, '') ILIKE '%' || $4 || '%'
+          OR COALESCE(pt.reference, '') ILIKE '%' || $4 || '%'
+        )
+        AND ($5::text = '' OR pt.created_at >= $5::date)
+        AND (
+          $6::text = ''
+          OR pt.created_at < ($6::date + INTERVAL '1 day')
+        )
+      `;
+
+      const countResult = await pool.query(
+        `
+          SELECT COUNT(*)::INTEGER AS total
+          FROM payment_transactions pt
+          JOIN packages p ON p.id = pt.package_id
+          JOIN sites s ON s.id = p.site_id
+          WHERE ${where}
+        `,
+        values
+      );
+
+      total = countResult.rows[0]?.total || 0;
+      const paginationPreview = buildPagination({
+        page,
+        total,
+        basePath: '/admin/payments'
+      });
+      const offset = (paginationPreview.page - 1) * ADMIN_PAGE_SIZE;
+
+      payments = (
+        await pool.query(
+          `
+            SELECT
+              pt.reference,
+              pt.customer_name,
+              pt.phone,
+              pt.amount_tzs,
+              pt.gateway_fee_tzs,
+              pt.net_amount_tzs,
+              pt.status,
+              pt.provider,
+              pt.created_at,
+              pt.paid_at,
+              pt.provisioning_status,
+              p.name AS package_name,
+              s.id AS site_id,
+              s.name AS site_name
+            FROM payment_transactions pt
+            JOIN packages p ON p.id = pt.package_id
+            JOIN sites s ON s.id = p.site_id
+            WHERE ${where}
+            ORDER BY pt.created_at DESC
+            LIMIT $7 OFFSET $8
+          `,
+          [...values, ADMIN_PAGE_SIZE, offset]
+        )
+      ).rows;
+    }
 
     const statusOptions = [
-      { value: '', label: 'All statuses' },
-      { value: 'paid', label: 'Paid' },
-      { value: 'pending', label: 'Pending' },
-      { value: 'failed', label: 'Failed' },
-      { value: 'cancelled', label: 'Cancelled' },
-      { value: 'expired', label: 'Expired' }
+      { value: '', label: req.t('common.allStatuses') },
+      { value: 'paid', label: req.t('status.paid') },
+      { value: 'pending', label: req.t('status.pending') },
+      { value: 'failed', label: req.t('status.failed') },
+      { value: 'cancelled', label: req.t('status.cancelled') },
+      { value: 'expired', label: req.t('status.expired') }
     ].map((option) => ({
       ...option,
       selected: option.value === status
     }));
 
+    const pagination = buildPagination({
+      page,
+      total,
+      basePath: '/admin/payments',
+      query: {
+        org: selectedOrg?.id,
+        status,
+        siteId: siteId || '',
+        search,
+        dateFrom,
+        dateTo
+      }
+    });
+
     return renderAdmin(req, res, 'admin/payments', {
-      title: 'Payments',
+      titleKey: 'payments.title',
       organizations,
       selectedOrg,
       sites,
@@ -1495,7 +1620,8 @@ router.get('/payments', async (req, res) => {
         dateFrom,
         dateTo
       },
-      payments
+      payments,
+      pagination
     });
   } catch (error) {
     console.error('ADMIN PAYMENTS ERROR:', error);
@@ -1506,79 +1632,167 @@ router.get('/payments', async (req, res) => {
 router.get('/customers', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const access = ['active', 'inactive'].includes(String(req.query.access || ''))
+      ? String(req.query.access)
+      : '';
+    const page = getPage(req.query.page);
 
-    const customers = selectedOrg
-      ? (
-          await pool.query(
-            `
-              SELECT
-                pt.device_id,
-                (
-                  ARRAY_AGG(
-                    pt.customer_name
-                    ORDER BY
-                      CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
-                      pt.paid_at DESC NULLS LAST,
-                      pt.created_at DESC
-                  ) FILTER (
-                    WHERE pt.customer_name IS NOT NULL
-                      AND BTRIM(pt.customer_name) <> ''
-                  )
-                )[1] AS customer_name,
-                (
-                  ARRAY_AGG(
-                    pt.phone
-                    ORDER BY
-                      CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
-                      pt.paid_at DESC NULLS LAST,
-                      pt.created_at DESC
-                  ) FILTER (
-                    WHERE pt.phone IS NOT NULL
-                      AND BTRIM(pt.phone) <> ''
-                  )
-                )[1] AS phone,
-                COUNT(*) FILTER (
-                  WHERE pt.status = 'paid'
-                )::INTEGER AS paid_orders,
-                COALESCE(
-                  SUM(pt.amount_tzs) FILTER (
-                    WHERE pt.status = 'paid'
-                  ),
-                  0
-                )::NUMERIC(18,2) AS total_spent,
-                MIN(pt.created_at) AS first_seen,
-                MAX(pt.created_at) AS last_seen,
-                MAX(pt.paid_at) FILTER (
-                  WHERE pt.status = 'paid'
-                ) AS latest_payment_at,
-                (
-                  SELECT p.name
-                  FROM payment_transactions latest_pt
-                  JOIN packages p ON p.id = latest_pt.package_id
-                  WHERE latest_pt.organization_id = $1
-                    AND latest_pt.device_id = pt.device_id
-                    AND latest_pt.status = 'paid'
-                  ORDER BY
-                    latest_pt.paid_at DESC NULLS LAST,
-                    latest_pt.created_at DESC
-                  LIMIT 1
-                ) AS latest_package
-              FROM payment_transactions pt
-              WHERE pt.organization_id = $1
-              GROUP BY pt.device_id
-              ORDER BY last_seen DESC
-              LIMIT 100
-            `,
-            [selectedOrg.id]
+    let customers = [];
+    let total = 0;
+
+    if (selectedOrg) {
+      const summarySql = `
+        WITH customer_summary AS (
+          SELECT
+            pt.device_id,
+            (
+              ARRAY_AGG(
+                pt.customer_name
+                ORDER BY
+                  CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
+                  pt.paid_at DESC NULLS LAST,
+                  pt.created_at DESC
+              ) FILTER (
+                WHERE pt.customer_name IS NOT NULL
+                  AND BTRIM(pt.customer_name) <> ''
+              )
+            )[1] AS customer_name,
+            (
+              ARRAY_AGG(
+                pt.phone
+                ORDER BY
+                  CASE WHEN pt.status = 'paid' THEN 0 ELSE 1 END,
+                  pt.paid_at DESC NULLS LAST,
+                  pt.created_at DESC
+              ) FILTER (
+                WHERE pt.phone IS NOT NULL
+                  AND BTRIM(pt.phone) <> ''
+              )
+            )[1] AS phone,
+            COUNT(*) FILTER (
+              WHERE pt.status = 'paid'
+            )::INTEGER AS paid_orders,
+            COALESCE(
+              SUM(pt.amount_tzs) FILTER (
+                WHERE pt.status = 'paid'
+              ),
+              0
+            )::NUMERIC(18,2) AS total_spent,
+            MIN(pt.created_at) AS first_seen,
+            MAX(pt.created_at) AS last_seen,
+            MAX(pt.paid_at) FILTER (
+              WHERE pt.status = 'paid'
+            ) AS latest_payment_at,
+            (
+              SELECT p.name
+              FROM payment_transactions latest_pt
+              JOIN packages p ON p.id = latest_pt.package_id
+              WHERE latest_pt.organization_id = $1
+                AND latest_pt.device_id = pt.device_id
+                AND latest_pt.status = 'paid'
+              ORDER BY
+                latest_pt.paid_at DESC NULLS LAST,
+                latest_pt.created_at DESC
+              LIMIT 1
+            ) AS latest_package,
+            EXISTS(
+              SELECT 1
+              FROM subscriptions sub
+              JOIN sites sub_site ON sub_site.id = sub.site_id
+              WHERE sub.device_id = pt.device_id
+                AND sub_site.organization_id = $1
+                AND sub.status = 'active'
+                AND sub.expires_at > NOW()
+            ) AS access_active
+          FROM payment_transactions pt
+          WHERE pt.organization_id = $1
+          GROUP BY pt.device_id
+        )
+      `;
+
+      const countResult = await pool.query(
+        summarySql +
+        `
+          SELECT COUNT(*)::INTEGER AS total
+          FROM customer_summary
+          WHERE (
+            $2::text = ''
+            OR COALESCE(customer_name, '') ILIKE '%' || $2 || '%'
+            OR COALESCE(phone, '') ILIKE '%' || $2 || '%'
           )
-        ).rows
-      : [];
+          AND (
+            $3::text = ''
+            OR ($3 = 'active' AND access_active = TRUE)
+            OR ($3 = 'inactive' AND access_active = FALSE)
+          )
+        `,
+        [selectedOrg.id, search, access]
+      );
+
+      total = countResult.rows[0]?.total || 0;
+      const paginationPreview = buildPagination({
+        page,
+        total,
+        basePath: '/admin/customers'
+      });
+      const offset = (paginationPreview.page - 1) * ADMIN_PAGE_SIZE;
+
+      customers = (
+        await pool.query(
+          summarySql +
+          `
+            SELECT *
+            FROM customer_summary
+            WHERE (
+              $2::text = ''
+              OR COALESCE(customer_name, '') ILIKE '%' || $2 || '%'
+              OR COALESCE(phone, '') ILIKE '%' || $2 || '%'
+            )
+            AND (
+              $3::text = ''
+              OR ($3 = 'active' AND access_active = TRUE)
+              OR ($3 = 'inactive' AND access_active = FALSE)
+            )
+            ORDER BY last_seen DESC
+            LIMIT $4 OFFSET $5
+          `,
+          [selectedOrg.id, search, access, ADMIN_PAGE_SIZE, offset]
+        )
+      ).rows;
+    }
+
+    const accessOptions = [
+      { value: '', label: req.t('common.all') },
+      { value: 'active', label: req.t('customers.accessActive') },
+      { value: 'inactive', label: req.t('customers.accessExpired') }
+    ].map((option) => ({
+      ...option,
+      selected: option.value === access
+    }));
+
+    const pagination = buildPagination({
+      page,
+      total,
+      basePath: '/admin/customers',
+      query: {
+        org: selectedOrg?.id,
+        search,
+        access
+      }
+    });
 
     return renderAdmin(req, res, 'admin/customers', {
-      title: 'Customers',
+      titleKey: 'customers.title',
       organizations,
       selectedOrg,
-      customers
+      customers,
+      accessOptions,
+      filters: {
+        search,
+        access
+      },
+      pagination
     });
   } catch (error) {
     console.error('ADMIN CUSTOMERS ERROR:', error);
