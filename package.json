@@ -20,7 +20,8 @@
     "omada:auth-record-check": "node src/scripts/check-omada-auth-record.js",
     "omada:ext-portal-proof": "node src/scripts/prove-external-portal-auth.js",
     "omada:hotspot-login-test": "node src/scripts/test-hotspot-operator-login.js",
-    "splashpay:payout-proof": "node src/scripts/prove-splashpay-disbursement.js"
+    "splashpay:payout-proof": "node src/scripts/prove-splashpay-disbursement.js",
+    "wallet:audit": "node src/scripts/audit-tenant-wallets.js"
   },
   "keywords": [],
   "author": "",
