@@ -2,6 +2,31 @@ require('dotenv').config();
 
 const omada = require('../services/omada/open-api-client');
 
+const redactSecrets = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(redactSecrets);
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const result = {};
+
+  for (const [key, item] of Object.entries(value)) {
+    if (/(password|secret|shared.?key|token)/i.test(key)) {
+      result[key] = item ? '[REDACTED]' : item;
+    } else {
+      result[key] = redactSecrets(item);
+    }
+  }
+
+  return result;
+};
+
+const printJson = (value) =>
+  console.log(JSON.stringify(redactSecrets(value), null, 2));
+
 const schemaNames = [
   'PortalSetting',
   'CreateRadiusProfileOpenApiVO',
@@ -16,7 +41,7 @@ const printSchema = (spec, name) => {
     console.log('Not found');
     return;
   }
-  console.log(JSON.stringify(schema, null, 2));
+  printJson(schema);
 };
 
 const printSite = async (site) => {
@@ -29,7 +54,7 @@ const printSite = async (site) => {
   try {
     const portals = await omada.listPortals({ siteId });
     console.log('\nPORTALS:');
-    console.log(JSON.stringify(portals, null, 2));
+    printJson(portals);
 
     const portalRows = Array.isArray(portals)
       ? portals
@@ -43,7 +68,7 @@ const printSite = async (site) => {
       try {
         const detail = await omada.getPortalDetail({ siteId, portalId });
         console.log('\nPORTAL DETAIL ' + portalId + ':');
-        console.log(JSON.stringify(detail, null, 2));
+        printJson(detail);
       } catch (error) {
         console.log('\nPORTAL DETAIL ERROR ' + portalId + ': ' + error.message);
       }
@@ -55,7 +80,7 @@ const printSite = async (site) => {
   try {
     const radius = await omada.listRadiusProfiles({ siteId });
     console.log('\nRADIUS PROFILES:');
-    console.log(JSON.stringify(radius, null, 2));
+    printJson(radius);
   } catch (error) {
     console.log('\nRADIUS PROFILES ERROR:', error.message);
   }
@@ -63,7 +88,7 @@ const printSite = async (site) => {
   try {
     const macAuth = await omada.getMacAuthSetting({ siteId });
     console.log('\nMAC AUTH:');
-    console.log(JSON.stringify(macAuth, null, 2));
+    printJson(macAuth);
   } catch (error) {
     console.log('\nMAC AUTH ERROR:', error.message);
   }
