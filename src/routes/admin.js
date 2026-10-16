@@ -1212,6 +1212,55 @@ router.post('/sites', async (req, res) => {
   }
 });
 
+router.post('/sites/:id/support-phone', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.params.id);
+    const supportPhone = String(req.body.supportPhone || '').trim();
+
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
+    }
+
+    const digits = supportPhone.replace(/\D/g, '');
+    const validTanzanianPhone =
+      /^0[67]\d{8}$/.test(digits) ||
+      /^255[67]\d{8}$/.test(digits);
+
+    if (!validTanzanianPhone) {
+      return res.status(400).send(req.t('sites.invalidSupport'));
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE sites
+        SET
+          support_phone = $3,
+          updated_at = NOW()
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        RETURNING id
+      `,
+      [siteId, selectedOrg.id, supportPhone]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    return res.redirect(
+      '/admin/sites?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&supportUpdated=' +
+      encodeURIComponent(siteId)
+    );
+  } catch (error) {
+    console.error('ADMIN SITE SUPPORT PHONE UPDATE ERROR:', error);
+    return res.status(500).send('Unable to update support phone.');
+  }
+});
+
 router.post('/sites/:id/omada/provision', async (req, res) => {
   try {
     const { selectedOrg } = await getSelectedOrganization(req);
