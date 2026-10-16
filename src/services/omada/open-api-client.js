@@ -488,6 +488,38 @@ const getPortalDetail = async ({ siteId, portalId }) => {
   return data.result || null;
 };
 
+const createRadiusProfile = async ({ siteId, config }) => {
+  const data = await openApi({
+    method: 'POST',
+    path:
+      `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` +
+      '/profiles/radius',
+    body: config
+  });
+
+  return data.result || null;
+};
+
+const updateMacAuthSetting = async ({ siteId, config }) => {
+  const data = await openApi({
+    method: 'PATCH',
+    path: `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}/mac-auth`,
+    body: config
+  });
+
+  return data.result || data;
+};
+
+const createPortal = async ({ siteId, config }) => {
+  const data = await openApi({
+    method: 'POST',
+    path: `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}/portal`,
+    body: config
+  });
+
+  return data.result || null;
+};
+
 const listRadiusProfiles = async ({ siteId }) => {
   const data = await openApi({
     path:
@@ -542,7 +574,10 @@ module.exports = {
   updateSsidBasicConfig,
   listPortals,
   getPortalDetail,
+  createRadiusProfile,
   listRadiusProfiles,
   getMacAuthSetting,
-  getPortalCandidates
+  updateMacAuthSetting,
+  getPortalCandidates,
+  createPortal
 };
