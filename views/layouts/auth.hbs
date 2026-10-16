@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{language}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,5 +9,17 @@
 </head>
 <body class="auth-body">
   {{{body}}}
+
+  <script>
+    (() => {
+      document.querySelectorAll('[data-admin-lang]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('lang', button.dataset.adminLang);
+          window.location.assign(url.toString());
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
