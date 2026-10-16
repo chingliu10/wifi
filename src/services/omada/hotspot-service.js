@@ -183,7 +183,20 @@ const ensurePortal = async ({ remoteSiteId, ssidId, ssidName }) => {
 const enableMacAuth = async ({ remoteSiteId, ssidId, radiusProfileId }) => {
   const current =
     (await omada.getMacAuthSetting({ siteId: remoteSiteId })) || {};
-  const ssids = Array.from(new Set([...(current.ssids || []), ssidId]));
+
+  const currentSsidIds = (current.ssids || [])
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+
+      return item?.ssidId || item?.id || null;
+    })
+    .filter(Boolean);
+
+  const ssids = Array.from(
+    new Set([...currentSsidIds, String(ssidId)])
+  );
 
   await omada.updateMacAuthSetting({
     siteId: remoteSiteId,
