@@ -1,6 +1,8 @@
 const pool = require('../../config/database');
 const {
   findPaymentTransactionByReferenceForUpdate,
+  markPaymentOmadaPortalAuthorized,
+  markPaymentOmadaPortalAuthFailed,
   markPaymentProvisioningActive,
   markPaymentProvisioningFailed
 } = require('../../repositories/payment-transaction-repository');
@@ -9,7 +11,7 @@ const {
   createSubscriptionForPayment
 } = require('../../repositories/subscription-repository');
 const { authorizeSubscription } = require('../radius/radius-service');
-const omada = require('../omada/open-api-client');
+const omadaPortal = require('../omada/external-portal-client');
 
 const recordPaymentWalletEntries = async ({ db, payment }) => {
   if (
