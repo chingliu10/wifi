@@ -1017,6 +1017,7 @@ router.post('/packages', async (req, res) => {
     const durationUnit = String(req.body.durationUnit || 'hours');
 
     const multipliers = {
+      minutes: 60,
       hours: 3600,
       days: 86400
     };
@@ -1024,11 +1025,15 @@ router.post('/packages', async (req, res) => {
     const multiplier = multipliers[durationUnit];
     const durationSeconds = durationValue * multiplier;
 
+    if (Number.isInteger(priceTzs) && priceTzs < 500) {
+      return res.status(400).send('Package price must be at least TZS 500.');
+    }
+
     if (
       !siteId ||
       !packageName ||
       !Number.isInteger(priceTzs) ||
-      priceTzs <= 0 ||
+      priceTzs < 500 ||
       !Number.isFinite(durationValue) ||
       durationValue <= 0 ||
       !multiplier
@@ -1090,31 +1095,34 @@ router.post('/packages/:id', async (req, res) => {
   try {
     const { selectedOrg } = await getSelectedOrganization(req);
     const packageId = Number(req.params.id);
+    const packageName = String(req.body.packageName || '').trim();
     const priceTzs = Number(req.body.priceTzs);
     const active = req.body.active === 'on';
 
     if (
       !selectedOrg ||
       !packageId ||
+      !packageName ||
       !Number.isInteger(priceTzs) ||
-      priceTzs <= 0
+      priceTzs < 500
     ) {
-      return res.status(400).send('Invalid package update.');
+      return res.status(400).send('Package price must be at least TZS 500.');
     }
 
     await pool.query(
       `
         UPDATE packages p
         SET
-          price_tzs = $1,
-          active = $2,
+          name = $1,
+          price_tzs = $2,
+          active = $3,
           updated_at = NOW()
         FROM sites s
-        WHERE p.id = $3
+        WHERE p.id = $4
           AND s.id = p.site_id
-          AND s.organization_id = $4
+          AND s.organization_id = $5
       `,
-      [priceTzs, active, packageId, selectedOrg.id]
+      [packageName, priceTzs, active, packageId, selectedOrg.id]
     );
 
     res.redirect('/admin/packages?org=' + selectedOrg.id);
