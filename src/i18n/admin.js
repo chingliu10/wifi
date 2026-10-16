@@ -231,7 +231,14 @@ const translations = {
     'live.noClients': 'No connected clients found.',
     'live.notLinked': 'This business does not have an Omada-linked site yet.',
     'live.unavailable': 'Unable to read live clients from Omada right now.',
-    'live.refresh': 'Refresh'
+    'live.refresh': 'Refresh',
+    'login.management': 'Business Management',
+    'login.signIn': 'Sign in',
+    'login.subtitle': 'Manage sites, devices, packages, customers and payments.',
+    'login.username': 'Username',
+    'login.password': 'Password',
+    'login.invalid': 'Username or password is incorrect.',
+    'login.error': 'Unable to sign in right now.'
   },
   sw: {
     'language.english': 'English',
@@ -465,7 +472,14 @@ const translations = {
     'live.noClients': 'Hakuna wateja waliounganishwa waliopatikana.',
     'live.notLinked': 'Biashara hii bado haina eneo lililounganishwa na Omada.',
     'live.unavailable': 'Imeshindikana kusoma wateja waliounganishwa kutoka Omada kwa sasa.',
-    'live.refresh': 'Onyesha upya'
+    'live.refresh': 'Onyesha upya',
+    'login.management': 'Usimamizi wa Biashara',
+    'login.signIn': 'Ingia',
+    'login.subtitle': 'Simamia maeneo, vifaa, vifurushi, wateja na malipo.',
+    'login.username': 'Jina la mtumiaji',
+    'login.password': 'Nenosiri',
+    'login.invalid': 'Jina la mtumiaji au nenosiri si sahihi.',
+    'login.error': 'Imeshindikana kuingia kwa sasa.'
   }
 };
 
