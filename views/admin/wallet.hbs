@@ -1,32 +1,62 @@
 <section class="page-head">
   <div>
     <h2>Wallet & payouts</h2>
-    <p>Financial summary for {{#if selectedOrg}}{{selectedOrg.name}}{{/if}}.</p>
+    <p>Exact financial position for {{#if selectedOrg}}{{selectedOrg.name}}{{/if}}.</p>
   </div>
 </section>
 
 <section class="stats-grid">
   <article class="stat-card">
-    <span>Collected in total</span>
-    <strong>{{formatTzs collected}} TZS</strong>
+    <span>Available balance</span>
+    <strong>{{formatTzs wallet.available_balance}} TZS</strong>
+    <small>amount currently owed to this client</small>
+  </article>
+
+  <article class="stat-card">
+    <span>Gross collected</span>
+    <strong>{{formatTzs settlement.gross_collected}} TZS</strong>
     <small>successful customer payments</small>
   </article>
 
   <article class="stat-card">
-    <span>Ledger balance</span>
-    <strong>{{formatTzs wallet.ledger_balance}} TZS</strong>
-    <small>{{wallet.entries}} ledger entries</small>
+    <span>Gateway fees</span>
+    <strong>{{formatTzs wallet.gateway_fees}} TZS</strong>
+    <small>SplashPay processing deductions</small>
+  </article>
+
+  <article class="stat-card">
+    <span>Net collected</span>
+    <strong>{{formatTzs settlement.net_collected}} TZS</strong>
+    <small>gross minus captured gateway fees</small>
+  </article>
+
+  <article class="stat-card">
+    <span>Paid out</span>
+    <strong>{{formatTzs wallet.paid_out}} TZS</strong>
+    <small>client disbursements recorded in the ledger</small>
+  </article>
+
+  <article class="stat-card">
+    <span>Platform fees</span>
+    <strong>{{formatTzs wallet.platform_fees}} TZS</strong>
+    <small>Solidus fees charged to this client</small>
   </article>
 </section>
+
+{{#if settlement.unreconciled_payments}}
+  <div class="notice">
+    {{settlement.unreconciled_payments}} successful payment(s) do not yet have an exact gateway fee/net amount. They are excluded from the reconciled wallet balance until resolved.
+  </div>
+{{/if}}
 
 <section class="panel">
   <div class="panel-head">
     <div>
-      <h3>Payouts</h3>
-      <p>Gateway disbursement will connect here after the gateway's sub-merchant rules are confirmed.</p>
+      <h3>Wallet ledger</h3>
+      <p>{{wallet.entries}} accounting entries. Available balance is the sum of credits, gateway fees, platform fees, payouts and adjustments.</p>
     </div>
   </div>
   <div class="notice">
-    The wallet ledger exists now, but automatic payouts are intentionally not enabled yet.
+    Automatic client payouts are not enabled yet. When payouts are added, each successful payout will create a payout debit and reduce Available balance.
   </div>
 </section>
