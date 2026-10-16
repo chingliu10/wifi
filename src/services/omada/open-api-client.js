@@ -91,8 +91,16 @@ const requestJson = async ({
             try {
               data = JSON.parse(raw);
             } catch (error) {
+              const detail = raw
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 500);
+
               return reject(
-                new Error(`Omada returned non-JSON HTTP ${res.statusCode}`)
+                new Error(
+                  `Omada returned non-JSON HTTP ${res.statusCode}` +
+                  (detail ? `: ${detail}` : '')
+                )
               );
             }
           }
