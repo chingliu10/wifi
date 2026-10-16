@@ -2276,6 +2276,7 @@ const renderWalletPage = async (req, res, {
   selectedOrg,
   withdrawalPreview = null,
   withdrawalForm = null,
+  withdrawalRequestKey = null,
   withdrawalError = null,
   withdrawalSuccess = false
 }) => {
@@ -2291,6 +2292,7 @@ const renderWalletPage = async (req, res, {
     ...pageData,
     withdrawalPreview,
     withdrawalForm,
+    withdrawalRequestKey,
     withdrawalError,
     withdrawalSuccess,
     payoutNetworks: buildPayoutNetworkOptions(
@@ -2405,13 +2407,28 @@ router.post('/wallet/withdraw/confirm', async (req, res) => {
     const phone = String(req.body.phone || '').trim();
     const network = String(req.body.network || 'MPESA').trim();
     const amountTzs = String(req.body.amountTzs || '').trim();
+    const requestKey = String(req.body.requestKey || '')
+      .trim()
+      .toLowerCase();
+
+    if (!/^[a-f0-9]{24}$/.test(requestKey)) {
+      return renderWalletPage(req, res, {
+        organizations,
+        selectedOrg,
+        withdrawalForm: {
+          phone,
+          network,
+          amountTzs
+        },
+        withdrawalError: req.t('wallet.previewExpired')
+      });
+    }
+
     const reference =
       'WDL-' +
       selectedOrg.id +
       '-' +
-      Date.now() +
-      '-' +
-      crypto.randomBytes(4).toString('hex').toUpperCase();
+      requestKey.toUpperCase();
 
     try {
       await requestMobileMoneyPayout({
