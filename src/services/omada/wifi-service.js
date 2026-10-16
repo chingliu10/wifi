@@ -1,6 +1,7 @@
 const pool = require('../../config/database');
 const { normalizeMacAddress } = require('../../utils/mac-address');
 const omada = require('./open-api-client');
+const { provisionHotspot } = require('./hotspot-service');
 
 const toOmadaMac = (value) => {
   const normalized = normalizeMacAddress(value);
@@ -264,11 +265,35 @@ const createSiteWifiNetwork = async ({
     band
   });
 
+  let createdNetwork = null;
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const refreshed = await listSiteWifiNetworks(site.id);
+    createdNetwork = refreshed.find(
+      (network) => network.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (createdNetwork?.ssid_id) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  if (!createdNetwork?.ssid_id) {
+    throw new Error('WiFi network was created but its SSID ID could not be resolved');
+  }
+
+  const hotspot = await provisionHotspot({
+    siteId: site.id,
+    ssidId: createdNetwork.ssid_id,
+    ssidName: name
+  });
+
   return {
     name,
     band,
     bandLabels: describeBandMask(band),
-    wlanId: wlan.wlanId
+    wlanId: createdNetwork.wlan_id,
+    ssidId: createdNetwork.ssid_id,
+    hotspot
   };
 };
 
