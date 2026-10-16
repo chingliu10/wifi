@@ -68,7 +68,6 @@
           <th>Site</th>
           <th>Package</th>
           <th>Gross</th>
-          <th>Provider fee</th>
           <th>Net</th>
           <th>Status</th>
           <th>Paid at</th>
@@ -83,13 +82,6 @@
             <td>{{site_name}}</td>
             <td>{{formatPackageName package_name}}</td>
             <td>{{formatTzs amount_tzs}} TZS</td>
-            <td>
-              {{#if gateway_fee_tzs}}
-                {{formatTzs gateway_fee_tzs}} TZS
-              {{else}}
-                <span class="muted-value">—</span>
-              {{/if}}
-            </td>
             <td>
               {{#if net_amount_tzs}}
                 {{formatTzs net_amount_tzs}} TZS
@@ -109,7 +101,7 @@
             <td><code>{{reference}}</code></td>
           </tr>
         {{else}}
-          <tr><td colspan="10" class="empty">No payments match these filters.</td></tr>
+          <tr><td colspan="9" class="empty">No payments match these filters.</td></tr>
         {{/each}}
       </tbody>
     </table>
