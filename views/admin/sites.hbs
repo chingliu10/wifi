@@ -69,9 +69,47 @@
           <span>{{t 'sites.detectedDevices'}}</span>
           <strong>{{device_count}}</strong>
         </div>
-        <div>
+        <div class="site-support-meta">
           <span>{{t 'sites.support'}}</span>
           <strong>{{support_phone}}</strong>
+
+          <details class="site-support-editor">
+            <summary>{{t 'sites.editSupport'}}</summary>
+
+            <form
+              method="POST"
+              action="/admin/sites/{{id}}/support-phone"
+              class="site-support-form"
+            >
+              <input
+                type="hidden"
+                name="organizationId"
+                value="{{../selectedOrg.id}}"
+              >
+
+              <label>
+                <span>{{t 'sites.supportNumber'}}</span>
+                <input
+                  name="supportPhone"
+                  type="tel"
+                  inputmode="tel"
+                  autocomplete="tel"
+                  maxlength="30"
+                  required
+                  value="{{support_phone}}"
+                  placeholder="07XXXXXXXX"
+                >
+              </label>
+
+              <button type="submit">{{t 'sites.saveSupport'}}</button>
+            </form>
+          </details>
+
+          {{#if support_updated}}
+            <small class="site-support-success">
+              {{t 'sites.supportUpdated'}}
+            </small>
+          {{/if}}
         </div>
         <div>
           <span>{{t 'sites.controllerSite'}}</span>
