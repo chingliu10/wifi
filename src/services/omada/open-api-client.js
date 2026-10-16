@@ -573,17 +573,17 @@ const listClients = async ({
       ? result
       : [];
 
-  const total = Number(
+  const rawTotal =
     result.totalRows ??
     result.total ??
     result.totalNum ??
     result.count ??
-    rows.length
-  );
+    null;
+  const total = rawTotal === null ? null : Number(rawTotal);
 
   return {
     rows,
-    total: Number.isFinite(total) ? total : rows.length,
+    total: Number.isFinite(total) ? total : null,
     page: safePage,
     pageSize: safePageSize
   };
