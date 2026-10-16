@@ -10,6 +10,16 @@ const requiredEnv = (name) => {
   return value;
 };
 
+const optionalMoney = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  const amount = Number(value);
+
+  return Number.isFinite(amount) ? amount : null;
+};
+
 const normalizePhone = (phone) => {
   const digits = String(phone || '').replace(/\D/g, '');
 
@@ -106,7 +116,9 @@ const initiatePayment = async ({
     message: body.message || 'SplashPay payment request sent',
     reference,
     phone: payload.phone,
-    amountTzs: Number(amountTzs)
+    amountTzs: Number(amountTzs),
+    gatewayFeeTzs: optionalMoney(data.fee),
+    netAmountTzs: optionalMoney(data.net_amount)
   };
 };
 
