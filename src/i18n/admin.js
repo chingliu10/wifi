@@ -274,7 +274,13 @@ const translations = {
     'login.username': 'Username',
     'login.password': 'Password',
     'login.invalid': 'Username or password is incorrect.',
-    'login.error': 'Unable to sign in right now.'
+    'login.error': 'Unable to sign in right now.',
+    'pwa.installButton': 'Install app',
+    'pwa.installTitle': 'Install Solidus WiFi',
+    'pwa.installText': 'Add Solidus WiFi to this device for faster access to your dashboard.',
+    'pwa.installIosText': 'On iPhone or iPad, tap Share, then choose Add to Home Screen.',
+    'pwa.installNow': 'Install',
+    'pwa.installLater': 'Later'
   },
   sw: {
     'language.english': 'English',
@@ -551,7 +557,13 @@ const translations = {
     'login.username': 'Jina la mtumiaji',
     'login.password': 'Nenosiri',
     'login.invalid': 'Jina la mtumiaji au nenosiri si sahihi.',
-    'login.error': 'Imeshindikana kuingia kwa sasa.'
+    'login.error': 'Imeshindikana kuingia kwa sasa.',
+    'pwa.installButton': 'Sakinisha app',
+    'pwa.installTitle': 'Sakinisha Solidus WiFi',
+    'pwa.installText': 'Weka Solidus WiFi kwenye kifaa hiki ili ufungue dashibodi kwa urahisi zaidi.',
+    'pwa.installIosText': 'Kwenye iPhone au iPad, bonyeza Share kisha chagua Add to Home Screen.',
+    'pwa.installNow': 'Sakinisha',
+    'pwa.installLater': 'Baadaye'
   }
 };
 
