@@ -157,6 +157,196 @@ const mapSplashPayStatus = (payload) => {
   return null;
 };
 
+const mapSplashPayPayoutStatus = (payload) => {
+  const event = String(payload.event || '').toLowerCase();
+  const data = payload.data || payload;
+  const rawStatus = String(data.status || payload.status || '').toLowerCase();
+
+  if (
+    rawStatus === 'success' ||
+    rawStatus === 'paid' ||
+    rawStatus === 'completed' ||
+    event.endsWith('.success') ||
+    event.endsWith('.paid') ||
+    event.endsWith('.completed')
+  ) {
+    return 'paid';
+  }
+
+  if (
+    rawStatus === 'processing' ||
+    event.endsWith('.processing')
+  ) {
+    return 'processing';
+  }
+
+  if (
+    rawStatus === 'pending' ||
+    event.endsWith('.pending')
+  ) {
+    return 'pending';
+  }
+
+  if (
+    rawStatus === 'failed' ||
+    event.endsWith('.failed')
+  ) {
+    return 'failed';
+  }
+
+  if (
+    rawStatus === 'cancelled' ||
+    rawStatus === 'canceled' ||
+    event.endsWith('.cancelled') ||
+    event.endsWith('.canceled')
+  ) {
+    return 'cancelled';
+  }
+
+  return null;
+};
+
+const processSplashPayDisbursementWebhook = async (payload) => {
+  const data = payload.data || payload;
+  const reference =
+    data.reference ||
+    payload.reference ||
+    null;
+  const providerReference =
+    data.provider_reference ||
+    data.providerReference ||
+    payload.provider_reference ||
+    payload.providerReference ||
+    null;
+
+  if (!reference && !providerReference) {
+    const error = new Error(
+      'Webhook does not contain a disbursement reference'
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let payout = null;
+
+  if (reference) {
+    payout = await findPayoutByReference(reference);
+  }
+
+  if (!payout && providerReference) {
+    payout = await findPayoutByProviderReference(providerReference);
+  }
+
+  if (!payout) {
+    const error = new Error('Payout transaction was not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (reference && reference !== payout.reference) {
+    const error = new Error('Disbursement merchant reference mismatch');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (
+    data.currency &&
+    String(data.currency).toUpperCase() !== 'TZS'
+  ) {
+    const error = new Error('Disbursement currency mismatch');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (
+    data.amount !== undefined &&
+    Number(data.amount) !== Number(payout.amount_tzs)
+  ) {
+    const error = new Error('Disbursement amount mismatch');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const mappedStatus = mapSplashPayPayoutStatus(payload);
+
+  if (!mappedStatus) {
+    return {
+      ignored: true,
+      reference: payout.reference,
+      status: payout.status
+    };
+  }
+
+  const feeTzs =
+    data.fee !== undefined && data.fee !== null
+      ? Number(data.fee)
+      : null;
+  const totalAmountTzs =
+    data.total_amount !== undefined && data.total_amount !== null
+      ? Number(data.total_amount)
+      : data.totalAmount !== undefined && data.totalAmount !== null
+        ? Number(data.totalAmount)
+        : null;
+
+  if (mappedStatus === 'paid') {
+    const completed = await completePayout({
+      reference: payout.reference,
+      providerReference,
+      amountTzs:
+        data.amount !== undefined
+          ? Number(data.amount)
+          : Number(payout.amount_tzs),
+      feeTzs,
+      totalAmountTzs
+    });
+
+    return {
+      ignored: false,
+      reference: completed.reference,
+      status: completed.status
+    };
+  }
+
+  if (
+    mappedStatus === 'failed' ||
+    mappedStatus === 'cancelled'
+  ) {
+    const failed = await failPayout({
+      reference: payout.reference,
+      status: mappedStatus,
+      code:
+        data.code ||
+        payload.code ||
+        null,
+      message:
+        data.message ||
+        payload.message ||
+        null
+    });
+
+    return {
+      ignored: false,
+      reference: failed?.reference || payout.reference,
+      status: failed?.status || mappedStatus
+    };
+  }
+
+  const updated = await updatePayoutProviderState({
+    reference: payout.reference,
+    providerReference,
+    feeTzs,
+    totalAmountTzs,
+    status: mappedStatus
+  });
+
+  return {
+    ignored: false,
+    reference: updated?.reference || payout.reference,
+    status: updated?.status || mappedStatus
+  };
+};
+
+
 
 const resolvePortalSite = async ({ externalSiteId, apMac }) => {
   const normalizedApMac = normalizeMacAddress(apMac);
