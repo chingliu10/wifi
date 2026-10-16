@@ -35,6 +35,13 @@ WHERE p.id = pt.package_id
     OR pt.site_brand_name_snapshot IS NULL
   );
 
+ALTER TABLE payment_transactions
+  ALTER COLUMN package_name_snapshot SET NOT NULL,
+  ALTER COLUMN package_price_tzs_snapshot SET NOT NULL,
+  ALTER COLUMN package_duration_seconds_snapshot SET NOT NULL,
+  ALTER COLUMN site_name_snapshot SET NOT NULL,
+  ALTER COLUMN site_brand_name_snapshot SET NOT NULL;
+
 CREATE OR REPLACE FUNCTION snapshot_payment_transaction_audit_fields()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -78,8 +85,21 @@ EXECUTE FUNCTION snapshot_payment_transaction_audit_fields();
 -- Snapshot fields are historical facts. Status/provider/provisioning fields may
 -- change as a transaction progresses, but the purchased product snapshot may not.
 CREATE OR REPLACE FUNCTION preserve_payment_transaction_audit_snapshot()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $
 BEGIN
+  IF NEW.package_id IS DISTINCT FROM OLD.package_id
+     OR NEW.site_id IS DISTINCT FROM OLD.site_id
+     OR NEW.organization_id IS DISTINCT FROM OLD.organization_id
+     OR NEW.amount_tzs IS DISTINCT FROM OLD.amount_tzs
+     OR NEW.device_id IS DISTINCT FROM OLD.device_id
+     OR NEW.client_mac IS DISTINCT FROM OLD.client_mac
+     OR NEW.phone IS DISTINCT FROM OLD.phone
+     OR NEW.customer_name IS DISTINCT FROM OLD.customer_name THEN
+    RAISE EXCEPTION
+      'Payment transaction identity/purchase fields are immutable after creation (reference %).',
+      OLD.reference;
+  END IF;
+
   NEW.package_name_snapshot := OLD.package_name_snapshot;
   NEW.package_price_tzs_snapshot := OLD.package_price_tzs_snapshot;
   NEW.package_duration_seconds_snapshot := OLD.package_duration_seconds_snapshot;
@@ -88,7 +108,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_preserve_payment_transaction_audit_snapshot
   ON payment_transactions;
