@@ -9,6 +9,7 @@ const {
   getUserFromRequest,
   setSessionCookie,
   clearSessionCookie,
+  changePassword,
   createClientOwner
 } = require('../services/auth-service');
 const omada = require('../services/omada/open-api-client');
@@ -464,6 +465,71 @@ router.use((req, res, next) => {
   req.language = language;
   req.t = (key) => translate(language, key);
   next();
+});
+
+router.get('/account/password', async (req, res) => {
+  const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+  return renderAdmin(req, res, 'admin/change-password', {
+    titleKey: 'account.changePassword',
+    organizations,
+    selectedOrg,
+    success:
+      String(req.query.updated || '') === '1'
+        ? req.t('account.passwordUpdated')
+        : null
+  });
+});
+
+router.post('/account/password', async (req, res) => {
+  const { organizations, selectedOrg } = await getSelectedOrganization(req);
+  const currentPassword = String(req.body.currentPassword || '');
+  const newPassword = String(req.body.newPassword || '');
+  const confirmPassword = String(req.body.confirmPassword || '');
+
+  const renderError = (message) =>
+    renderAdmin(req, res.status(400), 'admin/change-password', {
+      titleKey: 'account.changePassword',
+      organizations,
+      selectedOrg,
+      error: message
+    });
+
+  if (
+    newPassword.length < 8 ||
+    newPassword.length > 128
+  ) {
+    return renderError(req.t('account.passwordInvalid'));
+  }
+
+  if (newPassword !== confirmPassword) {
+    return renderError(req.t('account.passwordMismatch'));
+  }
+
+  try {
+    await changePassword({
+      userId: req.authUser.id,
+      currentPassword,
+      newPassword
+    });
+
+    const token = await createSession(req.authUser.id);
+    setSessionCookie(req, res, token);
+
+    return res.redirect('/admin/account/password?updated=1');
+  } catch (error) {
+    if (error.code === 'INVALID_CURRENT_PASSWORD') {
+      return renderError(req.t('account.currentPasswordWrong'));
+    }
+
+    if (error.code === 'PASSWORD_UNCHANGED') {
+      return renderError(req.t('account.passwordSame'));
+    }
+
+    console.error('ADMIN CHANGE PASSWORD ERROR:', error);
+
+    return res.status(500).send('Unable to change password.');
+  }
 });
 
 router.get('/', async (req, res) => {
