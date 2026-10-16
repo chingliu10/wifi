@@ -333,7 +333,17 @@ router.get('/', async (req, res) => {
               FROM payment_transactions
               WHERE organization_id = $1
                 AND status = 'paid'
-            )::BIGINT AS collected_total
+            )::NUMERIC(18,2) AS collected_total,
+            (
+              SELECT COUNT(*)
+              FROM payment_transactions
+              WHERE organization_id = $1
+                AND status = 'paid'
+                AND (
+                  gateway_fee_tzs IS NULL
+                  OR net_amount_tzs IS NULL
+                )
+            )::INTEGER AS unreconciled_payments
         `,
         [selectedOrg.id]
       ),
@@ -344,6 +354,8 @@ router.get('/', async (req, res) => {
             pt.customer_name,
             pt.phone,
             pt.amount_tzs,
+            pt.gateway_fee_tzs,
+            pt.net_amount_tzs,
             pt.status,
             pt.paid_at,
             p.name AS package_name,
@@ -396,7 +408,20 @@ router.get('/', async (req, res) => {
       ),
       pool.query(
         `
-          SELECT COALESCE(SUM(amount_tzs), 0)::BIGINT AS ledger_balance
+          SELECT
+            COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS available_balance,
+            COALESCE(
+              -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
+              0
+            )::NUMERIC(18,2) AS gateway_fees,
+            COALESCE(
+              -SUM(amount_tzs) FILTER (WHERE entry_type = 'platform_fee'),
+              0
+            )::NUMERIC(18,2) AS platform_fees,
+            COALESCE(
+              -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_debit'),
+              0
+            )::NUMERIC(18,2) AS paid_out
           FROM wallet_entries
           WHERE organization_id = $1
         `,
@@ -412,7 +437,10 @@ router.get('/', async (req, res) => {
       selectedOrg,
       stats: {
         ...statsResult.rows[0],
-        ledger_balance: walletResult.rows[0].ledger_balance
+        available_balance: walletResult.rows[0].available_balance,
+        gateway_fees: walletResult.rows[0].gateway_fees,
+        platform_fees: walletResult.rows[0].platform_fees,
+        paid_out: walletResult.rows[0].paid_out
       },
       recentPayments: recentPaymentsResult.rows,
       checklist: [
@@ -1208,6 +1236,8 @@ router.get('/payments', async (req, res) => {
                 pt.customer_name,
                 pt.phone,
                 pt.amount_tzs,
+                pt.gateway_fee_tzs,
+                pt.net_amount_tzs,
                 pt.status,
                 pt.provider,
                 pt.created_at,
@@ -1337,7 +1367,19 @@ router.get('/wallet', async (req, res) => {
           await pool.query(
             `
               SELECT
-                COALESCE(SUM(amount_tzs), 0)::BIGINT AS ledger_balance,
+                COALESCE(SUM(amount_tzs), 0)::NUMERIC(18,2) AS available_balance,
+                COALESCE(
+                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
+                  0
+                )::NUMERIC(18,2) AS gateway_fees,
+                COALESCE(
+                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'platform_fee'),
+                  0
+                )::NUMERIC(18,2) AS platform_fees,
+                COALESCE(
+                  -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_debit'),
+                  0
+                )::NUMERIC(18,2) AS paid_out,
                 COUNT(*)::INTEGER AS entries
               FROM wallet_entries
               WHERE organization_id = $1
@@ -1345,28 +1387,55 @@ router.get('/wallet', async (req, res) => {
             [selectedOrg.id]
           )
         ).rows[0]
-      : { ledger_balance: 0, entries: 0 };
+      : {
+          available_balance: 0,
+          gateway_fees: 0,
+          platform_fees: 0,
+          paid_out: 0,
+          entries: 0
+        };
 
-    const collected = selectedOrg
+    const settlement = selectedOrg
       ? (
           await pool.query(
             `
-              SELECT COALESCE(SUM(amount_tzs), 0)::BIGINT AS total
+              SELECT
+                COALESCE(
+                  SUM(amount_tzs) FILTER (WHERE status = 'paid'),
+                  0
+                )::NUMERIC(18,2) AS gross_collected,
+                COALESCE(
+                  SUM(net_amount_tzs) FILTER (
+                    WHERE status = 'paid'
+                      AND net_amount_tzs IS NOT NULL
+                  ),
+                  0
+                )::NUMERIC(18,2) AS net_collected,
+                COUNT(*) FILTER (
+                  WHERE status = 'paid'
+                    AND (
+                      gateway_fee_tzs IS NULL
+                      OR net_amount_tzs IS NULL
+                    )
+                )::INTEGER AS unreconciled_payments
               FROM payment_transactions
               WHERE organization_id = $1
-                AND status = 'paid'
             `,
             [selectedOrg.id]
           )
-        ).rows[0].total
-      : 0;
+        ).rows[0]
+      : {
+          gross_collected: 0,
+          net_collected: 0,
+          unreconciled_payments: 0
+        };
 
     return renderAdmin(req, res, 'admin/wallet', {
       title: 'Wallet & payouts',
       organizations,
       selectedOrg,
       wallet,
-      collected
+      settlement
     });
   } catch (error) {
     console.error('ADMIN WALLET ERROR:', error);
