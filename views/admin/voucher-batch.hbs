@@ -77,10 +77,10 @@
       <tbody>
         {{#each vouchers}}
           <tr>
-            <td data-label="#"> {{id}}</td>
+            <td data-label="#">{{row_number}}</td>
             <td data-label="{{t 'vouchers.code'}}"><code class="voucher-code-value">{{code}}</code></td>
             <td data-label="{{t 'vouchers.status'}}">
-              <span class="status-pill status-{{status}}">{{status}}</span>
+              <span class="status-pill status-{{status}}">{{statusLabel status}}</span>
             </td>
             <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
           </tr>
