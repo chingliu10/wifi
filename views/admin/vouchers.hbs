@@ -1,0 +1,176 @@
+<section class="page-head">
+  <div>
+    <h2>{{t 'vouchers.title'}}</h2>
+    <p>{{t 'vouchers.subtitle'}}</p>
+  </div>
+</section>
+
+{{#if error}}
+  <div class="notice notice-error">{{error}}</div>
+{{/if}}
+
+<div class="notice voucher-safety-note">
+  {{t 'vouchers.portalSafety'}}
+</div>
+
+{{#if selectedOrg}}
+  {{#if sites}}
+    {{#if packages}}
+      <section class="panel form-panel voucher-create-panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'vouchers.createBatch'}}</h3>
+            <p>{{t 'vouchers.createHint'}}</p>
+          </div>
+        </div>
+
+        <form method="POST" action="/admin/vouchers/batches" class="admin-form" id="voucher-batch-form">
+          <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+          <div class="form-grid">
+            <label>
+              <span>{{t 'common.site'}}</span>
+              <select name="siteId" id="voucher-site" required>
+                {{#each sites}}
+                  <option value="{{id}}">{{name}}</option>
+                {{/each}}
+              </select>
+            </label>
+
+            <label>
+              <span>{{t 'common.package'}}</span>
+              <select name="packageId" id="voucher-package" required>
+                {{#each packages}}
+                  <option
+                    value="{{id}}"
+                    data-site-id="{{site_id}}"
+                    data-site-name="{{site_name}}"
+                  >
+                    {{site_name}} — {{name}} — {{formatTzs price_tzs}} TZS / {{formatDuration duration_seconds}}
+                  </option>
+                {{/each}}
+              </select>
+            </label>
+
+            <label>
+              <span>{{t 'vouchers.quantity'}}</span>
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                max="{{maxBatchQuantity}}"
+                step="1"
+                value="10"
+                required
+              >
+              <small class="muted-copy">{{t 'vouchers.maxQuantity'}}: {{maxBatchQuantity}}</small>
+            </label>
+
+            <label>
+              <span>{{t 'vouchers.expiry'}}</span>
+              <input name="redeemableUntil" type="date">
+              <small class="muted-copy">{{t 'vouchers.expiryHint'}}</small>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit">{{t 'vouchers.generate'}}</button>
+          </div>
+        </form>
+      </section>
+    {{else}}
+      <div class="notice">{{t 'vouchers.noSites'}}</div>
+    {{/if}}
+  {{else}}
+    <div class="notice">{{t 'vouchers.noSites'}}</div>
+  {{/if}}
+
+  <section class="panel table-panel voucher-batches-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'vouchers.batches'}}</h3>
+        <p>{{t 'vouchers.batchesHint'}}</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="responsive-table">
+        <thead>
+          <tr>
+            <th>{{t 'vouchers.reference'}}</th>
+            <th>{{t 'common.site'}}</th>
+            <th>{{t 'common.package'}}</th>
+            <th>{{t 'vouchers.generated'}}</th>
+            <th>{{t 'vouchers.unused'}}</th>
+            <th>{{t 'vouchers.redeemed'}}</th>
+            <th>{{t 'vouchers.expired'}}</th>
+            <th>{{t 'vouchers.created'}}</th>
+            <th>{{t 'common.actions'}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each batches}}
+            <tr>
+              <td data-label="{{t 'vouchers.reference'}}"><strong>{{batch_reference}}</strong></td>
+              <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+              <td data-label="{{t 'common.package'}}">
+                <strong>{{package_name_snapshot}}</strong>
+                <small>{{formatTzs package_price_tzs_snapshot}} TZS · {{formatDuration package_duration_seconds_snapshot}}</small>
+              </td>
+              <td data-label="{{t 'vouchers.generated'}}">{{generated_count}}</td>
+              <td data-label="{{t 'vouchers.unused'}}">{{unused_count}}</td>
+              <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_count}}</td>
+              <td data-label="{{t 'vouchers.expired'}}">{{expired_count}}</td>
+              <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
+              <td data-label="{{t 'common.actions'}}">
+                <a class="voucher-view-link" href="/admin/vouchers/batches/{{id}}?org={{../selectedOrg.id}}">
+                  {{t 'vouchers.viewCodes'}}
+                </a>
+              </td>
+            </tr>
+          {{else}}
+            <tr><td colspan="9" class="empty">{{t 'vouchers.noBatches'}}</td></tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    {{> admin-pagination pagination}}
+  </section>
+{{/if}}
+
+<script>
+  (() => {
+    const siteSelect = document.getElementById('voucher-site');
+    const packageSelect = document.getElementById('voucher-package');
+
+    if (!siteSelect || !packageSelect) return;
+
+    const options = Array.from(packageSelect.options);
+
+    const syncPackages = () => {
+      const siteId = String(siteSelect.value);
+      let firstVisible = null;
+
+      options.forEach((option) => {
+        const matches = String(option.dataset.siteId || '') === siteId;
+        option.hidden = !matches;
+        option.disabled = !matches;
+
+        if (matches && !firstVisible) {
+          firstVisible = option;
+        }
+      });
+
+      if (
+        !packageSelect.selectedOptions.length ||
+        packageSelect.selectedOptions[0].disabled
+      ) {
+        packageSelect.value = firstVisible?.value || '';
+      }
+    };
+
+    siteSelect.addEventListener('change', syncPackages);
+    syncPackages();
+  })();
+</script>
