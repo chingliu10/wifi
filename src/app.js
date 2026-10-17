@@ -385,10 +385,14 @@ const resolvePortalSite = async ({ externalSiteId, apMac }) => {
           COALESCE(s.brand_name, s.name || ' WiFi') AS brand_name,
           s.support_phone,
           s.primary_color,
-          s.external_portal_site_id
+          s.external_portal_site_id,
+          o.vouchers_enabled,
+          o.voucher_portal_enabled
         FROM sites s
+        JOIN organizations o ON o.id = s.organization_id
         LEFT JOIN network_devices nd ON nd.site_id = s.id
         WHERE s.active = true
+          AND o.active = true
           AND ($1::text IS NULL OR s.external_portal_site_id = $1)
           AND ($2::text IS NULL OR nd.ap_mac = $2)
         LIMIT 1
