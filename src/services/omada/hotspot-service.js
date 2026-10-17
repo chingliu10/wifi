@@ -252,6 +252,7 @@ const disableMacAuthForSsid = async ({
   return {
     ...updated,
     solidusSsidMacAuthDisabled:
+      updated.enable === false ||
       !updatedSsidIds.includes(targetSsidId)
   };
 };
@@ -289,7 +290,8 @@ const provisionHotspot = async ({ siteId, ssidId, ssidName }) => {
     radiusProfileId: radiusProfile.radiusProfileId,
     portalId: portal.portalId || portal.id || null,
     macAuthEnabled: Boolean(macAuth?.enable),
-    macAuthFallbackEnabled: Boolean(macAuth?.mabEnable),
+    macAuthFallbackEnabled:
+      Boolean(macAuth?.enable && macAuth?.mabEnable),
     solidusSsidMacAuthDisabled:
       Boolean(macAuth?.solidusSsidMacAuthDisabled)
   };
