@@ -30,6 +30,42 @@ const findActiveSubscriptionByDeviceId = async (deviceId) => {
   return result.rows[0] || null;
 };
 
+const findActiveSubscriptionByDeviceAndSite = async ({
+  deviceId,
+  siteId
+}) => {
+  const result = await pool.query(
+    `
+      SELECT
+        sub.id,
+        sub.site_id,
+        sub.device_id,
+        sub.package_id,
+        sub.payment_id,
+        sub.payment_transaction_id,
+        sub.client_mac,
+        sub.starts_at,
+        sub.expires_at,
+        sub.status,
+        p.name AS package_name,
+        p.duration_seconds AS package_duration_seconds
+      FROM subscriptions sub
+      JOIN packages p ON p.id = sub.package_id
+      WHERE sub.device_id = $1
+        AND sub.site_id = $2
+        AND sub.status = 'active'
+        AND sub.starts_at <= NOW()
+        AND sub.expires_at > NOW()
+      ORDER BY sub.expires_at DESC
+      LIMIT 1
+    `,
+    [deviceId, siteId]
+  );
+
+  return result.rows[0] || null;
+};
+
+
 const findSubscriptionByPaymentTransactionId = async ({
   db,
   paymentTransactionId
@@ -167,6 +203,7 @@ const createOrExtendSubscription = async ({
 
 module.exports = {
   findActiveSubscriptionByDeviceId,
+  findActiveSubscriptionByDeviceAndSite,
   findSubscriptionByPaymentTransactionId,
   createSubscriptionForPayment,
   createOrExtendSubscription
