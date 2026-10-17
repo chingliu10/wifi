@@ -19,7 +19,8 @@ const {
   updatePaymentStatus
 } = require('./repositories/payment-transaction-repository');
 const {
-  findSubscriptionByPaymentTransactionId
+  findSubscriptionByPaymentTransactionId,
+  findActiveSubscriptionByDeviceAndSite
 } = require('./repositories/subscription-repository');
 const {
   findPayoutByReference,
@@ -32,6 +33,7 @@ const { initiatePayment, checkPaymentStatus } = require('./services/payments/pay
 const {
   activateSubscriptionForPayment
 } = require('./services/subscriptions/subscription-service');
+const omadaPortal = require('./services/omada/external-portal-client');
 const adminRouter = require('./routes/admin');
 const { translate } = require('./i18n/admin');
 
@@ -993,6 +995,100 @@ app.get('/portal', async (req, res) => {
     }
 
     const device = await getOrCreateDevice(clientMac);
+    const activeSubscription = await findActiveSubscriptionByDeviceAndSite({
+      deviceId: device.id,
+      siteId: siteConfig.id
+    });
+
+    /*
+     * Omada MAC-Based Authentication is intentionally not used for paid
+     * session lifetime enforcement. On the tested controller/AP combination,
+     * a successful MAC Auth Access-Accept creates an approximately 100-year
+     * Omada authorization and ignores the RADIUS Session-Timeout.
+     *
+     * When a previously-paid client is redirected back to this portal, reuse
+     * the still-active subscription and authorize the current captive session
+     * through External Portal Server for only the remaining subscription time.
+     */
+    if (activeSubscription) {
+      const remainingMs = Math.max(
+        0,
+        new Date(activeSubscription.expires_at).getTime() - Date.now()
+      );
+      const hasPortalContext =
+        Boolean(String(clientIp || '').trim()) &&
+        Boolean(String(apMac || '').trim()) &&
+        Boolean(String(ssidName || '').trim()) &&
+        radioId !== undefined &&
+        radioId !== null &&
+        String(radioId).trim() !== '';
+
+      if (remainingMs > 0 && hasPortalContext) {
+        try {
+          await omadaPortal.authorizeExternalPortalClient({
+            clientMac,
+            clientIp,
+            apMac,
+            ssidName,
+            radioId,
+            durationMs: remainingMs,
+            originUrl: redirectUrl || ''
+          });
+
+          console.log('OMADA ACTIVE SUBSCRIPTION REAUTHORIZED:', {
+            siteId: siteConfig.id,
+            clientMac: normalizeMacAddress(clientMac),
+            subscriptionId: activeSubscription.id,
+            remainingMs
+          });
+
+          return res.render('portal/confirm', {
+            title: 'Umeunganishwa',
+            siteConfig,
+            package: {
+              name: activeSubscription.package_name
+            },
+            subscription: activeSubscription,
+            paymentActive: true,
+            paymentPaid: true
+          });
+        } catch (error) {
+          console.error('OMADA ACTIVE SUBSCRIPTION REAUTH ERROR:', {
+            siteId: siteConfig.id,
+            clientMac: normalizeMacAddress(clientMac),
+            subscriptionId: activeSubscription.id,
+            error: error.message
+          });
+
+          return res.status(503).render('portal/index', {
+            title: siteConfig.brand_name,
+            packages: [],
+            device,
+            siteConfig,
+            portal: {
+              ...portalContext,
+              clientMac
+            },
+            error:
+              'Kifurushi chako bado kina muda, lakini tumeshindwa kukuunganisha tena. Zima Wi-Fi, washa tena, kisha ujaribu.'
+          });
+        }
+      }
+
+      return res.status(400).render('portal/index', {
+        title: siteConfig.brand_name,
+        packages: [],
+        device,
+        siteConfig,
+        portal: {
+          ...portalContext,
+          clientMac
+        },
+        error:
+          'Kifurushi chako bado kina muda, lakini taarifa za kuunganisha WiFi hazijakamilika. Unganisha tena kwenye WiFi.'
+      });
+    }
+
     const savedCustomer = await findLatestCustomerByDeviceId(device.id);
 
     res.render('portal/index', {
