@@ -1081,3 +1081,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
     grid-template-columns:1fr
   }
 }
+
+.status-redeemed{color:var(--success);background:#eaf8ee}
+.status-unused{color:#475467;background:#f2f4f7}
