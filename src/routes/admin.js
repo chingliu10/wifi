@@ -277,6 +277,8 @@ const getOrganizations = async (user) => {
           owner_name,
           owner_phone,
           active,
+          vouchers_enabled,
+          voucher_portal_enabled,
           created_at
         FROM organizations
         WHERE id = $1
@@ -297,6 +299,8 @@ const getOrganizations = async (user) => {
       owner_name,
       owner_phone,
       active,
+      vouchers_enabled,
+      voucher_portal_enabled,
       created_at
     FROM organizations
     WHERE active = TRUE
