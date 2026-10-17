@@ -180,7 +180,11 @@ const ensurePortal = async ({ remoteSiteId, ssidId, ssidName }) => {
   return created;
 };
 
-const enableMacAuth = async ({ remoteSiteId, ssidId, radiusProfileId }) => {
+const disableMacAuthForSsid = async ({
+  remoteSiteId,
+  ssidId,
+  radiusProfileId
+}) => {
   const current =
     (await omada.getMacAuthSetting({ siteId: remoteSiteId })) || {};
 
@@ -192,26 +196,64 @@ const enableMacAuth = async ({ remoteSiteId, ssidId, radiusProfileId }) => {
 
       return item?.ssidId || item?.id || null;
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(String);
 
-  const ssids = Array.from(
-    new Set([...currentSsidIds, String(ssidId)])
+  const targetSsidId = String(ssidId);
+  const remainingSsidIds = currentSsidIds.filter(
+    (id) => id !== targetSsidId
   );
 
+  /*
+   * Do not use Omada MAC-Based Authentication on Solidus paid SSIDs.
+   * The tested Omada controller/AP accepts the RADIUS Access-Accept but
+   * creates an approximately 100-year MAC Auth authorization instead of
+   * enforcing RADIUS Session-Timeout. External Portal Server auth is used
+   * for paid access because its duration is enforced correctly.
+   *
+   * Preserve MAC auth for any other SSIDs that may already use it.
+   */
   await omada.updateMacAuthSetting({
     siteId: remoteSiteId,
     config: {
-      enable: true,
-      ssids,
-      radiusProfileId,
-      mabEnable: true,
-      macFormat: 2,
-      emptyPwdEnable: false,
+      enable: remainingSsidIds.length > 0,
+      ssids: remainingSsidIds,
+      radiusProfileId:
+        current.radiusProfileId ||
+        current.radius_profile_id ||
+        radiusProfileId,
+      mabEnable:
+        remainingSsidIds.length > 0
+          ? Boolean(current.mabEnable)
+          : false,
+      macFormat:
+        current.macFormat === undefined || current.macFormat === null
+          ? 2
+          : current.macFormat,
+      emptyPwdEnable: Boolean(current.emptyPwdEnable),
       nasId: String(current.nasId || '')
     }
   });
 
-  return omada.getMacAuthSetting({ siteId: remoteSiteId });
+  const updated =
+    (await omada.getMacAuthSetting({ siteId: remoteSiteId })) || {};
+
+  const updatedSsidIds = (updated.ssids || [])
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+
+      return item?.ssidId || item?.id || null;
+    })
+    .filter(Boolean)
+    .map(String);
+
+  return {
+    ...updated,
+    solidusSsidMacAuthDisabled:
+      !updatedSsidIds.includes(targetSsidId)
+  };
 };
 
 const provisionHotspot = async ({ siteId, ssidId, ssidName }) => {
@@ -233,7 +275,7 @@ const provisionHotspot = async ({ siteId, ssidId, ssidName }) => {
     ssidId,
     ssidName
   });
-  const macAuth = await enableMacAuth({
+  const macAuth = await disableMacAuthForSsid({
     remoteSiteId: site.external_portal_site_id,
     ssidId,
     radiusProfileId: radiusProfile.radiusProfileId
@@ -247,7 +289,9 @@ const provisionHotspot = async ({ siteId, ssidId, ssidName }) => {
     radiusProfileId: radiusProfile.radiusProfileId,
     portalId: portal.portalId || portal.id || null,
     macAuthEnabled: Boolean(macAuth?.enable),
-    macAuthFallbackEnabled: Boolean(macAuth?.mabEnable)
+    macAuthFallbackEnabled: Boolean(macAuth?.mabEnable),
+    solidusSsidMacAuthDisabled:
+      Boolean(macAuth?.solidusSsidMacAuthDisabled)
   };
 };
 
