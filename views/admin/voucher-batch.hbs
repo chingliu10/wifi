@@ -1,0 +1,118 @@
+<section class="page-head">
+  <div>
+    <h2>{{t 'vouchers.batchTitle'}} · {{batch.batch_reference}}</h2>
+    <p>{{t 'vouchers.batchHint'}}</p>
+  </div>
+
+  <div class="voucher-page-actions">
+    <a class="secondary-button voucher-action-link" href="/admin/vouchers?org={{selectedOrg.id}}">
+      {{t 'vouchers.back'}}
+    </a>
+    <a
+      class="primary-link"
+      href="/admin/vouchers/batches/{{batch.id}}/export.csv?org={{selectedOrg.id}}"
+    >
+      {{t 'vouchers.exportCsv'}}
+    </a>
+  </div>
+</section>
+
+{{#if created}}
+  <div class="notice notice-success">
+    {{t 'vouchers.generatedNotice'}}
+  </div>
+{{/if}}
+
+<section class="voucher-batch-summary-grid">
+  <article class="stat-card">
+    <span>{{t 'common.site'}}</span>
+    <strong>{{batch.site_name}}</strong>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'common.package'}}</span>
+    <strong>{{batch.package_name_snapshot}}</strong>
+    <small>{{formatTzs batch.package_price_tzs_snapshot}} TZS · {{formatDuration batch.package_duration_seconds_snapshot}}</small>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'vouchers.generated'}}</span>
+    <strong>{{batch.quantity}}</strong>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'vouchers.redeemableUntil'}}</span>
+    <strong>
+      {{#if batch.redeemable_until}}
+        {{formatDate batch.redeemable_until}}
+      {{else}}
+        {{t 'vouchers.never'}}
+      {{/if}}
+    </strong>
+  </article>
+</section>
+
+<section class="panel table-panel voucher-code-panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'vouchers.code'}}</h3>
+      <p>{{t 'vouchers.packageTerms'}}: {{batch.package_name_snapshot}}</p>
+    </div>
+
+    <button type="button" class="voucher-copy-button" id="copy-voucher-codes">
+      {{t 'vouchers.copyAll'}}
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>{{t 'vouchers.code'}}</th>
+          <th>{{t 'vouchers.status'}}</th>
+          <th>{{t 'vouchers.created'}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each vouchers}}
+          <tr>
+            <td data-label="#"> {{id}}</td>
+            <td data-label="{{t 'vouchers.code'}}"><code class="voucher-code-value">{{code}}</code></td>
+            <td data-label="{{t 'vouchers.status'}}">
+              <span class="status-pill status-{{status}}">{{status}}</span>
+            </td>
+            <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const button = document.getElementById('copy-voucher-codes');
+
+    if (!button) return;
+
+    button.addEventListener('click', async () => {
+      const codes = Array.from(
+        document.querySelectorAll('.voucher-code-value')
+      ).map((node) => node.textContent.trim());
+
+      if (!codes.length) return;
+
+      try {
+        await navigator.clipboard.writeText(codes.join('\n'));
+        const original = button.textContent;
+        button.textContent = '✓';
+        window.setTimeout(() => {
+          button.textContent = original;
+        }, 1200);
+      } catch (error) {
+        // Clipboard APIs may be restricted in some browsers; CSV export remains available.
+      }
+    });
+  })();
+</script>
