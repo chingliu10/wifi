@@ -60,6 +60,10 @@ const run = async () => {
     'MAC auth fallback enabled:',
     result.macAuthFallbackEnabled ? 'yes' : 'no'
   );
+  console.log(
+    'Solidus SSID MAC auth disabled:',
+    result.solidusSsidMacAuthDisabled ? 'yes' : 'no'
+  );
 };
 
 run()
