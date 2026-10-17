@@ -387,6 +387,7 @@ const getVoucherBatch = async ({
       `
         SELECT
           v.id,
+          ROW_NUMBER() OVER (ORDER BY v.id)::INTEGER AS row_number,
           v.code_enc,
           v.code_last4,
           CASE
