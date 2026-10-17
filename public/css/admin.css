@@ -941,3 +941,143 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
     font-size:8px
   }
 }
+
+
+/* Voucher administration */
+.voucher-feature-panel{
+  margin:14px 0 0
+}
+.voucher-feature-panel .panel-head{
+  align-items:flex-start;
+  gap:16px
+}
+.voucher-feature-panel .panel-head p{
+  max-width:760px;
+  line-height:1.55
+}
+.voucher-feature-form{
+  display:flex;
+  justify-content:flex-end
+}
+.voucher-feature-form .secondary-button,
+.voucher-feature-form .primary-action-button{
+  min-width:150px
+}
+.voucher-safety-note{
+  margin:0 0 14px;
+  border:1px solid #cfe7df;
+  background:#f4fbf8;
+  color:#41665f
+}
+.voucher-create-panel{
+  margin-bottom:14px
+}
+.voucher-batches-panel{
+  margin-top:14px
+}
+.voucher-view-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:34px;
+  padding:7px 10px;
+  border:1px solid #b8d8d0;
+  border-radius:8px;
+  color:var(--accent);
+  background:#f3fbf8;
+  font-size:11px;
+  font-weight:800;
+  text-decoration:none
+}
+.voucher-page-actions{
+  display:flex;
+  align-items:center;
+  gap:8px
+}
+.voucher-action-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none
+}
+.voucher-batch-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:14px
+}
+.voucher-batch-summary-grid .stat-card strong{
+  font-size:16px;
+  overflow-wrap:anywhere
+}
+.voucher-copy-button{
+  padding:8px 11px;
+  border:1px solid #b8d8d0;
+  border-radius:8px;
+  color:var(--accent);
+  background:#f3fbf8;
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer
+}
+.voucher-code-value{
+  display:inline-block;
+  padding:5px 7px;
+  border:1px solid #d9e1ea;
+  border-radius:7px;
+  color:#25324a;
+  background:#f8fafc;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em
+}
+
+@media(max-width:1000px){
+  .voucher-batch-summary-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+
+@media(max-width:760px){
+  .voucher-feature-panel .panel-head{
+    align-items:stretch;
+    flex-direction:column
+  }
+
+  .voucher-feature-form{
+    justify-content:stretch
+  }
+
+  .voucher-feature-form .secondary-button,
+  .voucher-feature-form .primary-action-button{
+    width:100%
+  }
+
+  .voucher-page-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr
+  }
+
+  .voucher-page-actions a{
+    width:100%;
+    text-align:center
+  }
+
+  .voucher-code-panel .panel-head{
+    align-items:stretch;
+    flex-direction:column;
+    gap:10px
+  }
+
+  .voucher-copy-button{
+    width:100%
+  }
+}
+
+@media(max-width:430px){
+  .voucher-batch-summary-grid{
+    grid-template-columns:1fr
+  }
+}
