@@ -32,6 +32,13 @@ const {
   requestMobileMoneyPayout,
   mobileMoneyNetworks
 } = require('../services/payouts/payout-service');
+const {
+  MAX_BATCH_QUANTITY,
+  getVoucherAdminOptions,
+  createVoucherBatch,
+  listVoucherBatches,
+  getVoucherBatch
+} = require('../services/vouchers/voucher-service');
 
 const router = express.Router();
 
@@ -356,6 +363,65 @@ const renderAdmin = (req, res, view, data) => {
     currentUser: req.authUser,
     isSuperAdmin: req.authUser?.role === 'super_admin',
     isClientOwner: req.authUser?.role === 'client_owner'
+  });
+};
+
+const ensureVoucherFeatureEnabled = (selectedOrg) => {
+  if (!selectedOrg?.vouchers_enabled) {
+    const error = new Error('Voucher management is not enabled for this client');
+    error.statusCode = 404;
+    throw error;
+  }
+};
+
+const csvCell = (value) => {
+  const text = String(value ?? '');
+
+  if (!/[",\n\r]/.test(text)) {
+    return text;
+  }
+
+  return '"' + text.replace(/"/g, '""') + '"';
+};
+
+const renderVoucherAdmin = async ({
+  req,
+  res,
+  organizations,
+  selectedOrg,
+  error = null
+}) => {
+  ensureVoucherFeatureEnabled(selectedOrg);
+
+  const page = getPage(req.query.page);
+  const [{ sites, packages }, batchResult] = await Promise.all([
+    getVoucherAdminOptions(selectedOrg.id),
+    listVoucherBatches({
+      organizationId: selectedOrg.id,
+      page,
+      pageSize: ADMIN_PAGE_SIZE
+    })
+  ]);
+
+  const pagination = buildPagination({
+    page,
+    total: batchResult.total,
+    basePath: '/admin/vouchers',
+    query: {
+      org: selectedOrg.id
+    }
+  });
+
+  return renderAdmin(req, res, 'admin/vouchers', {
+    titleKey: 'vouchers.title',
+    organizations,
+    selectedOrg,
+    sites,
+    packages,
+    batches: batchResult.batches,
+    pagination,
+    maxBatchQuantity: MAX_BATCH_QUANTITY,
+    error
   });
 };
 
@@ -738,6 +804,12 @@ router.get('/', async (req, res) => {
         paid_out: walletResult.rows[0].paid_out
       },
       recentPayments: recentPaymentsResult.rows,
+      voucherFeatureUpdated:
+        String(req.query.voucherFeature || '') === 'enabled'
+          ? 'enabled'
+          : String(req.query.voucherFeature || '') === 'disabled'
+            ? 'disabled'
+            : null,
       checklist: [
         { label: req.t('checklist.site'), done: setup.has_site },
         { label: req.t('checklist.device'), done: setup.has_device },
@@ -841,6 +913,210 @@ router.post('/clients', requireSuperAdmin, async (req, res) => {
     res.status(500).send('Unable to create client.');
   } finally {
     client.release();
+  }
+});
+
+router.post(
+  '/organizations/:id/features/vouchers',
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const organizationId = Number(req.params.id);
+      const enabled =
+        String(req.body.enabled || '').toLowerCase() === 'true' ||
+        String(req.body.enabled || '') === '1' ||
+        String(req.body.enabled || '').toLowerCase() === 'on';
+
+      if (!organizationId) {
+        return res.status(400).send('Invalid client.');
+      }
+
+      const updated = await pool.query(
+        `
+          UPDATE organizations
+          SET
+            vouchers_enabled = $2,
+            voucher_portal_enabled = CASE
+              WHEN $2 = FALSE THEN FALSE
+              ELSE voucher_portal_enabled
+            END,
+            updated_at = NOW()
+          WHERE id = $1
+            AND active = TRUE
+          RETURNING id
+        `,
+        [organizationId, enabled]
+      );
+
+      if (!updated.rows[0]) {
+        return res.status(404).send('Client not found.');
+      }
+
+      return res.redirect(
+        '/admin?org=' +
+          organizationId +
+          '&voucherFeature=' +
+          (enabled ? 'enabled' : 'disabled')
+      );
+    } catch (error) {
+      console.error('ADMIN VOUCHER FEATURE UPDATE ERROR:', error);
+      return res.status(500).send('Unable to update voucher feature.');
+    }
+  }
+);
+
+router.get('/vouchers', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    return await renderVoucherAdmin({
+      req,
+      res,
+      organizations,
+      selectedOrg
+    });
+  } catch (error) {
+    console.error('ADMIN VOUCHERS ERROR:', error);
+
+    if (error.statusCode === 404) {
+      return res.status(404).send('Not found.');
+    }
+
+    return res.status(500).send('Unable to load vouchers.');
+  }
+});
+
+router.post('/vouchers/batches', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    ensureVoucherFeatureEnabled(selectedOrg);
+
+    const created = await createVoucherBatch({
+      organizationId: selectedOrg.id,
+      siteId: Number(req.body.siteId),
+      packageId: Number(req.body.packageId),
+      quantity: req.body.quantity,
+      redeemableUntil: req.body.redeemableUntil,
+      createdByUserId: req.authUser.id
+    });
+
+    return res.redirect(
+      '/admin/vouchers/batches/' +
+        created.batch.id +
+        '?org=' +
+        selectedOrg.id +
+        '&created=1'
+    );
+  } catch (error) {
+    console.error('ADMIN VOUCHER BATCH CREATE ERROR:', error);
+
+    if (error.statusCode === 404) {
+      return res.status(404).send('Not found.');
+    }
+
+    try {
+      const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+      return await renderVoucherAdmin({
+        req,
+        res: res.status(400),
+        organizations,
+        selectedOrg,
+        error: error.message
+      });
+    } catch (renderError) {
+      console.error('ADMIN VOUCHER ERROR RENDER FAILED:', renderError);
+      return res.status(400).send('Unable to create voucher batch.');
+    }
+  }
+});
+
+router.get('/vouchers/batches/:id', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    ensureVoucherFeatureEnabled(selectedOrg);
+
+    const batchView = await getVoucherBatch({
+      organizationId: selectedOrg.id,
+      batchId: Number(req.params.id),
+      includeCodes: true
+    });
+
+    if (!batchView) {
+      return res.status(404).send('Voucher batch not found.');
+    }
+
+    return renderAdmin(req, res, 'admin/voucher-batch', {
+      titleKey: 'vouchers.batchTitle',
+      organizations,
+      selectedOrg,
+      batch: batchView.batch,
+      vouchers: batchView.vouchers,
+      created: String(req.query.created || '') === '1'
+    });
+  } catch (error) {
+    console.error('ADMIN VOUCHER BATCH ERROR:', error);
+
+    if (error.statusCode === 404) {
+      return res.status(404).send('Not found.');
+    }
+
+    return res.status(500).send('Unable to load voucher batch.');
+  }
+});
+
+router.get('/vouchers/batches/:id/export.csv', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    ensureVoucherFeatureEnabled(selectedOrg);
+
+    const batchView = await getVoucherBatch({
+      organizationId: selectedOrg.id,
+      batchId: Number(req.params.id),
+      includeCodes: true
+    });
+
+    if (!batchView) {
+      return res.status(404).send('Voucher batch not found.');
+    }
+
+    const rows = [
+      ['Code', 'Status', 'Site', 'Package', 'Duration seconds', 'Redeemable until'],
+      ...batchView.vouchers.map((voucher) => [
+        voucher.code,
+        voucher.status,
+        batchView.batch.site_name,
+        batchView.batch.package_name_snapshot,
+        batchView.batch.package_duration_seconds_snapshot,
+        batchView.batch.redeemable_until
+          ? new Date(batchView.batch.redeemable_until).toISOString()
+          : ''
+      ])
+    ];
+
+    const csv =
+      rows.map((row) => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+    const safeReference = String(batchView.batch.batch_reference || 'vouchers')
+      .replace(/[^A-Za-z0-9_-]/g, '_');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="' + safeReference + '.csv"'
+    );
+
+    return res.send('\uFEFF' + csv);
+  } catch (error) {
+    console.error('ADMIN VOUCHER CSV ERROR:', error);
+
+    if (error.statusCode === 404) {
+      return res.status(404).send('Not found.');
+    }
+
+    return res.status(500).send('Unable to export vouchers.');
   }
 });
 
