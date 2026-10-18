@@ -129,6 +129,18 @@ const formatLiveClientDuration = (value) => {
   return `${minutes}m`;
 };
 
+const firstFiniteNumber = (...values) => {
+  for (const value of values) {
+    const number = Number(value);
+
+    if (Number.isFinite(number) && number >= 0) {
+      return number;
+    }
+  }
+
+  return null;
+};
+
 const normalizeLiveClient = (client) => {
   const signalValue =
     client.rssi ??
@@ -143,6 +155,38 @@ const normalizeLiveClient = (client) => {
     client.connectDuration ??
     client.connectedTime ??
     null;
+
+  const downloadBytes = firstFiniteNumber(
+    client.download,
+    client.downloaded,
+    client.trafficDown,
+    client.downTraffic,
+    client.downloadTraffic,
+    client.rxBytes,
+    client.bytesReceived
+  );
+
+  const uploadBytes = firstFiniteNumber(
+    client.upload,
+    client.uploaded,
+    client.trafficUp,
+    client.upTraffic,
+    client.uploadTraffic,
+    client.txBytes,
+    client.bytesSent
+  );
+
+  const downloadActivity = firstFiniteNumber(
+    client.downloadActivity,
+    client.downActivity,
+    client.downloadActivityBytes
+  );
+
+  const uploadActivity = firstFiniteNumber(
+    client.uploadActivity,
+    client.upActivity,
+    client.uploadActivityBytes
+  );
 
   return {
     name:
@@ -179,7 +223,95 @@ const normalizeLiveClient = (client) => {
         : String(signalValue).includes('dBm')
           ? String(signalValue)
           : String(signalValue) + ' dBm',
-    uptime: formatLiveClientDuration(durationValue)
+    uptime: formatLiveClientDuration(durationValue),
+    download_bytes: downloadBytes,
+    upload_bytes: uploadBytes,
+    download_activity: downloadActivity,
+    upload_activity: uploadActivity
+  };
+};
+
+const normalizeClientMac = (value) =>
+  normalizeMacAddress(String(value || '').replace(/-/g, ':'));
+
+const loadLiveClientSnapshot = async ({
+  selectedSite,
+  page
+}) => {
+  const [clientResult, authRecords, subscriptionResult] = await Promise.all([
+    omada.listClients({
+      siteId: selectedSite.external_portal_site_id,
+      page,
+      pageSize: ADMIN_PAGE_SIZE
+    }),
+    omada.listHotspotAuthedClients({
+      siteId: selectedSite.external_portal_site_id,
+      page: 1,
+      pageSize: 1000
+    }),
+    pool.query(
+      `
+        SELECT DISTINCT ON (client_mac)
+          client_mac,
+          expires_at
+        FROM subscriptions
+        WHERE site_id = $1
+          AND client_mac IS NOT NULL
+          AND status = 'active'
+          AND starts_at <= NOW()
+          AND expires_at > NOW()
+        ORDER BY client_mac, expires_at DESC
+      `,
+      [selectedSite.id]
+    )
+  ]);
+
+  const activeSubscriptions = new Map(
+    subscriptionResult.rows
+      .map((row) => [
+        normalizeClientMac(row.client_mac),
+        row
+      ])
+      .filter(([mac]) => Boolean(mac))
+  );
+
+  const validAuthRecords = authRecords
+    .filter((record) => record.valid === true)
+    .map((record) => ({
+      ...record,
+      normalizedMac: normalizeClientMac(record.mac)
+    }))
+    .filter((record) => Boolean(record.normalizedMac));
+
+  const clients = clientResult.rows.map((rawClient) => {
+    const client = normalizeLiveClient(rawClient);
+    const mac = normalizeClientMac(client.mac);
+    const ssid = String(client.ssid || '').trim().toLowerCase();
+
+    const authRecord =
+      validAuthRecords.find((record) => {
+        if (record.normalizedMac !== mac) return false;
+
+        const recordSsid = String(record.ssid || '').trim().toLowerCase();
+        return !recordSsid || !ssid || recordSsid === ssid;
+      }) ||
+      validAuthRecords.find((record) => record.normalizedMac === mac) ||
+      null;
+
+    const subscription = activeSubscriptions.get(mac) || null;
+
+    return {
+      ...client,
+      access: authRecord ? 'internet' : 'portal',
+      auth_type: authRecord ? Number(authRecord.authType) : null,
+      package_active: Boolean(subscription),
+      subscription_expires_at: subscription?.expires_at || null
+    };
+  });
+
+  return {
+    clients,
+    total: clientResult.total
   };
 };
 
@@ -2485,6 +2617,65 @@ router.get('/customers', async (req, res) => {
   }
 });
 
+router.get('/live-clients/data', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const page = getPage(req.query.page);
+    const requestedSiteId = Number(req.query.siteId);
+
+    if (!selectedOrg || !requestedSiteId) {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid site is required'
+      });
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT
+          id,
+          name,
+          external_portal_site_id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+          AND external_portal_site_id IS NOT NULL
+        LIMIT 1
+      `,
+      [requestedSiteId, selectedOrg.id]
+    );
+
+    const selectedSite = siteResult.rows[0];
+
+    if (!selectedSite) {
+      return res.status(404).json({
+        success: false,
+        error: 'Site not found'
+      });
+    }
+
+    const snapshot = await loadLiveClientSnapshot({
+      selectedSite,
+      page
+    });
+
+    return res.json({
+      success: true,
+      clients: snapshot.clients,
+      total: snapshot.total,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('ADMIN LIVE CLIENTS DATA ERROR:', error);
+
+    return res.status(502).json({
+      success: false,
+      error: req.t('live.unavailable')
+    });
+  }
+});
+
 router.get('/live-clients', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -2534,16 +2725,15 @@ router.get('/live-clients', async (req, res) => {
 
     if (selectedSite) {
       try {
-        const result = await omada.listClients({
-          siteId: selectedSite.external_portal_site_id,
-          page,
-          pageSize: ADMIN_PAGE_SIZE
+        const snapshot = await loadLiveClientSnapshot({
+          selectedSite,
+          page
         });
 
-        clients = result.rows.map(normalizeLiveClient);
+        clients = snapshot.clients;
 
         const inferredTotal =
-          result.total ??
+          snapshot.total ??
           (
             (page - 1) * ADMIN_PAGE_SIZE +
             clients.length +
