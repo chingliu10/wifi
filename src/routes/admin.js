@@ -1235,6 +1235,8 @@ router.get('/sites', async (req, res) => {
 
     const supportUpdatedSiteId =
       Number(req.query.supportUpdated) || null;
+    const nameUpdatedSiteId =
+      Number(req.query.nameUpdated) || null;
     const siteViews = [];
 
     for (const site of sitesWithKeys) {
@@ -1286,6 +1288,8 @@ router.get('/sites', async (req, res) => {
         wifi_error: wifiErrors.join(' '),
         support_updated:
           supportUpdatedSiteId === Number(site.id),
+        name_updated:
+          nameUpdatedSiteId === Number(site.id),
         claims: claims.filter(
           (claim) => Number(claim.site_id) === Number(site.id)
         )
@@ -1497,6 +1501,52 @@ router.post('/sites', async (req, res) => {
     }
 
     res.status(500).send('Unable to create site.');
+  }
+});
+
+router.post('/sites/:id/name', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.params.id);
+    const siteName = String(req.body.siteName || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+    if (!selectedOrg || !siteId) {
+      return res.status(400).send('Invalid site.');
+    }
+
+    if (siteName.length < 2 || siteName.length > 100) {
+      return res.status(400).send(req.t('sites.invalidSiteName'));
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE sites
+        SET
+          name = $3,
+          updated_at = NOW()
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        RETURNING id
+      `,
+      [siteId, selectedOrg.id, siteName]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    return res.redirect(
+      '/admin/sites?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&nameUpdated=' +
+      encodeURIComponent(siteId)
+    );
+  } catch (error) {
+    console.error('ADMIN SITE NAME UPDATE ERROR:', error);
+    return res.status(500).send('Unable to update site name.');
   }
 });
 
