@@ -300,9 +300,20 @@ const loadLiveClientSnapshot = async ({
 
     const subscription = activeSubscriptions.get(mac) || null;
 
+    const directActivity =
+      (client.download_activity || 0) +
+      (client.upload_activity || 0);
+
     return {
       ...client,
       access: authRecord ? 'internet' : 'portal',
+      has_internet: Boolean(authRecord),
+      activity_state:
+        !authRecord
+          ? 'no-internet'
+          : directActivity > 0
+            ? 'active'
+            : 'waiting',
       auth_type: authRecord ? Number(authRecord.authType) : null,
       package_active: Boolean(subscription),
       subscription_expires_at: subscription?.expires_at || null
