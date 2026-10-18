@@ -54,6 +54,40 @@
           <div>
             <h3>{{name}}</h3>
             <p>{{brand_name}}</p>
+
+            <details class="site-support-editor">
+              <summary>{{t 'sites.editSiteName'}}</summary>
+
+              <form
+                method="POST"
+                action="/admin/sites/{{id}}/name"
+                class="site-support-form"
+              >
+                <input
+                  type="hidden"
+                  name="organizationId"
+                  value="{{../selectedOrg.id}}"
+                >
+
+                <label>
+                  <span>{{t 'sites.siteName'}}</span>
+                  <input
+                    name="siteName"
+                    maxlength="100"
+                    required
+                    value="{{name}}"
+                  >
+                </label>
+
+                <button type="submit">{{t 'sites.saveSiteName'}}</button>
+              </form>
+            </details>
+
+            {{#if name_updated}}
+              <small class="site-support-success">
+                {{t 'sites.siteNameUpdated'}}
+              </small>
+            {{/if}}
           </div>
         </div>
 
