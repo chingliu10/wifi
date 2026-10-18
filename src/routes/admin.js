@@ -314,6 +314,9 @@ const loadLiveClientSnapshot = async ({
           : directActivity > 0
             ? 'active'
             : 'waiting',
+      activity_active: Boolean(authRecord && directActivity > 0),
+      activity_no_internet: !authRecord,
+      activity_waiting: Boolean(authRecord && directActivity <= 0),
       auth_type: authRecord ? Number(authRecord.authType) : null,
       package_active: Boolean(subscription),
       subscription_expires_at: subscription?.expires_at || null
