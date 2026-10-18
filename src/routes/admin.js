@@ -1525,6 +1525,7 @@ router.post('/sites/:id/name', async (req, res) => {
         UPDATE sites
         SET
           name = $3,
+          brand_name = $3,
           updated_at = NOW()
         WHERE id = $1
           AND organization_id = $2
