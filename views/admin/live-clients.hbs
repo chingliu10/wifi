@@ -5,7 +5,11 @@
   </div>
 
   {{#if selectedSite}}
-    <a class="primary-link" href="/admin/live-clients?org={{selectedOrg.id}}&siteId={{selectedSite.id}}">
+    <a
+      class="primary-link"
+      id="live-refresh"
+      href="/admin/live-clients?org={{selectedOrg.id}}&siteId={{selectedSite.id}}"
+    >
       {{t 'live.refresh'}}
     </a>
   {{/if}}
@@ -31,7 +35,18 @@
     </section>
 
     {{#if error}}
-      <div class="notice live-client-error">{{error}}</div>
+      <div class="notice live-client-error" id="live-client-error">{{error}}</div>
+    {{else}}
+      <div class="notice live-client-error" id="live-client-error" hidden></div>
+    {{/if}}
+
+    {{#if selectedSite}}
+      <div class="live-update-strip" aria-live="polite">
+        <span class="live-dot" aria-hidden="true"></span>
+        <strong>{{t 'live.autoLive'}}</strong>
+        <span>{{t 'live.every30Seconds'}}</span>
+        <span id="live-last-updated">{{t 'live.justUpdated'}}</span>
+      </div>
     {{/if}}
 
     <section class="panel table-panel">
@@ -43,24 +58,48 @@
               <th>{{t 'live.mac'}}</th>
               <th>{{t 'live.ip'}}</th>
               <th>{{t 'live.ssid'}}</th>
+              <th>{{t 'live.access'}}</th>
+              <th>{{t 'live.activity'}}</th>
               <th>{{t 'live.ap'}}</th>
               <th>{{t 'live.signal'}}</th>
               <th>{{t 'live.uptime'}}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="live-client-body">
             {{#each clients}}
-              <tr>
+              <tr
+                data-live-mac="{{mac}}"
+                data-download-bytes="{{download_bytes}}"
+                data-upload-bytes="{{upload_bytes}}"
+              >
                 <td data-label="{{t 'live.deviceName'}}"><strong>{{name}}</strong></td>
                 <td data-label="{{t 'live.mac'}}"><code>{{mac}}</code></td>
                 <td data-label="{{t 'live.ip'}}">{{ip}}</td>
                 <td data-label="{{t 'live.ssid'}}">{{ssid}}</td>
+                <td data-label="{{t 'live.access'}}">
+                  {{#if has_internet}}
+                    <span class="status-pill live-access-internet">{{t 'live.internet'}}</span>
+                  {{else}}
+                    <span class="status-pill live-access-portal">{{t 'live.portalOnly'}}</span>
+                  {{/if}}
+                </td>
+                <td data-label="{{t 'live.activity'}}">
+                  {{#if activity_no_internet}}
+                    <span class="status-pill live-activity-none">{{t 'live.noInternet'}}</span>
+                  {{else}}
+                    {{#if activity_active}}
+                      <span class="status-pill live-activity-active">{{t 'live.activeTraffic'}}</span>
+                    {{else}}
+                      <span class="status-pill live-activity-waiting">{{t 'live.measuring'}}</span>
+                    {{/if}}
+                  {{/if}}
+                </td>
                 <td data-label="{{t 'live.ap'}}">{{ap}}</td>
                 <td data-label="{{t 'live.signal'}}">{{signal}}</td>
                 <td data-label="{{t 'live.uptime'}}">{{uptime}}</td>
               </tr>
             {{else}}
-              <tr><td colspan="7" class="empty">{{t 'live.noClients'}}</td></tr>
+              <tr><td colspan="9" class="empty">{{t 'live.noClients'}}</td></tr>
             {{/each}}
           </tbody>
         </table>
@@ -75,9 +114,228 @@
   {{/if}}
 {{/if}}
 
-
 {{#if selectedSite}}
 <script>
-  setTimeout(() => window.location.reload(), 15000);
+  (() => {
+    const refreshButton = document.getElementById('live-refresh');
+    const tbody = document.getElementById('live-client-body');
+    const updated = document.getElementById('live-last-updated');
+    const errorBox = document.getElementById('live-client-error');
+
+    if (!tbody) return;
+
+    const labels = {
+      device: '{{#if isSwahili}}Kifaa{{else}}Device{{/if}}',
+      mac: 'MAC address',
+      ip: 'IP address',
+      ssid: 'SSID',
+      access: '{{#if isSwahili}}Ufikiaji{{else}}Access{{/if}}',
+      activity: '{{#if isSwahili}}Matumizi{{else}}Activity{{/if}}',
+      ap: 'Access point',
+      signal: 'Signal',
+      uptime: '{{#if isSwahili}}Muda uliounganishwa{{else}}Uptime{{/if}}',
+      internet: '{{#if isSwahili}}Internet{{else}}Internet{{/if}}',
+      portal: '{{#if isSwahili}}Portal pekee{{else}}Portal only{{/if}}',
+      noInternet: '{{#if isSwahili}}Hakuna internet{{else}}No Internet{{/if}}',
+      active: '{{#if isSwahili}}Inatumia data{{else}}Active traffic{{/if}}',
+      idle: '{{#if isSwahili}}Haitumii data{{else}}Idle{{/if}}',
+      measuring: '{{#if isSwahili}}Inapima…{{else}}Measuring…{{/if}}',
+      noClients: '{{#if isSwahili}}Hakuna wateja waliounganishwa waliopatikana.{{else}}No connected clients found.{{/if}}',
+      updated: '{{#if isSwahili}}Imesasishwa sasa{{else}}Updated just now{{/if}}',
+      failed: '{{#if isSwahili}}Imeshindikana kusasisha wateja kwa sasa.{{else}}Unable to refresh live clients right now.{{/if}}'
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get('page') || '1';
+    const endpoint =
+      '/admin/live-clients/data?org=' +
+      encodeURIComponent('{{selectedOrg.id}}') +
+      '&siteId=' +
+      encodeURIComponent('{{selectedSite.id}}') +
+      '&page=' +
+      encodeURIComponent(page);
+
+    const previousTraffic = new Map();
+    const ACTIVITY_THRESHOLD_BYTES = 4096;
+
+    const numberOrNull = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      const number = Number(value);
+      return Number.isFinite(number) && number >= 0 ? number : null;
+    };
+
+    document.querySelectorAll('[data-live-mac]').forEach((row) => {
+      previousTraffic.set(
+        String(row.dataset.liveMac || '').toUpperCase(),
+        {
+          down: numberOrNull(row.dataset.downloadBytes),
+          up: numberOrNull(row.dataset.uploadBytes)
+        }
+      );
+    });
+
+    const escapeHtml = (value) =>
+      String(value ?? '—')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
+    const getActivity = (client) => {
+      if (client.access !== 'internet') {
+        return 'no-internet';
+      }
+
+      const directActivity =
+        (numberOrNull(client.download_activity) || 0) +
+        (numberOrNull(client.upload_activity) || 0);
+
+      if (directActivity > 0) {
+        return 'active';
+      }
+
+      const key = String(client.mac || '').toUpperCase();
+      const previous = previousTraffic.get(key);
+      const down = numberOrNull(client.download_bytes);
+      const up = numberOrNull(client.upload_bytes);
+
+      if (
+        previous &&
+        down !== null &&
+        up !== null &&
+        previous.down !== null &&
+        previous.up !== null
+      ) {
+        const delta =
+          Math.max(0, down - previous.down) +
+          Math.max(0, up - previous.up);
+
+        return delta >= ACTIVITY_THRESHOLD_BYTES ? 'active' : 'idle';
+      }
+
+      return 'measuring';
+    };
+
+    const accessHtml = (client) =>
+      client.access === 'internet'
+        ? '<span class="status-pill live-access-internet">' + labels.internet + '</span>'
+        : '<span class="status-pill live-access-portal">' + labels.portal + '</span>';
+
+    const activityHtml = (state) => {
+      if (state === 'no-internet') {
+        return '<span class="status-pill live-activity-none">' + labels.noInternet + '</span>';
+      }
+
+      if (state === 'active') {
+        return '<span class="status-pill live-activity-active">' + labels.active + '</span>';
+      }
+
+      if (state === 'idle') {
+        return '<span class="status-pill live-activity-idle">' + labels.idle + '</span>';
+      }
+
+      return '<span class="status-pill live-activity-waiting">' + labels.measuring + '</span>';
+    };
+
+    const renderRows = (clients) => {
+      if (!clients.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="9" class="empty">' +
+          escapeHtml(labels.noClients) +
+          '</td></tr>';
+        previousTraffic.clear();
+        return;
+      }
+
+      const nextTraffic = new Map();
+
+      tbody.innerHTML = clients.map((client) => {
+        const activity = getActivity(client);
+        const key = String(client.mac || '').toUpperCase();
+
+        nextTraffic.set(key, {
+          down: numberOrNull(client.download_bytes),
+          up: numberOrNull(client.upload_bytes)
+        });
+
+        return (
+          '<tr data-live-mac="' + escapeHtml(client.mac) + '">' +
+            '<td data-label="' + labels.device + '"><strong>' + escapeHtml(client.name) + '</strong></td>' +
+            '<td data-label="' + labels.mac + '"><code>' + escapeHtml(client.mac) + '</code></td>' +
+            '<td data-label="' + labels.ip + '">' + escapeHtml(client.ip) + '</td>' +
+            '<td data-label="' + labels.ssid + '">' + escapeHtml(client.ssid) + '</td>' +
+            '<td data-label="' + labels.access + '">' + accessHtml(client) + '</td>' +
+            '<td data-label="' + labels.activity + '">' + activityHtml(activity) + '</td>' +
+            '<td data-label="' + labels.ap + '">' + escapeHtml(client.ap) + '</td>' +
+            '<td data-label="' + labels.signal + '">' + escapeHtml(client.signal) + '</td>' +
+            '<td data-label="' + labels.uptime + '">' + escapeHtml(client.uptime) + '</td>' +
+          '</tr>'
+        );
+      }).join('');
+
+      previousTraffic.clear();
+      nextTraffic.forEach((value, key) => previousTraffic.set(key, value));
+    };
+
+    let refreshing = false;
+
+    const refreshLiveClients = async () => {
+      if (refreshing) return;
+      refreshing = true;
+
+      if (refreshButton) {
+        refreshButton.classList.add('is-refreshing');
+      }
+
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Live client request failed');
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !Array.isArray(data.clients)) {
+          throw new Error(data.error || 'Invalid live client response');
+        }
+
+        renderRows(data.clients);
+
+        if (updated) {
+          updated.textContent = labels.updated;
+        }
+
+        if (errorBox) {
+          errorBox.hidden = true;
+          errorBox.textContent = '';
+        }
+      } catch (error) {
+        if (errorBox) {
+          errorBox.textContent = labels.failed;
+          errorBox.hidden = false;
+        }
+      } finally {
+        refreshing = false;
+
+        if (refreshButton) {
+          refreshButton.classList.remove('is-refreshing');
+        }
+      }
+    };
+
+    refreshButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      refreshLiveClients();
+    });
+
+    setInterval(refreshLiveClients, 30000);
+  })();
 </script>
 {{/if}}
