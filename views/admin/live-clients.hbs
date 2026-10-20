@@ -16,6 +16,10 @@
 </section>
 
 {{#if selectedOrg}}
+  {{#if freeAccessGranted}}
+    <div class="notice notice-success">{{t 'customers.freeAccessGranted'}}</div>
+  {{/if}}
+
   {{#if siteOptions}}
     <section class="panel payment-filter-panel">
       <form method="GET" action="/admin/live-clients" class="admin-form">
@@ -63,6 +67,7 @@
               <th>{{t 'live.ap'}}</th>
               <th>{{t 'live.signal'}}</th>
               <th>{{t 'live.uptime'}}</th>
+              <th>{{t 'customers.actions'}}</th>
             </tr>
           </thead>
           <tbody id="live-client-body">
@@ -97,9 +102,58 @@
                 <td data-label="{{t 'live.ap'}}">{{ap}}</td>
                 <td data-label="{{t 'live.signal'}}">{{signal}}</td>
                 <td data-label="{{t 'live.uptime'}}">{{uptime}}</td>
+                <td data-label="{{t 'customers.actions'}}">
+                  <details class="site-support-editor">
+                    <summary>{{t 'customers.grantFreeAccess'}}</summary>
+
+                    <form
+                      method="POST"
+                      action="/admin/live-clients/complimentary-access"
+                      class="site-support-form"
+                    >
+                      <input
+                        type="hidden"
+                        name="organizationId"
+                        value="{{../selectedOrg.id}}"
+                      >
+                      <input
+                        type="hidden"
+                        name="siteId"
+                        value="{{../selectedSite.id}}"
+                      >
+                      <input
+                        type="hidden"
+                        name="clientMac"
+                        value="{{mac}}"
+                      >
+
+                      <label>
+                        <span>{{t 'customers.duration'}}</span>
+                        <select name="durationSeconds" required>
+                          <option value="3600">1 hour</option>
+                          <option value="25200">7 hours</option>
+                          <option value="86400">24 hours</option>
+                          <option value="604800">7 days</option>
+                          <option value="2592000">30 days</option>
+                        </select>
+                      </label>
+
+                      <label>
+                        <span>{{t 'customers.reasonOptional'}}</span>
+                        <input
+                          name="grantNote"
+                          maxlength="250"
+                          placeholder="{{t 'customers.reasonPlaceholder'}}"
+                        >
+                      </label>
+
+                      <button type="submit">{{t 'customers.grantAccessButton'}}</button>
+                    </form>
+                  </details>
+                </td>
               </tr>
             {{else}}
-              <tr><td colspan="9" class="empty">{{t 'live.noClients'}}</td></tr>
+              <tr><td colspan="10" class="empty">{{t 'live.noClients'}}</td></tr>
             {{/each}}
           </tbody>
         </table>
@@ -140,6 +194,12 @@
       active: '{{#if isSwahili}}Inatumia data{{else}}Active traffic{{/if}}',
       idle: '{{#if isSwahili}}Haitumii data{{else}}Idle{{/if}}',
       measuring: '{{#if isSwahili}}Inapima…{{else}}Measuring…{{/if}}',
+      actions: '{{#if isSwahili}}Vitendo{{else}}Actions{{/if}}',
+      grant: '{{#if isSwahili}}Mpe internet bure{{else}}Grant free access{{/if}}',
+      duration: '{{#if isSwahili}}Muda{{else}}Duration{{/if}}',
+      reason: '{{#if isSwahili}}Sababu (si lazima){{else}}Reason (optional){{/if}}',
+      grantButton: '{{#if isSwahili}}Mpe internet{{else}}Grant access{{/if}}',
+      reasonPlaceholder: '{{#if isSwahili}}mf. Mfanyakazi, VIP, promosheni{{else}}e.g. Staff, VIP, promotion{{/if}}',
       noClients: '{{#if isSwahili}}Hakuna wateja waliounganishwa waliopatikana.{{else}}No connected clients found.{{/if}}',
       updated: '{{#if isSwahili}}Imesasishwa sasa{{else}}Updated just now{{/if}}',
       failed: '{{#if isSwahili}}Imeshindikana kusasisha wateja kwa sasa.{{else}}Unable to refresh live clients right now.{{/if}}'
@@ -155,6 +215,8 @@
       '&page=' +
       encodeURIComponent(page);
 
+    const selectedOrgId = '{{selectedOrg.id}}';
+    const selectedSiteId = '{{selectedSite.id}}';
     const previousTraffic = new Map();
     const ACTIVITY_THRESHOLD_BYTES = 4096;
 
@@ -241,7 +303,7 @@
     const renderRows = (clients) => {
       if (!clients.length) {
         tbody.innerHTML =
-          '<tr><td colspan="9" class="empty">' +
+          '<tr><td colspan="10" class="empty">' +
           escapeHtml(labels.noClients) +
           '</td></tr>';
         previousTraffic.clear();
@@ -270,6 +332,29 @@
             '<td data-label="' + labels.ap + '">' + escapeHtml(client.ap) + '</td>' +
             '<td data-label="' + labels.signal + '">' + escapeHtml(client.signal) + '</td>' +
             '<td data-label="' + labels.uptime + '">' + escapeHtml(client.uptime) + '</td>' +
+            '<td data-label="' + labels.actions + '">' +
+              '<details class="site-support-editor">' +
+                '<summary>' + labels.grant + '</summary>' +
+                '<form method="POST" action="/admin/live-clients/complimentary-access" class="site-support-form">' +
+                  '<input type="hidden" name="organizationId" value="' + escapeHtml(selectedOrgId) + '">' +
+                  '<input type="hidden" name="siteId" value="' + escapeHtml(selectedSiteId) + '">' +
+                  '<input type="hidden" name="clientMac" value="' + escapeHtml(client.mac) + '">' +
+                  '<label><span>' + labels.duration + '</span>' +
+                    '<select name="durationSeconds" required>' +
+                      '<option value="3600">1 hour</option>' +
+                      '<option value="25200">7 hours</option>' +
+                      '<option value="86400">24 hours</option>' +
+                      '<option value="604800">7 days</option>' +
+                      '<option value="2592000">30 days</option>' +
+                    '</select>' +
+                  '</label>' +
+                  '<label><span>' + labels.reason + '</span>' +
+                    '<input name="grantNote" maxlength="250" placeholder="' + escapeHtml(labels.reasonPlaceholder) + '">' +
+                  '</label>' +
+                  '<button type="submit">' + labels.grantButton + '</button>' +
+                '</form>' +
+              '</details>' +
+            '</td>' +
           '</tr>'
         );
       }).join('');
