@@ -3,7 +3,7 @@ BEGIN;
 ALTER TABLE subscriptions
     ALTER COLUMN package_id DROP NOT NULL,
     ADD COLUMN IF NOT EXISTS access_source VARCHAR(30) NOT NULL DEFAULT 'paid',
-    ADD COLUMN IF NOT EXISTS granted_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS granted_by_user_id BIGINT REFERENCES platform_users(id) ON DELETE SET NULL,
     ADD COLUMN IF NOT EXISTS grant_note TEXT;
 
 DO $$
