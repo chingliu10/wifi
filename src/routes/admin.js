@@ -39,10 +39,31 @@ const {
   listVoucherBatches,
   getVoucherBatch
 } = require('../services/vouchers/voucher-service');
+const {
+  createComplimentarySubscription
+} = require('../repositories/subscription-repository');
+const { getOrCreateDevice } = require('../services/device-service');
 
 const router = express.Router();
 
 const ADMIN_PAGE_SIZE = 25;
+const COMPLIMENTARY_DURATIONS = new Set([
+  3600,
+  25200,
+  86400,
+  604800,
+  2592000
+]);
+
+const parseComplimentaryDuration = (value) => {
+  const seconds = Number(value);
+
+  if (!Number.isInteger(seconds) || !COMPLIMENTARY_DURATIONS.has(seconds)) {
+    return null;
+  }
+
+  return seconds;
+};
 
 const readCookie = (req, name) => {
   const cookieHeader = String(req.headers.cookie || '');
@@ -2454,6 +2475,184 @@ router.get('/payments', async (req, res) => {
   } catch (error) {
     console.error('ADMIN PAYMENTS ERROR:', error);
     res.status(500).send('Unable to load payments.');
+  }
+});
+
+router.post('/customers/:deviceId/complimentary-access', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const deviceId = Number(req.params.deviceId);
+    const siteId = Number(req.body.siteId);
+    const durationSeconds = parseComplimentaryDuration(
+      req.body.durationSeconds
+    );
+    const grantNote = String(req.body.grantNote || '')
+      .trim()
+      .slice(0, 250) || null;
+
+    if (!selectedOrg || !deviceId || !siteId || !durationSeconds) {
+      return res.status(400).send(req.t('customers.invalidFreeAccess'));
+    }
+
+    const ownedSite = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    if (!ownedSite.rows[0]) {
+      return res.status(404).send('Site not found.');
+    }
+
+    const deviceResult = await pool.query(
+      `
+        SELECT d.id, d.mac_address
+        FROM devices d
+        WHERE d.id = $1
+          AND EXISTS (
+            SELECT 1
+            FROM payment_transactions pt
+            WHERE pt.device_id = d.id
+              AND pt.organization_id = $2
+          )
+        LIMIT 1
+      `,
+      [deviceId, selectedOrg.id]
+    );
+
+    const device = deviceResult.rows[0];
+
+    if (!device) {
+      return res.status(404).send('Customer device not found.');
+    }
+
+    const subscription = await createComplimentarySubscription({
+      siteId,
+      deviceId: device.id,
+      clientMac: device.mac_address,
+      durationSeconds,
+      grantedByUserId: req.authUser.id,
+      grantNote
+    });
+
+    console.log('COMPLIMENTARY ACCESS GRANTED:', {
+      organizationId: selectedOrg.id,
+      siteId,
+      deviceId: device.id,
+      clientMac: device.mac_address,
+      durationSeconds,
+      expiresAt: subscription.expires_at,
+      grantedByUserId: req.authUser.id
+    });
+
+    return res.redirect(
+      '/admin/customers?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&freeAccess=granted'
+    );
+  } catch (error) {
+    console.error('ADMIN COMPLIMENTARY ACCESS ERROR:', error);
+    return res.status(500).send(req.t('customers.freeAccessFailed'));
+  }
+});
+
+router.post('/live-clients/complimentary-access', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const siteId = Number(req.body.siteId);
+    const durationSeconds = parseComplimentaryDuration(
+      req.body.durationSeconds
+    );
+    const clientMac = normalizeMacAddress(
+      String(req.body.clientMac || '').replace(/-/g, ':')
+    );
+    const grantNote = String(req.body.grantNote || '')
+      .trim()
+      .slice(0, 250) || null;
+
+    if (!selectedOrg || !siteId || !durationSeconds || !clientMac) {
+      return res.status(400).send(req.t('customers.invalidFreeAccess'));
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT id, external_portal_site_id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+          AND external_portal_site_id IS NOT NULL
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    const site = siteResult.rows[0];
+
+    if (!site) {
+      return res.status(404).send('Site not found.');
+    }
+
+    const connectedResult = await omada.listClients({
+      siteId: site.external_portal_site_id,
+      page: 1,
+      pageSize: ADMIN_PAGE_SIZE
+    });
+
+    const isConnected = connectedResult.rows.some((client) => {
+      const candidate = normalizeMacAddress(
+        String(
+          client.mac ||
+          client.clientMac ||
+          client.macAddress ||
+          ''
+        ).replace(/-/g, ':')
+      );
+
+      return candidate === clientMac;
+    });
+
+    if (!isConnected) {
+      return res.status(409).send(req.t('customers.clientNotConnected'));
+    }
+
+    const device = await getOrCreateDevice(clientMac);
+
+    const subscription = await createComplimentarySubscription({
+      siteId,
+      deviceId: device.id,
+      clientMac,
+      durationSeconds,
+      grantedByUserId: req.authUser.id,
+      grantNote
+    });
+
+    console.log('LIVE CLIENT COMPLIMENTARY ACCESS GRANTED:', {
+      organizationId: selectedOrg.id,
+      siteId,
+      deviceId: device.id,
+      clientMac,
+      durationSeconds,
+      expiresAt: subscription.expires_at,
+      grantedByUserId: req.authUser.id
+    });
+
+    return res.redirect(
+      '/admin/live-clients?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&siteId=' +
+      encodeURIComponent(siteId) +
+      '&freeAccess=granted'
+    );
+  } catch (error) {
+    console.error('ADMIN LIVE CLIENT COMPLIMENTARY ACCESS ERROR:', error);
+    return res.status(500).send(req.t('customers.freeAccessFailed'));
   }
 });
 
