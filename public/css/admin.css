@@ -588,15 +588,18 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
   font-size:9px;
   font-weight:700
 }
-.site-support-form input{
+.site-support-form input,
+.site-support-form select{
   width:100%;
   min-height:36px;
   padding:8px 10px;
   border:1px solid var(--line);
   border-radius:8px;
+  background:#fff;
   outline:none
 }
-.site-support-form input:focus{
+.site-support-form input:focus,
+.site-support-form select:focus{
   border-color:var(--accent);
   box-shadow:0 0 0 3px rgba(15,118,110,.10)
 }
