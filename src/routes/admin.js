@@ -2667,6 +2667,20 @@ router.get('/customers', async (req, res) => {
 
     let customers = [];
     let total = 0;
+    const grantSites = selectedOrg
+      ? (
+          await pool.query(
+            `
+              SELECT id, name
+              FROM sites
+              WHERE organization_id = $1
+                AND active = TRUE
+              ORDER BY name
+            `,
+            [selectedOrg.id]
+          )
+        ).rows
+      : [];
 
     if (selectedOrg) {
       const summarySql = `
@@ -2817,6 +2831,9 @@ router.get('/customers', async (req, res) => {
       organizations,
       selectedOrg,
       customers,
+      grantSites,
+      freeAccessGranted:
+        String(req.query.freeAccess || '') === 'granted',
       accessOptions,
       filters: {
         search,
