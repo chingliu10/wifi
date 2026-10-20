@@ -2599,29 +2599,6 @@ router.post('/live-clients/complimentary-access', async (req, res) => {
       return res.status(404).send('Site not found.');
     }
 
-    const connectedResult = await omada.listClients({
-      siteId: site.external_portal_site_id,
-      page: 1,
-      pageSize: ADMIN_PAGE_SIZE
-    });
-
-    const isConnected = connectedResult.rows.some((client) => {
-      const candidate = normalizeMacAddress(
-        String(
-          client.mac ||
-          client.clientMac ||
-          client.macAddress ||
-          ''
-        ).replace(/-/g, ':')
-      );
-
-      return candidate === clientMac;
-    });
-
-    if (!isConnected) {
-      return res.status(409).send(req.t('customers.clientNotConnected'));
-    }
-
     const device = await getOrCreateDevice(clientMac);
 
     const subscription = await createComplimentarySubscription({
