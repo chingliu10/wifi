@@ -47,10 +47,13 @@ const findActiveSubscriptionByDeviceAndSite = async ({
         sub.starts_at,
         sub.expires_at,
         sub.status,
-        p.name AS package_name,
-        p.duration_seconds AS package_duration_seconds
+        COALESCE(p.name, 'Complimentary access') AS package_name,
+        p.duration_seconds AS package_duration_seconds,
+        sub.access_source,
+        sub.granted_by_user_id,
+        sub.grant_note
       FROM subscriptions sub
-      JOIN packages p ON p.id = sub.package_id
+      LEFT JOIN packages p ON p.id = sub.package_id
       WHERE sub.device_id = $1
         AND sub.site_id = $2
         AND sub.status = 'active'
@@ -144,6 +147,69 @@ const createSubscriptionForPayment = async ({
 };
 
 
+const createComplimentarySubscription = async ({
+  siteId,
+  deviceId,
+  clientMac,
+  durationSeconds,
+  grantedByUserId,
+  grantNote = null
+}) => {
+  const result = await pool.query(
+    `
+      WITH current_access AS (
+        SELECT MAX(expires_at) AS expires_at
+        FROM subscriptions
+        WHERE device_id = $1
+          AND site_id = $2
+          AND status = 'active'
+          AND expires_at > NOW()
+      )
+      INSERT INTO subscriptions (
+        site_id,
+        device_id,
+        package_id,
+        payment_id,
+        payment_transaction_id,
+        client_mac,
+        starts_at,
+        expires_at,
+        status,
+        access_source,
+        granted_by_user_id,
+        grant_note
+      )
+      VALUES (
+        $2,
+        $1,
+        NULL,
+        NULL,
+        NULL,
+        $3,
+        COALESCE((SELECT expires_at FROM current_access), NOW()),
+        COALESCE((SELECT expires_at FROM current_access), NOW())
+          + ($4 * INTERVAL '1 second'),
+        'active',
+        'complimentary',
+        $5,
+        $6
+      )
+      RETURNING *
+    `,
+    [
+      deviceId,
+      siteId,
+      clientMac,
+      durationSeconds,
+      grantedByUserId,
+      grantNote
+    ]
+  );
+
+  return result.rows[0];
+};
+
+
 const createOrExtendSubscription = async ({
   siteId,
   deviceId,
@@ -206,5 +272,6 @@ module.exports = {
   findActiveSubscriptionByDeviceAndSite,
   findSubscriptionByPaymentTransactionId,
   createSubscriptionForPayment,
+  createComplimentarySubscription,
   createOrExtendSubscription
 };
