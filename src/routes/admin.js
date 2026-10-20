@@ -2993,6 +2993,8 @@ router.get('/live-clients', async (req, res) => {
       siteOptions,
       clients,
       pagination,
+      freeAccessGranted:
+        String(req.query.freeAccess || '') === 'granted',
       error
     });
   } catch (error) {
