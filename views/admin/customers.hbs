@@ -6,6 +6,10 @@
 </section>
 
 {{#if selectedOrg}}
+  {{#if freeAccessGranted}}
+    <div class="notice notice-success">{{t 'customers.freeAccessGranted'}}</div>
+  {{/if}}
+
   <section class="panel payment-filter-panel">
     <form method="GET" action="/admin/customers" class="admin-form">
       <input type="hidden" name="org" value="{{selectedOrg.id}}">
@@ -52,6 +56,7 @@
           <th>{{t 'customers.latestPayment'}}</th>
           <th>{{t 'customers.firstSeen'}}</th>
           <th>{{t 'customers.lastSeen'}}</th>
+          <th>{{t 'customers.actions'}}</th>
         </tr>
       </thead>
       <tbody>
@@ -86,9 +91,57 @@
             </td>
             <td data-label="{{t 'customers.firstSeen'}}">{{formatDate first_seen}}</td>
             <td data-label="{{t 'customers.lastSeen'}}">{{formatDate last_seen}}</td>
+            <td data-label="{{t 'customers.actions'}}">
+              <details class="site-support-editor">
+                <summary>{{t 'customers.grantFreeAccess'}}</summary>
+
+                <form
+                  method="POST"
+                  action="/admin/customers/{{device_id}}/complimentary-access"
+                  class="site-support-form"
+                >
+                  <input
+                    type="hidden"
+                    name="organizationId"
+                    value="{{../selectedOrg.id}}"
+                  >
+
+                  <label>
+                    <span>{{t 'common.site'}}</span>
+                    <select name="siteId" required>
+                      {{#each @root.grantSites}}
+                        <option value="{{id}}">{{name}}</option>
+                      {{/each}}
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>{{t 'customers.duration'}}</span>
+                    <select name="durationSeconds" required>
+                      <option value="3600">1 hour</option>
+                      <option value="25200">7 hours</option>
+                      <option value="86400">24 hours</option>
+                      <option value="604800">7 days</option>
+                      <option value="2592000">30 days</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>{{t 'customers.reasonOptional'}}</span>
+                    <input
+                      name="grantNote"
+                      maxlength="250"
+                      placeholder="{{t 'customers.reasonPlaceholder'}}"
+                    >
+                  </label>
+
+                  <button type="submit">{{t 'customers.grantAccessButton'}}</button>
+                </form>
+              </details>
+            </td>
           </tr>
         {{else}}
-          <tr><td colspan="8" class="empty">{{t 'customers.noCustomers'}}</td></tr>
+          <tr><td colspan="9" class="empty">{{t 'customers.noCustomers'}}</td></tr>
         {{/each}}
       </tbody>
     </table>
