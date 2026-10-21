@@ -144,6 +144,7 @@
             <th>{{t 'vouchers.unused'}}</th>
             <th>{{t 'vouchers.redeemed'}}</th>
             <th>{{t 'vouchers.expired'}}</th>
+            <th>{{t 'vouchers.cancelled'}}</th>
             <th>{{t 'vouchers.created'}}</th>
             <th>{{t 'common.actions'}}</th>
           </tr>
@@ -161,6 +162,7 @@
               <td data-label="{{t 'vouchers.unused'}}">{{unused_count}}</td>
               <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_count}}</td>
               <td data-label="{{t 'vouchers.expired'}}">{{expired_count}}</td>
+              <td data-label="{{t 'vouchers.cancelled'}}">{{cancelled_count}}</td>
               <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
               <td data-label="{{t 'common.actions'}}">
                 <a class="voucher-view-link" href="/admin/vouchers/batches/{{id}}?org={{../selectedOrg.id}}">
@@ -169,7 +171,7 @@
               </td>
             </tr>
           {{else}}
-            <tr><td colspan="9" class="empty">{{t 'vouchers.noBatches'}}</td></tr>
+            <tr><td colspan="10" class="empty">{{t 'vouchers.noBatches'}}</td></tr>
           {{/each}}
         </tbody>
       </table>
