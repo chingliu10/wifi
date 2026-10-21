@@ -1,0 +1,116 @@
+<section class="page-head">
+  <div>
+    <h2>{{t 'cashier.manageTitle'}}</h2>
+    <p>{{t 'cashier.manageSubtitle'}}</p>
+  </div>
+</section>
+
+{{#if created}}
+  <div class="notice notice-success">{{t 'cashier.created'}}</div>
+{{/if}}
+
+{{#if updated}}
+  <div class="notice notice-success">{{t 'cashier.updated'}}</div>
+{{/if}}
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'cashier.addCashier'}}</h3>
+      <p>{{t 'cashier.addCashierHint'}}</p>
+    </div>
+  </div>
+
+  {{#if sites}}
+    <form method="POST" action="/admin/cashiers" class="admin-form cashier-create-form">
+      <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+      <label>
+        <span>{{t 'cashier.fullName'}}</span>
+        <input name="fullName" maxlength="120" required>
+      </label>
+
+      <label>
+        <span>{{t 'login.username'}}</span>
+        <input name="username" maxlength="120" autocomplete="off" required>
+      </label>
+
+      <label>
+        <span>{{t 'login.password'}}</span>
+        <input name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+      </label>
+
+      <label>
+        <span>{{t 'common.site'}}</span>
+        <select name="siteId" required>
+          {{#each sites}}
+            <option value="{{id}}">{{name}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <button type="submit" class="primary-action-button">{{t 'cashier.createLogin'}}</button>
+    </form>
+  {{else}}
+    <div class="empty-state">
+      <p>{{t 'cashier.createSiteFirst'}}</p>
+    </div>
+  {{/if}}
+</section>
+
+<section class="panel table-panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'cashier.accounts'}}</h3>
+      <p>{{t 'cashier.accountsHint'}}</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>{{t 'cashier.fullName'}}</th>
+          <th>{{t 'login.username'}}</th>
+          <th>{{t 'common.site'}}</th>
+          <th>{{t 'cashier.soldToday'}}</th>
+          <th>{{t 'cashier.expectedCash'}}</th>
+          <th>{{t 'common.status'}}</th>
+          <th>{{t 'common.actions'}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each cashiers}}
+          <tr>
+            <td data-label="{{t 'cashier.fullName'}}"><strong>{{full_name}}</strong></td>
+            <td data-label="{{t 'login.username'}}"><code>{{username}}</code></td>
+            <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+            <td data-label="{{t 'cashier.soldToday'}}">{{sold_today}}</td>
+            <td data-label="{{t 'cashier.expectedCash'}}">{{formatTzs expected_cash_today}} TZS</td>
+            <td data-label="{{t 'common.status'}}">
+              {{#if active}}
+                <span class="status-pill status-active">{{t 'common.active'}}</span>
+              {{else}}
+                <span class="status-pill status-inactive">{{t 'common.inactive'}}</span>
+              {{/if}}
+            </td>
+            <td data-label="{{t 'common.actions'}}">
+              <form method="POST" action="/admin/cashiers/{{id}}/toggle" class="inline-action-form">
+                <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+                {{#if active}}
+                  <input type="hidden" name="active" value="false">
+                  <button type="submit" class="secondary-button">{{t 'cashier.disable'}}</button>
+                {{else}}
+                  <input type="hidden" name="active" value="true">
+                  <button type="submit" class="secondary-button">{{t 'cashier.enable'}}</button>
+                {{/if}}
+              </form>
+            </td>
+          </tr>
+        {{else}}
+          <tr><td colspan="7" class="empty">{{t 'cashier.noCashiers'}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
