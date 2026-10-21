@@ -47,13 +47,22 @@ const findActiveSubscriptionByDeviceAndSite = async ({
         sub.starts_at,
         sub.expires_at,
         sub.status,
-        COALESCE(p.name, 'Complimentary access') AS package_name,
-        p.duration_seconds AS package_duration_seconds,
+        COALESCE(
+          vb.package_name_snapshot,
+          p.name,
+          'Complimentary access'
+        ) AS package_name,
+        COALESCE(
+          vb.package_duration_seconds_snapshot,
+          p.duration_seconds
+        ) AS package_duration_seconds,
         sub.access_source,
         sub.granted_by_user_id,
         sub.grant_note
       FROM subscriptions sub
       LEFT JOIN packages p ON p.id = sub.package_id
+      LEFT JOIN vouchers v ON v.subscription_id = sub.id
+      LEFT JOIN voucher_batches vb ON vb.id = v.batch_id
       WHERE sub.device_id = $1
         AND sub.site_id = $2
         AND sub.status = 'active'
