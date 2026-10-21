@@ -36,6 +36,9 @@ const {
 const omadaPortal = require('./services/omada/external-portal-client');
 const adminRouter = require('./routes/admin');
 const { translate } = require('./i18n/admin');
+const {
+  redeemVoucher
+} = require('./services/vouchers/voucher-service');
 
 const app = express();
 const devRoutesEnabled = process.env.ALLOW_DEV_ROUTES === 'true';
@@ -52,6 +55,21 @@ const isValidCustomerName = (value) => {
     name.length >= 2 &&
     name.length <= 40 &&
     /^[A-Za-z][A-Za-z' -]*$/.test(name)
+  );
+};
+
+const voucherPortalErrorMessage = (error) => {
+  const messages = {
+    VOUCHER_INVALID: 'Vocha hii si sahihi. Hakikisha umeandika code vizuri.',
+    VOUCHER_EXPIRED: 'Vocha hii imeisha muda wa kutumika.',
+    VOUCHER_CANCELLED: 'Vocha hii imefutwa na haiwezi kutumika.',
+    VOUCHER_ALREADY_USED: 'Vocha hii tayari imetumika.',
+    VOUCHER_UNAVAILABLE: 'Vocha hii haipatikani kwa matumizi.'
+  };
+
+  return (
+    messages[error?.code] ||
+    'Imeshindikana kutumia vocha hii. Tafadhali jaribu tena.'
   );
 };
 
@@ -1114,6 +1132,192 @@ app.get('/portal', async (req, res) => {
         primary_color: '#07633f'
       },
       error: 'Mtandao huu bado haujasanidiwa vizuri. Tafadhali wasiliana na msimamizi.'
+    });
+  }
+});
+
+app.post('/portal/voucher', async (req, res) => {
+  try {
+    const {
+      voucherCode,
+      clientMac,
+      clientIp,
+      site,
+      apMac,
+      ssidName,
+      redirectUrl,
+      radioId
+    } = req.body;
+
+    const normalizedClientMac = normalizeMacAddress(clientMac);
+
+    if (!normalizedClientMac) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Vocha',
+        error:
+          'Imeshindikana kutambua kifaa chako. Tafadhali unganisha tena kwenye WiFi.'
+      });
+    }
+
+    const siteConfig = await resolvePortalSite({
+      externalSiteId: site,
+      apMac
+    });
+
+    if (!siteConfig) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Vocha',
+        error: 'Mtandao huu haujasanidiwa bado.'
+      });
+    }
+
+    if (
+      !siteConfig.vouchers_enabled ||
+      !siteConfig.voucher_portal_enabled
+    ) {
+      return res.status(404).render('portal/confirm', {
+        title: 'Vocha',
+        error: 'Matumizi ya vocha hayajawashwa kwenye mtandao huu.'
+      });
+    }
+
+    const hasPortalContext =
+      Boolean(String(clientIp || '').trim()) &&
+      Boolean(String(apMac || '').trim()) &&
+      Boolean(String(ssidName || '').trim()) &&
+      radioId !== undefined &&
+      radioId !== null &&
+      String(radioId).trim() !== '';
+
+    if (!hasPortalContext) {
+      return res.status(400).render('portal/confirm', {
+        title: 'Vocha',
+        siteConfig,
+        error:
+          'Taarifa za kuunganisha WiFi hazijakamilika. Unganisha tena kwenye WiFi kisha ujaribu.'
+      });
+    }
+
+    const device = await getOrCreateDevice(normalizedClientMac);
+
+    let redeemed;
+
+    try {
+      redeemed = await redeemVoucher({
+        organizationId: siteConfig.organization_id,
+        siteId: siteConfig.id,
+        deviceId: device.id,
+        clientMac: normalizedClientMac,
+        code: voucherCode
+      });
+    } catch (error) {
+      const packagesResult = await pool.query(
+        `
+          SELECT
+            id,
+            name,
+            price_tzs,
+            duration_seconds
+          FROM packages
+          WHERE site_id = $1
+            AND active = TRUE
+            AND deleted_at IS NULL
+          ORDER BY sort_order
+        `,
+        [siteConfig.id]
+      );
+
+      const savedCustomer = await findLatestCustomerByDeviceId(device.id);
+
+      return res.status(error.statusCode || 400).render('portal/index', {
+        title: siteConfig.brand_name,
+        packages: packagesResult.rows,
+        device,
+        savedCustomer,
+        siteConfig,
+        portal: {
+          site,
+          clientIp,
+          apMac,
+          ssidName,
+          redirectUrl,
+          radioId,
+          clientMac: normalizedClientMac
+        },
+        voucherError: voucherPortalErrorMessage(error),
+        voucherCode: String(voucherCode || '').trim()
+      });
+    }
+
+    const remainingMs = Math.max(
+      0,
+      new Date(redeemed.subscription.expires_at).getTime() - Date.now()
+    );
+
+    if (remainingMs <= 0) {
+      return res.status(409).render('portal/confirm', {
+        title: 'Vocha',
+        siteConfig,
+        error: 'Muda wa vocha hii umeisha.'
+      });
+    }
+
+    try {
+      await omadaPortal.authorizeExternalPortalClient({
+        clientMac: normalizedClientMac,
+        clientIp,
+        apMac,
+        ssidName,
+        radioId,
+        durationMs: remainingMs,
+        originUrl: redirectUrl || ''
+      });
+    } catch (error) {
+      console.error('OMADA VOUCHER AUTH ERROR:', {
+        siteId: siteConfig.id,
+        clientMac: normalizedClientMac,
+        subscriptionId: redeemed.subscription.id,
+        error: error.message
+      });
+
+      return res.status(503).render('portal/confirm', {
+        title: 'Vocha imekubaliwa',
+        siteConfig,
+        package: {
+          name: redeemed.packageName
+        },
+        subscription: redeemed.subscription,
+        error:
+          'Vocha imekubaliwa na muda wako umehifadhiwa, lakini hatukuweza kuwasha internet sasa. Zima WiFi, washa tena, kisha fungua portal.'
+      });
+    }
+
+    console.log('OMADA VOUCHER AUTHORIZED:', {
+      siteId: siteConfig.id,
+      clientMac: normalizedClientMac,
+      subscriptionId: redeemed.subscription.id,
+      voucherId: redeemed.voucher.id,
+      reused: redeemed.reused,
+      remainingMs
+    });
+
+    return res.render('portal/confirm', {
+      title: 'Umeunganishwa',
+      siteConfig,
+      package: {
+        name: redeemed.packageName
+      },
+      subscription: redeemed.subscription,
+      paymentActive: true,
+      paymentPaid: true,
+      voucherActive: true
+    });
+  } catch (error) {
+    console.error('PORTAL VOUCHER ERROR:', error);
+
+    return res.status(500).render('portal/confirm', {
+      title: 'Vocha',
+      error: 'Imeshindikana kutumia vocha. Tafadhali jaribu tena.'
     });
   }
 });
