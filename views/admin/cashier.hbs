@@ -1,0 +1,132 @@
+<section class="page-head cashier-page-head">
+  <div>
+    <p class="eyebrow">{{#if site}}{{site.name}}{{/if}}</p>
+    <h2>{{t 'cashier.sellVoucher'}}</h2>
+    <p>{{t 'cashier.subtitle'}}</p>
+  </div>
+</section>
+
+{{#if error}}
+  <div class="notice">{{error}}</div>
+{{/if}}
+
+<section class="stats-grid cashier-stats">
+  <article class="stat-card">
+    <span>{{t 'cashier.soldToday'}}</span>
+    <strong>{{stats.sold_today}}</strong>
+    <small>{{t 'cashier.vouchersIssued'}}</small>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'cashier.expectedCash'}}</span>
+    <strong>{{formatTzs stats.expected_cash_today}} TZS</strong>
+    <small>{{t 'cashier.cashToAccount'}}</small>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'cashier.redeemedToday'}}</span>
+    <strong>{{stats.redeemed_today}}</strong>
+    <small>{{t 'cashier.customersConnected'}}</small>
+  </article>
+
+  <article class="stat-card">
+    <span>{{t 'cashier.waitingToday'}}</span>
+    <strong>{{stats.waiting_today}}</strong>
+    <small>{{t 'cashier.soldNotUsed'}}</small>
+  </article>
+</section>
+
+<section class="panel cashier-sell-panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'cashier.choosePackage'}}</h3>
+      <p>{{t 'cashier.issueRule'}}</p>
+    </div>
+  </div>
+
+  {{#if canSell}}
+    <div class="cashier-package-grid">
+      {{#each packages}}
+        <form method="POST" action="/admin/cashier/sales" class="cashier-package-card">
+          <input type="hidden" name="packageId" value="{{id}}">
+
+          <div>
+            <strong>{{name}}</strong>
+            <span>{{formatDuration duration_seconds}}</span>
+          </div>
+
+          <strong class="cashier-package-price">{{formatTzs price_tzs}} TZS</strong>
+
+          <button type="submit" class="primary-action-button cashier-issue-button">
+            {{t 'cashier.customerPaidIssue'}}
+          </button>
+        </form>
+      {{else}}
+        <div class="empty-state">
+          <p>{{t 'cashier.noPackages'}}</p>
+        </div>
+      {{/each}}
+    </div>
+  {{else}}
+    <div class="empty-state">
+      <p>{{t 'cashier.cannotSell'}}</p>
+    </div>
+  {{/if}}
+</section>
+
+<section class="panel table-panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'cashier.todaySales'}}</h3>
+      <p>{{t 'cashier.todaySalesHint'}}</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>{{t 'common.package'}}</th>
+          <th>{{t 'common.price'}}</th>
+          <th>{{t 'vouchers.code'}}</th>
+          <th>{{t 'common.status'}}</th>
+          <th>{{t 'vouchers.created'}}</th>
+          <th>{{t 'common.actions'}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each recentSales}}
+          <tr>
+            <td data-label="{{t 'common.package'}}"><strong>{{package_name_snapshot}}</strong></td>
+            <td data-label="{{t 'common.price'}}">{{formatTzs sale_price_tzs}} TZS</td>
+            <td data-label="{{t 'vouchers.code'}}">•••• {{code_last4}}</td>
+            <td data-label="{{t 'common.status'}}">
+              <span class="status-pill status-{{voucher_status}}">{{statusLabel voucher_status}}</span>
+            </td>
+            <td data-label="{{t 'vouchers.created'}}">{{formatDate issued_at}}</td>
+            <td data-label="{{t 'common.actions'}}">
+              <a class="table-action-link" href="/admin/cashier/sales/{{id}}">{{t 'cashier.viewVoucher'}}</a>
+            </td>
+          </tr>
+        {{else}}
+          <tr><td colspan="6" class="empty">{{t 'cashier.noSalesYet'}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (() => {
+    document.querySelectorAll('.cashier-package-card').forEach((form) => {
+      form.addEventListener('submit', () => {
+        const button = form.querySelector('.cashier-issue-button');
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = '{{t 'cashier.creating'}}';
+        }
+      });
+    });
+  })();
+</script>
