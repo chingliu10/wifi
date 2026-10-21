@@ -68,7 +68,7 @@ test('cashier voucher workflow is restricted to its own route and cannot expose 
 
   assert.match(layout, /\{\{#if isCashier\}\}/);
   assert.match(layout, /href="\/admin\/cashier"/);
-  assert.match(cashierView, /Customer paid/);
+  assert.match(cashierView, /cashier\.customerPaidIssue/);
   assert.doesNotMatch(cashierView, /\/admin\/wallet/);
   assert.doesNotMatch(cashierView, /\/admin\/packages/);
 });
