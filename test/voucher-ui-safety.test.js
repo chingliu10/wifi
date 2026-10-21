@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const Handlebars = require('handlebars');
 
 const read = (relativePath) =>
   fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
@@ -71,4 +72,18 @@ test('cashier voucher workflow is restricted to its own route and cannot expose 
   assert.match(cashierView, /cashier\.customerPaidIssue/);
   assert.doesNotMatch(cashierView, /\/admin\/wallet/);
   assert.doesNotMatch(cashierView, /\/admin\/packages/);
+});
+
+test('cashier Handlebars templates compile', () => {
+  for (const file of [
+    'views/layouts/admin.hbs',
+    'views/admin/cashier.hbs',
+    'views/admin/cashier-receipt.hbs',
+    'views/admin/cashiers.hbs'
+  ]) {
+    assert.doesNotThrow(
+      () => Handlebars.precompile(read(file)),
+      file + ' should compile'
+    );
+  }
 });
