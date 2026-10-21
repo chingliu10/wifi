@@ -10,7 +10,8 @@ const {
   setSessionCookie,
   clearSessionCookie,
   changePassword,
-  createClientOwner
+  createClientOwner,
+  createCashier
 } = require('../services/auth-service');
 const omada = require('../services/omada/open-api-client');
 const { normalizeLanguage, translate } = require('../i18n/admin');
@@ -39,7 +40,9 @@ const {
   listVoucherBatches,
   getVoucherBatch,
   cancelVoucherBatch,
-  cancelVoucher
+  cancelVoucher,
+  createCashierVoucherSale,
+  getCashierVoucherSale
 } = require('../services/vouchers/voucher-service');
 const {
   createComplimentarySubscription
@@ -442,8 +445,19 @@ const requireSuperAdmin = (req, res, next) => {
   next();
 };
 
+const requireOwnerOrSuperAdmin = (req, res, next) => {
+  if (
+    !req.authUser ||
+    !['super_admin', 'client_owner'].includes(req.authUser.role)
+  ) {
+    return res.status(403).send('Owner access is required.');
+  }
+
+  next();
+};
+
 const getOrganizations = async (user) => {
-  if (user.role === 'client_owner') {
+  if (user.role !== 'super_admin') {
     const result = await pool.query(
       `
         SELECT
@@ -493,7 +507,7 @@ const getSelectedOrganization = async (req) => {
     return { organizations, selectedOrg: null };
   }
 
-  if (req.authUser.role === 'client_owner') {
+  if (req.authUser.role !== 'super_admin') {
     return {
       organizations: [{ ...organizations[0], selected: true }],
       selectedOrg: organizations[0]
@@ -531,7 +545,8 @@ const renderAdmin = (req, res, view, data) => {
     isSwahili: req.language === 'sw',
     currentUser: req.authUser,
     isSuperAdmin: req.authUser?.role === 'super_admin',
-    isClientOwner: req.authUser?.role === 'client_owner'
+    isClientOwner: req.authUser?.role === 'client_owner',
+    isCashier: req.authUser?.role === 'cashier'
   });
 };
 
@@ -710,6 +725,23 @@ router.use((req, res, next) => {
   next();
 });
 
+router.use((req, res, next) => {
+  if (req.authUser?.role !== 'cashier') {
+    return next();
+  }
+
+  const allowed =
+    req.path === '/cashier' ||
+    req.path.startsWith('/cashier/') ||
+    req.path === '/account/password';
+
+  if (!allowed) {
+    return res.redirect('/admin/cashier');
+  }
+
+  return next();
+});
+
 router.get('/account/password', async (req, res) => {
   const { organizations, selectedOrg } = await getSelectedOrganization(req);
 
@@ -772,6 +804,338 @@ router.post('/account/password', async (req, res) => {
     console.error('ADMIN CHANGE PASSWORD ERROR:', error);
 
     return res.status(500).send('Unable to change password.');
+  }
+});
+
+router.get('/cashier', async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    if (req.authUser.role !== 'cashier') {
+      return res.redirect('/admin/cashiers' + (selectedOrg ? '?org=' + selectedOrg.id : ''));
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT id, name
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [req.authUser.site_id, req.authUser.organization_id]
+    );
+
+    const site = siteResult.rows[0] || null;
+    const canSell = Boolean(
+      site &&
+      selectedOrg?.vouchers_enabled &&
+      selectedOrg?.voucher_portal_enabled
+    );
+
+    const packages = canSell
+      ? (
+          await pool.query(
+            `
+              SELECT
+                id,
+                name,
+                price_tzs,
+                duration_seconds
+              FROM packages
+              WHERE site_id = $1
+                AND active = TRUE
+                AND deleted_at IS NULL
+              ORDER BY sort_order, id
+            `,
+            [site.id]
+          )
+        ).rows
+      : [];
+
+    const statsResult = await pool.query(
+      `
+        SELECT
+          COUNT(*) FILTER (
+            WHERE vs.issued_at::date = CURRENT_DATE
+              AND vs.sale_status = 'issued'
+          )::INTEGER AS sold_today,
+          COALESCE(
+            SUM(vs.sale_price_tzs) FILTER (
+              WHERE vs.issued_at::date = CURRENT_DATE
+                AND vs.sale_status = 'issued'
+            ),
+            0
+          )::BIGINT AS expected_cash_today,
+          COUNT(*) FILTER (
+            WHERE vs.issued_at::date = CURRENT_DATE
+              AND vs.sale_status = 'issued'
+              AND v.status = 'redeemed'
+          )::INTEGER AS redeemed_today,
+          COUNT(*) FILTER (
+            WHERE vs.issued_at::date = CURRENT_DATE
+              AND vs.sale_status = 'issued'
+              AND v.status = 'unused'
+          )::INTEGER AS waiting_today
+        FROM voucher_sales vs
+        JOIN vouchers v ON v.id = vs.voucher_id
+        WHERE vs.cashier_user_id = $1
+      `,
+      [req.authUser.id]
+    );
+
+    const recentSales = (
+      await pool.query(
+        `
+          SELECT
+            vs.id,
+            vs.package_name_snapshot,
+            vs.sale_price_tzs,
+            vs.issued_at,
+            v.code_last4,
+            v.status AS voucher_status,
+            v.redeemed_at
+          FROM voucher_sales vs
+          JOIN vouchers v ON v.id = vs.voucher_id
+          WHERE vs.cashier_user_id = $1
+          ORDER BY vs.issued_at DESC
+          LIMIT 12
+        `,
+        [req.authUser.id]
+      )
+    ).rows;
+
+    return renderAdmin(req, res, 'admin/cashier', {
+      titleKey: 'cashier.title',
+      organizations,
+      selectedOrg,
+      site,
+      packages,
+      canSell,
+      stats: statsResult.rows[0] || {},
+      recentSales,
+      error:
+        !selectedOrg?.vouchers_enabled
+          ? req.t('cashier.vouchersDisabled')
+          : !selectedOrg?.voucher_portal_enabled
+            ? req.t('cashier.portalDisabled')
+            : !site
+              ? req.t('cashier.siteUnavailable')
+              : null
+    });
+  } catch (error) {
+    console.error('CASHIER DASHBOARD ERROR:', error);
+    return res.status(500).send('Unable to load cashier.');
+  }
+});
+
+router.post('/cashier/sales', async (req, res) => {
+  try {
+    if (req.authUser.role !== 'cashier') {
+      return res.status(403).send('Cashier access is required.');
+    }
+
+    const created = await createCashierVoucherSale({
+      organizationId: req.authUser.organization_id,
+      siteId: req.authUser.site_id,
+      packageId: Number(req.body.packageId),
+      cashierUserId: req.authUser.id
+    });
+
+    return res.redirect('/admin/cashier/sales/' + created.sale.id);
+  } catch (error) {
+    console.error('CASHIER VOUCHER SALE ERROR:', error);
+    return res.status(error.statusCode || 400).send(
+      error.message || 'Unable to issue voucher.'
+    );
+  }
+});
+
+router.get('/cashier/sales/:id', async (req, res) => {
+  try {
+    if (req.authUser.role !== 'cashier') {
+      return res.status(403).send('Cashier access is required.');
+    }
+
+    const sale = await getCashierVoucherSale({
+      cashierUserId: req.authUser.id,
+      saleId: Number(req.params.id)
+    });
+
+    if (!sale) {
+      return res.status(404).send('Voucher sale not found.');
+    }
+
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    return renderAdmin(req, res, 'admin/cashier-receipt', {
+      titleKey: 'cashier.voucherReady',
+      organizations,
+      selectedOrg,
+      sale
+    });
+  } catch (error) {
+    console.error('CASHIER VOUCHER RECEIPT ERROR:', error);
+    return res.status(500).send('Unable to load voucher sale.');
+  }
+});
+
+router.get('/cashiers', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(404).send('Client not found.');
+    }
+
+    const [sitesResult, cashiersResult] = await Promise.all([
+      pool.query(
+        `
+          SELECT id, name
+          FROM sites
+          WHERE organization_id = $1
+            AND active = TRUE
+          ORDER BY name
+        `,
+        [selectedOrg.id]
+      ),
+      pool.query(
+        `
+          SELECT
+            u.id,
+            u.full_name,
+            u.username,
+            u.active,
+            u.last_login_at,
+            u.created_at,
+            s.name AS site_name,
+            COUNT(vs.id) FILTER (
+              WHERE vs.issued_at::date = CURRENT_DATE
+                AND vs.sale_status = 'issued'
+            )::INTEGER AS sold_today,
+            COALESCE(
+              SUM(vs.sale_price_tzs) FILTER (
+                WHERE vs.issued_at::date = CURRENT_DATE
+                  AND vs.sale_status = 'issued'
+              ),
+              0
+            )::BIGINT AS expected_cash_today
+          FROM platform_users u
+          JOIN sites s ON s.id = u.site_id
+          LEFT JOIN voucher_sales vs ON vs.cashier_user_id = u.id
+          WHERE u.organization_id = $1
+            AND u.role = 'cashier'
+          GROUP BY u.id, s.name
+          ORDER BY u.active DESC, u.full_name, u.id
+        `,
+        [selectedOrg.id]
+      )
+    ]);
+
+    return renderAdmin(req, res, 'admin/cashiers', {
+      titleKey: 'cashier.manageTitle',
+      organizations,
+      selectedOrg,
+      sites: sitesResult.rows,
+      cashiers: cashiersResult.rows,
+      created: String(req.query.created || '') === '1',
+      updated: String(req.query.updated || '') === '1'
+    });
+  } catch (error) {
+    console.error('CASHIER MANAGEMENT ERROR:', error);
+    return res.status(500).send('Unable to load cashiers.');
+  }
+});
+
+router.post('/cashiers', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const fullName = String(req.body.fullName || '').trim();
+    const username = String(req.body.username || '').trim();
+    const password = String(req.body.password || '');
+    const siteId = Number(req.body.siteId);
+
+    if (!selectedOrg || !fullName || !username || !siteId) {
+      return res.status(400).send('Name, username and site are required.');
+    }
+
+    if (password.length < 8 || password.length > 128) {
+      return res.status(400).send('Password must be between 8 and 128 characters.');
+    }
+
+    const siteResult = await pool.query(
+      `
+        SELECT id
+        FROM sites
+        WHERE id = $1
+          AND organization_id = $2
+          AND active = TRUE
+        LIMIT 1
+      `,
+      [siteId, selectedOrg.id]
+    );
+
+    if (!siteResult.rows[0]) {
+      return res.status(400).send('Invalid cashier site.');
+    }
+
+    await createCashier({
+      organizationId: selectedOrg.id,
+      siteId,
+      fullName,
+      username,
+      password
+    });
+
+    return res.redirect(
+      '/admin/cashiers?org=' +
+      selectedOrg.id +
+      '&created=1'
+    );
+  } catch (error) {
+    console.error('CREATE CASHIER ERROR:', error);
+
+    if (error.code === '23505') {
+      return res.status(409).send('That username is already in use.');
+    }
+
+    return res.status(500).send('Unable to create cashier.');
+  }
+});
+
+router.post('/cashiers/:id/toggle', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const cashierId = Number(req.params.id);
+    const active = String(req.body.active || '') === 'true';
+
+    const result = await pool.query(
+      `
+        UPDATE platform_users
+        SET
+          active = $3,
+          updated_at = NOW()
+        WHERE id = $1
+          AND organization_id = $2
+          AND role = 'cashier'
+        RETURNING id
+      `,
+      [cashierId, selectedOrg.id, active]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).send('Cashier not found.');
+    }
+
+    return res.redirect(
+      '/admin/cashiers?org=' +
+      selectedOrg.id +
+      '&updated=1'
+    );
+  } catch (error) {
+    console.error('UPDATE CASHIER ERROR:', error);
+    return res.status(500).send('Unable to update cashier.');
   }
 });
 
