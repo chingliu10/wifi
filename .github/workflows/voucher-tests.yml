@@ -1,0 +1,53 @@
+name: Voucher safety tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  voucher-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: wifi
+          POSTGRES_PASSWORD: wifi
+          POSTGRES_DB: wifi_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wifi -d wifi_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://wifi:wifi@127.0.0.1:5432/wifi_test
+      PLATFORM_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Syntax checks
+        run: |
+          node --check src/app.js
+          node --check src/routes/admin.js
+          node --check src/services/vouchers/voucher-service.js
+          node --check src/repositories/subscription-repository.js
+          node --check src/i18n/admin.js
+
+      - name: Apply migrations
+        run: npm run migrate
+
+      - name: Run voucher regression tests
+        run: npm run test:vouchers
