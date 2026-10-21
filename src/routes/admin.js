@@ -915,6 +915,7 @@ router.get('/cashier', async (req, res) => {
       canSell,
       stats: statsResult.rows[0] || {},
       recentSales,
+      saleRequestKey: crypto.randomUUID(),
       error:
         !selectedOrg?.vouchers_enabled
           ? req.t('cashier.vouchersDisabled')
@@ -940,7 +941,8 @@ router.post('/cashier/sales', async (req, res) => {
       organizationId: req.authUser.organization_id,
       siteId: req.authUser.site_id,
       packageId: Number(req.body.packageId),
-      cashierUserId: req.authUser.id
+      cashierUserId: req.authUser.id,
+      requestKey: req.body.requestKey
     });
 
     return res.redirect('/admin/cashier/sales/' + created.sale.id);
