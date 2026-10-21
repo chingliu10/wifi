@@ -1183,3 +1183,133 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
     break-inside:avoid
   }
 }
+
+
+/* Cashier voucher sales */
+.cashier-page-head .eyebrow{margin:0 0 5px}
+.cashier-stats{margin-bottom:16px}
+.cashier-sell-panel{margin-bottom:16px}
+.cashier-package-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px
+}
+.cashier-package-card{
+  display:grid;
+  gap:14px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff
+}
+.cashier-package-card>div{
+  display:grid;
+  gap:4px
+}
+.cashier-package-card>div strong{
+  font-size:15px
+}
+.cashier-package-card>div span{
+  color:var(--muted);
+  font-size:11px
+}
+.cashier-package-price{
+  font-size:24px;
+  letter-spacing:-.03em
+}
+.cashier-issue-button{
+  width:100%
+}
+.cashier-receipt-card{
+  max-width:440px;
+  margin:0 auto;
+  display:grid;
+  justify-items:center;
+  gap:8px;
+  padding:26px 22px;
+  text-align:center
+}
+.cashier-receipt-success{
+  width:58px;
+  height:58px;
+  display:grid;
+  place-items:center;
+  margin-bottom:4px;
+  border-radius:50%;
+  color:#fff;
+  background:var(--success);
+  font-size:28px;
+  font-weight:900
+}
+.cashier-receipt-label{
+  color:var(--muted);
+  font-size:12px
+}
+.cashier-receipt-price{
+  font-size:22px
+}
+.cashier-voucher-code{
+  width:100%;
+  margin:14px 0 4px;
+  padding:18px 14px;
+  border:1px dashed #9ccab7;
+  border-radius:14px;
+  background:#f4fbf7;
+  font-size:32px;
+  font-weight:900;
+  letter-spacing:.08em
+}
+.cashier-receipt-actions{
+  width:100%;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+.cashier-receipt-actions .secondary-button{
+  margin:0
+}
+.cashier-customer-instructions{
+  width:100%;
+  margin-top:12px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--surface-soft);
+  text-align:left
+}
+.cashier-customer-instructions strong{
+  font-size:12px
+}
+.cashier-customer-instructions ol{
+  margin:8px 0 0;
+  padding-left:20px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.65
+}
+.cashier-next-sale{
+  width:100%;
+  justify-content:center;
+  margin-top:10px
+}
+.cashier-create-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px
+}
+.cashier-create-form>button{
+  align-self:end
+}
+
+@media(max-width:760px){
+  .cashier-package-grid,
+  .cashier-create-form{
+    grid-template-columns:1fr
+  }
+  .cashier-receipt-card{
+    max-width:none
+  }
+  .cashier-voucher-code{
+    font-size:28px
+  }
+}
