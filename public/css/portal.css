@@ -480,39 +480,124 @@ svg {
   border-top: 1px solid var(--line);
 }
 
-.voucher-entry {
-  border: 1px solid #cfe6da;
-  border-radius: 14px;
-  background: #f7fbf9;
-}
-
-.voucher-entry summary {
+.voucher-open-button {
+  width: 100%;
   display: grid;
   gap: 2px;
   padding: 12px 14px;
+  border: 1px solid #cfe6da;
+  border-radius: 14px;
+  color: inherit;
+  background: #f7fbf9;
+  text-align: left;
   cursor: pointer;
-  list-style: none;
 }
 
-.voucher-entry summary::-webkit-details-marker {
-  display: none;
-}
-
-.voucher-entry summary span {
+.voucher-open-button span {
   color: var(--brand);
   font-size: 13px;
   font-weight: 900;
 }
 
-.voucher-entry summary small {
+.voucher-open-button small {
   color: var(--muted);
   font-size: 10px;
+}
+
+.voucher-open-button:active {
+  transform: translateY(1px);
+}
+
+.voucher-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.voucher-modal.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.voucher-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: rgba(1, 49, 30, .58);
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+}
+
+.voucher-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 360px);
+  overflow: hidden;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(1, 49, 30, .28);
+  transform: translateY(10px) scale(.985);
+  transition: transform 140ms ease;
+}
+
+.voucher-modal.is-visible .voucher-modal-card {
+  transform: translateY(0) scale(1);
+}
+
+.voucher-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 8px;
+}
+
+.voucher-modal-eyebrow {
+  margin: 0 0 4px;
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.voucher-modal-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+
+.voucher-modal-head p:not(.voucher-modal-eyebrow) {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.voucher-modal-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--text);
+  background: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .voucher-form {
   display: grid;
   gap: 10px;
-  padding: 0 14px 14px;
+  padding: 10px 18px 18px;
 }
 
 .voucher-form label {
@@ -523,17 +608,17 @@ svg {
 
 .voucher-form input {
   width: 100%;
-  height: 48px;
-  padding: 0 13px;
+  height: 52px;
+  padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 12px;
   outline: none;
   color: var(--text);
   background: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-align: center;
 }
 
 .voucher-form input:focus {
@@ -542,9 +627,9 @@ svg {
 }
 
 .voucher-submit-button {
-  min-height: 46px;
+  min-height: 48px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 12px;
   color: #fff;
   background: var(--brand);
   font-weight: 900;
@@ -554,6 +639,22 @@ svg {
 .voucher-submit-button:disabled {
   cursor: not-allowed;
   opacity: .65;
+}
+
+body.voucher-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .voucher-modal {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .voucher-modal-card {
+    width: 100%;
+    border-radius: 20px 20px 14px 14px;
+  }
 }
 
 .support-line {
