@@ -495,37 +495,6 @@ const redeemVoucher = async ({
       );
     }
 
-    if (!voucher.batch_active) {
-      throw voucherError(
-        'VOUCHER_CANCELLED',
-        'This voucher batch has been cancelled'
-      );
-    }
-
-    if (
-      voucher.redeemable_until &&
-      new Date(voucher.redeemable_until).getTime() <= Date.now()
-    ) {
-      throw voucherError(
-        'VOUCHER_EXPIRED',
-        'This voucher has expired'
-      );
-    }
-
-    if (voucher.status === 'cancelled') {
-      throw voucherError(
-        'VOUCHER_CANCELLED',
-        'This voucher has been cancelled'
-      );
-    }
-
-    if (voucher.status === 'expired') {
-      throw voucherError(
-        'VOUCHER_EXPIRED',
-        'This voucher has expired'
-      );
-    }
-
     if (voucher.status === 'redeemed') {
       if (Number(voucher.redeemed_device_id) !== Number(deviceId)) {
         throw voucherError(
@@ -567,6 +536,37 @@ const redeemVoucher = async ({
         packageName: voucher.package_name_snapshot,
         reused: true
       };
+    }
+
+    if (!voucher.batch_active) {
+      throw voucherError(
+        'VOUCHER_CANCELLED',
+        'This voucher batch has been cancelled'
+      );
+    }
+
+    if (
+      voucher.redeemable_until &&
+      new Date(voucher.redeemable_until).getTime() <= Date.now()
+    ) {
+      throw voucherError(
+        'VOUCHER_EXPIRED',
+        'This voucher has expired'
+      );
+    }
+
+    if (voucher.status === 'cancelled') {
+      throw voucherError(
+        'VOUCHER_CANCELLED',
+        'This voucher has been cancelled'
+      );
+    }
+
+    if (voucher.status === 'expired') {
+      throw voucherError(
+        'VOUCHER_EXPIRED',
+        'This voucher has expired'
+      );
     }
 
     if (voucher.status !== 'unused') {
