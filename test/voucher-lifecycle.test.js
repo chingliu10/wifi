@@ -26,7 +26,10 @@ const {
   cancelVoucher,
   cancelVoucherBatch,
   normalizeVoucherCode,
-  hashVoucherCode
+  hashVoucherCode,
+  assertVoucherAttemptAllowed,
+  recordInvalidVoucherAttempt,
+  clearVoucherAttempts
 } = require('../src/services/vouchers/voucher-service');
 
 const unique = () =>
@@ -158,6 +161,56 @@ test(
 
   assert.equal(generated.codes.length, 4);
   assert.equal(new Set(generated.codes).size, 4);
+
+  for (const code of generated.codes) {
+    assert.match(code, /^\d{4} \d{4}$/);
+    assert.equal(normalizeVoucherCode(code).length, 8);
+  }
+
+  await assertVoucherAttemptAllowed({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: otherDevice.id
+  });
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const state = await recordInvalidVoucherAttempt({
+      organizationId: org.id,
+      siteId: site.id,
+      deviceId: otherDevice.id
+    });
+
+    assert.equal(state.blocked, false);
+  }
+
+  const blockedState = await recordInvalidVoucherAttempt({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: otherDevice.id
+  });
+
+  assert.equal(blockedState.blocked, true);
+
+  await assert.rejects(
+    assertVoucherAttemptAllowed({
+      organizationId: org.id,
+      siteId: site.id,
+      deviceId: otherDevice.id
+    }),
+    (error) => error.code === 'VOUCHER_RATE_LIMIT'
+  );
+
+  await clearVoucherAttempts({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: otherDevice.id
+  });
+
+  await assertVoucherAttemptAllowed({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: otherDevice.id
+  });
 
   const batchView = await getVoucherBatch({
     organizationId: org.id,
