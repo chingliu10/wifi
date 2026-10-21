@@ -172,14 +172,17 @@ const getUserFromRequest = async (req) => {
       SELECT
         u.id,
         u.organization_id,
+        u.site_id,
         u.role,
         u.full_name,
         u.username,
         u.active,
-        o.name AS organization_name
+        o.name AS organization_name,
+        st.name AS site_name
       FROM platform_sessions s
       JOIN platform_users u ON u.id = s.user_id
       LEFT JOIN organizations o ON o.id = u.organization_id
+      LEFT JOIN sites st ON st.id = u.site_id
       WHERE s.token_hash = $1
         AND s.expires_at > NOW()
         AND u.active = TRUE
@@ -315,6 +318,55 @@ const changePassword = async ({
   }
 };
 
+const createCashier = async ({
+  db,
+  organizationId,
+  siteId,
+  fullName,
+  username,
+  password
+}) => {
+  const normalizedUsername = normalizeUsername(username);
+
+  if (!normalizedUsername) {
+    throw new Error('Cashier username is required');
+  }
+
+  const passwordHash = hashPassword(password);
+
+  const result = await (db || pool).query(
+    `
+      INSERT INTO platform_users (
+        organization_id,
+        site_id,
+        role,
+        full_name,
+        username,
+        password_hash
+      )
+      VALUES ($1, $2, 'cashier', $3, $4, $5)
+      RETURNING
+        id,
+        organization_id,
+        site_id,
+        role,
+        full_name,
+        username,
+        active,
+        created_at
+    `,
+    [
+      organizationId,
+      siteId,
+      String(fullName || '').trim() || normalizedUsername,
+      normalizedUsername,
+      passwordHash
+    ]
+  );
+
+  return result.rows[0];
+};
+
 const createClientOwner = async ({
   db,
   organizationId,
@@ -372,5 +424,6 @@ module.exports = {
   setSessionCookie,
   clearSessionCookie,
   changePassword,
-  createClientOwner
+  createClientOwner,
+  createCashier
 };
