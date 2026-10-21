@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS voucher_sales (
     REFERENCES vouchers(id) ON DELETE RESTRICT,
   cashier_user_id BIGINT NOT NULL
     REFERENCES platform_users(id) ON DELETE RESTRICT,
+  request_key VARCHAR(80) NOT NULL UNIQUE,
   package_name_snapshot VARCHAR(100) NOT NULL,
   package_duration_seconds_snapshot INTEGER NOT NULL
     CHECK (package_duration_seconds_snapshot > 0),
