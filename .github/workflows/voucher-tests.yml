@@ -26,6 +26,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://wifi:wifi@127.0.0.1:5432/wifi_test
+      TEST_DATABASE_URL: postgres://wifi:wifi@127.0.0.1:5432/wifi_test
       PLATFORM_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
     steps:
