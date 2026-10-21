@@ -398,9 +398,12 @@ const getVoucherBatch = async ({
             ELSE v.status
           END AS status,
           v.redeemed_at,
+          v.redeemed_device_id,
+          d.mac_address AS redeemed_mac,
           v.created_at
         FROM vouchers v
         JOIN voucher_batches vb ON vb.id = v.batch_id
+        LEFT JOIN devices d ON d.id = v.redeemed_device_id
         WHERE v.batch_id = $1
           AND v.organization_id = $2
         ORDER BY v.id
@@ -413,7 +416,14 @@ const getVoucherBatch = async ({
     batch,
     vouchers: vouchers.map((voucher) => ({
       ...voucher,
-      code: includeCodes ? decryptSecret(voucher.code_enc) : null
+      code: includeCodes ? decryptSecret(voucher.code_enc) : null,
+      cancellable:
+        Boolean(batch.active) &&
+        voucher.status === 'unused' &&
+        (
+          !batch.redeemable_until ||
+          new Date(batch.redeemable_until).getTime() > Date.now()
+        )
     }))
   };
 };
