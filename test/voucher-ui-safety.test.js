@@ -55,3 +55,20 @@ test('voucher redemption uses External Portal and does not introduce MAC-auth pr
     /disableMacAuthForSsid/
   );
 });
+
+test('cashier voucher workflow is restricted to its own route and cannot expose admin navigation', () => {
+  const adminRoutes = read('src/routes/admin.js');
+  const layout = read('views/layouts/admin.hbs');
+  const cashierView = read('views/admin/cashier.hbs');
+
+  assert.match(adminRoutes, /req\.authUser\?\.role !== 'cashier'/);
+  assert.match(adminRoutes, /req\.path\.startsWith\('\/cashier\/'\)/);
+  assert.match(adminRoutes, /router\.post\('\/cashier\/sales'/);
+  assert.match(adminRoutes, /requireOwnerOrSuperAdmin/);
+
+  assert.match(layout, /\{\{#if isCashier\}\}/);
+  assert.match(layout, /href="\/admin\/cashier"/);
+  assert.match(cashierView, /Customer paid/);
+  assert.doesNotMatch(cashierView, /\/admin\/wallet/);
+  assert.doesNotMatch(cashierView, /\/admin\/packages/);
+});
