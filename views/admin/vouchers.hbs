@@ -9,9 +9,49 @@
   <div class="notice notice-error">{{error}}</div>
 {{/if}}
 
-<div class="notice voucher-safety-note">
-  {{t 'vouchers.portalSafety'}}
-</div>
+{{#if selectedOrg.voucher_portal_enabled}}
+  <div class="notice notice-success voucher-safety-note">
+    {{t 'vouchers.portalEnabled'}}
+  </div>
+{{else}}
+  <div class="notice voucher-safety-note">
+    {{t 'vouchers.portalSafety'}}
+  </div>
+{{/if}}
+
+{{#if isSuperAdmin}}
+  <section class="panel voucher-rollout-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'vouchers.portalAccessTitle'}}</h3>
+        <p>{{t 'vouchers.portalAccessHint'}}</p>
+      </div>
+    </div>
+
+    <form
+      method="POST"
+      action="/admin/organizations/{{selectedOrg.id}}/features/voucher-portal"
+      class="inline-action-form"
+    >
+      <input
+        type="hidden"
+        name="organizationId"
+        value="{{selectedOrg.id}}"
+      >
+      {{#if selectedOrg.voucher_portal_enabled}}
+        <input type="hidden" name="enabled" value="false">
+        <button type="submit" class="secondary-button">
+          {{t 'vouchers.disablePortal'}}
+        </button>
+      {{else}}
+        <input type="hidden" name="enabled" value="true">
+        <button type="submit" class="primary-action-button">
+          {{t 'vouchers.enablePortal'}}
+        </button>
+      {{/if}}
+    </form>
+  </section>
+{{/if}}
 
 {{#if selectedOrg}}
   {{#if sites}}
