@@ -29,8 +29,12 @@ const {
   hashVoucherCode,
   assertVoucherAttemptAllowed,
   recordInvalidVoucherAttempt,
-  clearVoucherAttempts
+  clearVoucherAttempts,
+  createCashierVoucherSale,
+  getCashierVoucherSale,
+  listVoucherBatches
 } = require('../src/services/vouchers/voucher-service');
+const { createCashier } = require('../src/services/auth-service');
 
 const unique = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -379,6 +383,91 @@ test(
     byCodeLast4.get(normalizeVoucherCode(generated.codes[3]).slice(-4)).status,
     'cancelled'
   );
+  }
+);
+
+test(
+  'cashier can issue one accountable voucher without payment or admin batch exposure',
+  {
+    skip: testDatabaseUrl
+      ? false
+      : 'TEST_DATABASE_URL is not configured; production DATABASE_URL is never used for voucher integration tests'
+  },
+  async () => {
+    const { org, site, pkg, device } = await setup();
+
+    const suffix = unique();
+    const cashier = await createCashier({
+      organizationId: org.id,
+      siteId: site.id,
+      fullName: 'Voucher Cashier',
+      username: 'cashier-' + suffix,
+      password: 'SafePassword123!'
+    });
+
+    const created = await createCashierVoucherSale({
+      organizationId: org.id,
+      siteId: site.id,
+      packageId: pkg.id,
+      cashierUserId: cashier.id
+    });
+
+    assert.match(created.code, /^\d{4} \d{4}$/);
+    assert.equal(created.batch.batch_type, 'cashier');
+    assert.equal(Number(created.sale.cashier_user_id), Number(cashier.id));
+    assert.equal(Number(created.sale.sale_price_tzs), Number(pkg.price_tzs));
+    assert.equal(created.sale.sale_status, 'issued');
+
+    const receipt = await getCashierVoucherSale({
+      cashierUserId: cashier.id,
+      saleId: created.sale.id
+    });
+
+    assert.equal(receipt.code, created.code);
+    assert.equal(receipt.voucher_status, 'unused');
+
+    const adminBatches = await listVoucherBatches({
+      organizationId: org.id,
+      page: 1,
+      pageSize: 25
+    });
+
+    assert.equal(adminBatches.total, 0);
+
+    const paymentCount = await pool.query(
+      `
+        SELECT COUNT(*)::INTEGER AS total
+        FROM payment_transactions
+        WHERE organization_id = $1
+      `,
+      [org.id]
+    );
+
+    assert.equal(paymentCount.rows[0].total, 0);
+
+    const redeemed = await redeemVoucher({
+      organizationId: org.id,
+      siteId: site.id,
+      deviceId: device.id,
+      clientMac: device.mac_address,
+      code: created.code
+    });
+
+    assert.equal(redeemed.subscription.access_source, 'voucher');
+
+    const redeemedReceipt = await getCashierVoucherSale({
+      cashierUserId: cashier.id,
+      saleId: created.sale.id
+    });
+
+    assert.equal(redeemedReceipt.voucher_status, 'redeemed');
+
+    const foreignReceipt = await getCashierVoucherSale({
+      cashierUserId: cashier.id + 999999,
+      saleId: created.sale.id
+    });
+
+    assert.equal(foreignReceipt, null);
   }
 );
 
