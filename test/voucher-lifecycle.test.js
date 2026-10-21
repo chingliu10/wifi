@@ -1,9 +1,22 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
+
+require('dotenv').config({
+  path: path.resolve(__dirname, '..', '.env')
+});
 
 process.env.PLATFORM_ENCRYPTION_KEY =
   process.env.PLATFORM_ENCRYPTION_KEY ||
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+const testDatabaseUrl = String(
+  process.env.TEST_DATABASE_URL || ''
+).trim();
+
+if (testDatabaseUrl) {
+  process.env.DATABASE_URL = testDatabaseUrl;
+}
 
 const pool = require('../src/config/database');
 const {
@@ -124,7 +137,14 @@ test('voucher codes normalize and hash consistently', () => {
   assert.equal(hashVoucherCode(formatted), hashVoucherCode(compact));
 });
 
-test('voucher lifecycle is single-use, idempotent for the same device, scoped and cancellable', async () => {
+test(
+  'voucher lifecycle is single-use, idempotent for the same device, scoped and cancellable',
+  {
+    skip: testDatabaseUrl
+      ? false
+      : 'TEST_DATABASE_URL is not configured; production DATABASE_URL is never used for voucher integration tests'
+  },
+  async () => {
   const { org, site, otherSite, pkg, device, otherDevice } = await setup();
 
   const generated = await createVoucherBatch({
@@ -306,7 +326,8 @@ test('voucher lifecycle is single-use, idempotent for the same device, scoped an
     byCodeLast4.get(normalizeVoucherCode(generated.codes[3]).slice(-4)).status,
     'cancelled'
   );
-});
+  }
+);
 
 test.after(async () => {
   await pool.end();
