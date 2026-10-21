@@ -1,0 +1,78 @@
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{sale.site_name}}</p>
+    <h2>{{t 'cashier.voucherReady'}}</h2>
+    <p>{{t 'cashier.giveCodeToCustomer'}}</p>
+  </div>
+</section>
+
+<section class="panel cashier-receipt-card">
+  <div class="cashier-receipt-success">✓</div>
+
+  <span class="cashier-receipt-label">{{sale.package_name_snapshot}}</span>
+  <strong class="cashier-receipt-price">{{formatTzs sale.sale_price_tzs}} TZS</strong>
+  <small>{{formatDuration sale.package_duration_seconds_snapshot}}</small>
+
+  <div class="cashier-voucher-code" id="cashier-voucher-code">{{sale.code}}</div>
+
+  <div class="cashier-receipt-actions">
+    <button type="button" class="secondary-button" id="copy-voucher-code">
+      {{t 'cashier.copyCode'}}
+    </button>
+    <button type="button" class="secondary-button" id="share-voucher-code">
+      {{t 'cashier.shareCode'}}
+    </button>
+  </div>
+
+  <div class="cashier-customer-instructions">
+    <strong>{{t 'cashier.customerSteps'}}</strong>
+    <ol>
+      <li>{{t 'cashier.stepConnect'}}</li>
+      <li>{{t 'cashier.stepVoucher'}}</li>
+      <li>{{t 'cashier.stepEnterCode'}}</li>
+    </ol>
+  </div>
+
+  <a class="primary-link cashier-next-sale" href="/admin/cashier">
+    {{t 'cashier.nextCustomer'}}
+  </a>
+</section>
+
+<script>
+  (() => {
+    const code = document.getElementById('cashier-voucher-code')?.textContent?.trim();
+    const copyButton = document.getElementById('copy-voucher-code');
+    const shareButton = document.getElementById('share-voucher-code');
+
+    copyButton?.addEventListener('click', async () => {
+      if (!code) return;
+
+      try {
+        await navigator.clipboard.writeText(code);
+        copyButton.textContent = '{{t 'cashier.copied'}}';
+      } catch (error) {
+        window.prompt('{{t 'cashier.copyCode'}}', code);
+      }
+    });
+
+    if (!navigator.share) {
+      shareButton?.setAttribute('hidden', '');
+    }
+
+    shareButton?.addEventListener('click', async () => {
+      if (!code || !navigator.share) return;
+
+      try {
+        await navigator.share({
+          title: 'WiFi Voucher',
+          text:
+            '{{sale.site_name}}\n' +
+            '{{sale.package_name_snapshot}} - {{formatTzs sale.sale_price_tzs}} TZS\n' +
+            '{{t 'vouchers.code'}}: ' + code
+        });
+      } catch (error) {
+        // The customer may close the native share sheet.
+      }
+    });
+  })();
+</script>
