@@ -418,6 +418,340 @@ const getVoucherBatch = async ({
   };
 };
 
+
+const voucherError = (code, message, statusCode = 400) => {
+  const error = new Error(message);
+  error.code = code;
+  error.statusCode = statusCode;
+  return error;
+};
+
+const redeemVoucher = async ({
+  organizationId,
+  siteId,
+  deviceId,
+  clientMac,
+  code
+}) => {
+  const normalizedCode = normalizeVoucherCode(code);
+
+  if (normalizedCode.length < 8 || normalizedCode.length > 40) {
+    throw voucherError(
+      'VOUCHER_INVALID',
+      'Voucher code is invalid'
+    );
+  }
+
+  const codeHash = hashVoucherCode(normalizedCode);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const voucherResult = await client.query(
+      `
+        SELECT
+          v.id,
+          v.organization_id,
+          v.site_id,
+          v.batch_id,
+          v.status,
+          v.redeemed_device_id,
+          v.subscription_id,
+          v.redeemed_at,
+          vb.package_id,
+          vb.package_name_snapshot,
+          vb.package_duration_seconds_snapshot,
+          vb.redeemable_until,
+          vb.active AS batch_active,
+          vb.batch_reference
+        FROM vouchers v
+        JOIN voucher_batches vb ON vb.id = v.batch_id
+        WHERE v.code_hash = $1
+          AND v.organization_id = $2
+          AND v.site_id = $3
+        LIMIT 1
+        FOR UPDATE OF v, vb
+      `,
+      [codeHash, organizationId, siteId]
+    );
+
+    const voucher = voucherResult.rows[0];
+
+    if (!voucher) {
+      throw voucherError(
+        'VOUCHER_INVALID',
+        'Voucher code is invalid'
+      );
+    }
+
+    if (!voucher.batch_active) {
+      throw voucherError(
+        'VOUCHER_CANCELLED',
+        'This voucher batch has been cancelled'
+      );
+    }
+
+    if (
+      voucher.redeemable_until &&
+      new Date(voucher.redeemable_until).getTime() <= Date.now()
+    ) {
+      throw voucherError(
+        'VOUCHER_EXPIRED',
+        'This voucher has expired'
+      );
+    }
+
+    if (voucher.status === 'cancelled') {
+      throw voucherError(
+        'VOUCHER_CANCELLED',
+        'This voucher has been cancelled'
+      );
+    }
+
+    if (voucher.status === 'expired') {
+      throw voucherError(
+        'VOUCHER_EXPIRED',
+        'This voucher has expired'
+      );
+    }
+
+    if (voucher.status === 'redeemed') {
+      if (Number(voucher.redeemed_device_id) !== Number(deviceId)) {
+        throw voucherError(
+          'VOUCHER_ALREADY_USED',
+          'This voucher has already been used'
+        );
+      }
+
+      const existingSubscription = await client.query(
+        `
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+            AND device_id = $2
+            AND site_id = $3
+          LIMIT 1
+        `,
+        [voucher.subscription_id, deviceId, siteId]
+      );
+
+      const subscription = existingSubscription.rows[0];
+
+      if (
+        !subscription ||
+        subscription.status !== 'active' ||
+        new Date(subscription.expires_at).getTime() <= Date.now()
+      ) {
+        throw voucherError(
+          'VOUCHER_ALREADY_USED',
+          'This voucher has already been used'
+        );
+      }
+
+      await client.query('COMMIT');
+
+      return {
+        voucher,
+        subscription,
+        packageName: voucher.package_name_snapshot,
+        reused: true
+      };
+    }
+
+    if (voucher.status !== 'unused') {
+      throw voucherError(
+        'VOUCHER_UNAVAILABLE',
+        'This voucher is not available'
+      );
+    }
+
+    const subscriptionResult = await client.query(
+      `
+        WITH current_access AS (
+          SELECT MAX(expires_at) AS expires_at
+          FROM subscriptions
+          WHERE device_id = $1
+            AND site_id = $2
+            AND status = 'active'
+            AND expires_at > NOW()
+        )
+        INSERT INTO subscriptions (
+          site_id,
+          device_id,
+          package_id,
+          payment_id,
+          payment_transaction_id,
+          client_mac,
+          starts_at,
+          expires_at,
+          status,
+          access_source,
+          granted_by_user_id,
+          grant_note
+        )
+        VALUES (
+          $2,
+          $1,
+          $3,
+          NULL,
+          NULL,
+          $4,
+          COALESCE((SELECT expires_at FROM current_access), NOW()),
+          COALESCE((SELECT expires_at FROM current_access), NOW())
+            + ($5 * INTERVAL '1 second'),
+          'active',
+          'voucher',
+          NULL,
+          $6
+        )
+        RETURNING *
+      `,
+      [
+        deviceId,
+        siteId,
+        voucher.package_id,
+        clientMac,
+        voucher.package_duration_seconds_snapshot,
+        'Voucher ' + voucher.batch_reference
+      ]
+    );
+
+    const subscription = subscriptionResult.rows[0];
+
+    await client.query(
+      `
+        UPDATE vouchers
+        SET
+          status = 'redeemed',
+          redeemed_device_id = $2,
+          subscription_id = $3,
+          redeemed_at = NOW()
+        WHERE id = $1
+      `,
+      [voucher.id, deviceId, subscription.id]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      voucher: {
+        ...voucher,
+        status: 'redeemed',
+        redeemed_device_id: deviceId,
+        subscription_id: subscription.id
+      },
+      subscription,
+      packageName: voucher.package_name_snapshot,
+      reused: false
+    };
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('VOUCHER REDEMPTION ROLLBACK ERROR:', rollbackError);
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const cancelVoucherBatch = async ({
+  organizationId,
+  batchId
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const batchResult = await client.query(
+      `
+        SELECT id, active
+        FROM voucher_batches
+        WHERE id = $1
+          AND organization_id = $2
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [batchId, organizationId]
+    );
+
+    const batch = batchResult.rows[0];
+
+    if (!batch) {
+      throw voucherError(
+        'VOUCHER_BATCH_NOT_FOUND',
+        'Voucher batch was not found',
+        404
+      );
+    }
+
+    if (batch.active) {
+      await client.query(
+        `
+          UPDATE voucher_batches
+          SET active = FALSE
+          WHERE id = $1
+        `,
+        [batchId]
+      );
+
+      await client.query(
+        `
+          UPDATE vouchers
+          SET
+            status = 'cancelled',
+            cancelled_at = NOW()
+          WHERE batch_id = $1
+            AND organization_id = $2
+            AND status = 'unused'
+        `,
+        [batchId, organizationId]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return { cancelled: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const cancelVoucher = async ({
+  organizationId,
+  voucherId
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE vouchers
+      SET
+        status = 'cancelled',
+        cancelled_at = NOW()
+      WHERE id = $1
+        AND organization_id = $2
+        AND status = 'unused'
+      RETURNING id
+    `,
+    [voucherId, organizationId]
+  );
+
+  if (!result.rows[0]) {
+    throw voucherError(
+      'VOUCHER_NOT_CANCELLABLE',
+      'Only unused vouchers can be cancelled'
+    );
+  }
+
+  return { cancelled: true };
+};
+
 module.exports = {
   MAX_BATCH_QUANTITY,
   normalizeVoucherCode,
@@ -425,5 +759,8 @@ module.exports = {
   getVoucherAdminOptions,
   createVoucherBatch,
   listVoucherBatches,
-  getVoucherBatch
+  getVoucherBatch,
+  redeemVoucher,
+  cancelVoucherBatch,
+  cancelVoucher
 };
