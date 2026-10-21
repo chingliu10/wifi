@@ -936,12 +936,57 @@ const createCashierVoucherSale = async ({
   organizationId,
   siteId,
   packageId,
-  cashierUserId
+  cashierUserId,
+  requestKey
 }) => {
+  const safeRequestKey = String(requestKey || '').trim();
+
+  if (!safeRequestKey || safeRequestKey.length > 80) {
+    throw voucherError(
+      'CASHIER_INVALID_REQUEST',
+      'Voucher sale request is invalid'
+    );
+  }
+
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
+
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      ['cashier-voucher:' + safeRequestKey]
+    );
+
+    const existingSaleResult = await client.query(
+      `
+        SELECT
+          vs.*,
+          v.code_enc,
+          v.code_last4,
+          v.status AS voucher_status,
+          s.name AS site_name
+        FROM voucher_sales vs
+        JOIN vouchers v ON v.id = vs.voucher_id
+        JOIN sites s ON s.id = vs.site_id
+        WHERE vs.request_key = $1
+          AND vs.cashier_user_id = $2
+        LIMIT 1
+      `,
+      [safeRequestKey, cashierUserId]
+    );
+
+    const existingSale = existingSaleResult.rows[0];
+
+    if (existingSale) {
+      await client.query('COMMIT');
+
+      return {
+        sale: existingSale,
+        code: decryptSecret(existingSale.code_enc),
+        reused: true
+      };
+    }
 
     const cashierResult = await client.query(
       `
@@ -1107,11 +1152,12 @@ const createCashierVoucherSale = async ({
           package_id,
           voucher_id,
           cashier_user_id,
+          request_key,
           package_name_snapshot,
           package_duration_seconds_snapshot,
           sale_price_tzs
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `,
       [
@@ -1120,6 +1166,7 @@ const createCashierVoucherSale = async ({
         packageId,
         voucher.id,
         cashierUserId,
+        safeRequestKey,
         packageData.name,
         packageData.duration_seconds,
         packageData.price_tzs
@@ -1133,7 +1180,8 @@ const createCashierVoucherSale = async ({
       voucher,
       batch,
       code,
-      package: packageData
+      package: packageData,
+      reused: false
     };
   } catch (error) {
     await client.query('ROLLBACK');
