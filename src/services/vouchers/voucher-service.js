@@ -25,7 +25,29 @@ const normalizeVoucherCode = (value) =>
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 
+const getVoucherHashKey = () => {
+  const key = String(
+    process.env.VOUCHER_HASH_KEY ||
+    process.env.PLATFORM_ENCRYPTION_KEY ||
+    ''
+  ).trim();
+
+  if (!key) {
+    throw new Error(
+      'VOUCHER_HASH_KEY or PLATFORM_ENCRYPTION_KEY is required for vouchers'
+    );
+  }
+
+  return key;
+};
+
 const hashVoucherCode = (value) =>
+  crypto
+    .createHmac('sha256', getVoucherHashKey())
+    .update(normalizeVoucherCode(value))
+    .digest('hex');
+
+const legacyHashVoucherCode = (value) =>
   crypto
     .createHash('sha256')
     .update(normalizeVoucherCode(value))
@@ -597,6 +619,7 @@ const redeemVoucher = async ({
   }
 
   const codeHash = hashVoucherCode(normalizedCode);
+  const legacyCodeHash = legacyHashVoucherCode(normalizedCode);
   const client = await pool.connect();
 
   try {
@@ -621,13 +644,13 @@ const redeemVoucher = async ({
           vb.batch_reference
         FROM vouchers v
         JOIN voucher_batches vb ON vb.id = v.batch_id
-        WHERE v.code_hash = $1
-          AND v.organization_id = $2
-          AND v.site_id = $3
+        WHERE (v.code_hash = $1 OR v.code_hash = $2)
+          AND v.organization_id = $3
+          AND v.site_id = $4
         LIMIT 1
         FOR UPDATE OF v, vb
       `,
-      [codeHash, organizationId, siteId]
+      [codeHash, legacyCodeHash, organizationId, siteId]
     );
 
     const voucher = voucherResult.rows[0];
