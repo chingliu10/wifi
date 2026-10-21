@@ -8,6 +8,9 @@
     <a class="secondary-button voucher-action-link" href="/admin/vouchers?org={{selectedOrg.id}}">
       {{t 'vouchers.back'}}
     </a>
+    <button type="button" class="secondary-button voucher-action-link" onclick="window.print()">
+      {{t 'vouchers.print'}}
+    </button>
     <a
       class="primary-link"
       href="/admin/vouchers/batches/{{batch.id}}/export.csv?org={{selectedOrg.id}}"
@@ -20,6 +23,36 @@
 {{#if created}}
   <div class="notice notice-success">
     {{t 'vouchers.generatedNotice'}}
+  </div>
+{{/if}}
+
+{{#if cancelled}}
+  <div class="notice notice-success">
+    {{t 'vouchers.batchCancelled'}}
+  </div>
+{{/if}}
+
+{{#if voucherCancelled}}
+  <div class="notice notice-success">
+    {{t 'vouchers.codeCancelled'}}
+  </div>
+{{/if}}
+
+{{#if batch.active}}
+  <form
+    method="POST"
+    action="/admin/vouchers/batches/{{batch.id}}/cancel"
+    class="voucher-cancel-batch-form"
+    onsubmit="return confirm('{{t 'vouchers.cancelBatchConfirm'}}');"
+  >
+    <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+    <button type="submit" class="secondary-button">
+      {{t 'vouchers.cancelBatch'}}
+    </button>
+  </form>
+{{else}}
+  <div class="notice">
+    {{t 'vouchers.batchInactive'}}
   </div>
 {{/if}}
 
@@ -72,6 +105,7 @@
           <th>{{t 'vouchers.code'}}</th>
           <th>{{t 'vouchers.status'}}</th>
           <th>{{t 'vouchers.created'}}</th>
+          <th>{{t 'common.actions'}}</th>
         </tr>
       </thead>
       <tbody>
@@ -83,6 +117,26 @@
               <span class="status-pill status-{{status}}">{{statusLabel status}}</span>
             </td>
             <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
+            <td data-label="{{t 'common.actions'}}">
+              {{#if redeemed_mac}}
+                <small>{{t 'vouchers.usedBy'}} {{redeemed_mac}}</small>
+              {{/if}}
+
+              {{#if cancellable}}
+                <form
+                  method="POST"
+                  action="/admin/vouchers/{{id}}/cancel"
+                  class="inline-action-form"
+                  onsubmit="return confirm('{{t 'vouchers.cancelCodeConfirm'}}');"
+                >
+                  <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+                  <input type="hidden" name="batchId" value="{{../batch.id}}">
+                  <button type="submit" class="voucher-inline-danger">
+                    {{t 'vouchers.cancelCode'}}
+                  </button>
+                </form>
+              {{/if}}
+            </td>
           </tr>
         {{/each}}
       </tbody>
