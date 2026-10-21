@@ -37,7 +37,10 @@ const omadaPortal = require('./services/omada/external-portal-client');
 const adminRouter = require('./routes/admin');
 const { translate } = require('./i18n/admin');
 const {
-  redeemVoucher
+  redeemVoucher,
+  assertVoucherAttemptAllowed,
+  recordInvalidVoucherAttempt,
+  clearVoucherAttempts
 } = require('./services/vouchers/voucher-service');
 
 const app = express();
@@ -64,7 +67,9 @@ const voucherPortalErrorMessage = (error) => {
     VOUCHER_EXPIRED: 'Vocha hii imeisha muda wa kutumika.',
     VOUCHER_CANCELLED: 'Vocha hii imefutwa na haiwezi kutumika.',
     VOUCHER_ALREADY_USED: 'Vocha hii tayari imetumika.',
-    VOUCHER_UNAVAILABLE: 'Vocha hii haipatikani kwa matumizi.'
+    VOUCHER_UNAVAILABLE: 'Vocha hii haipatikani kwa matumizi.',
+    VOUCHER_RATE_LIMIT:
+      'Umejaribu code zisizo sahihi mara nyingi. Subiri dakika 10 kisha ujaribu tena.'
   };
 
   return (
@@ -1203,6 +1208,12 @@ app.post('/portal/voucher', async (req, res) => {
     let redeemed;
 
     try {
+      await assertVoucherAttemptAllowed({
+        organizationId: siteConfig.organization_id,
+        siteId: siteConfig.id,
+        deviceId: device.id
+      });
+
       redeemed = await redeemVoucher({
         organizationId: siteConfig.organization_id,
         siteId: siteConfig.id,
@@ -1210,7 +1221,38 @@ app.post('/portal/voucher', async (req, res) => {
         clientMac: normalizedClientMac,
         code: voucherCode
       });
+
+      try {
+        await clearVoucherAttempts({
+          organizationId: siteConfig.organization_id,
+          siteId: siteConfig.id,
+          deviceId: device.id
+        });
+      } catch (cleanupError) {
+        console.error('VOUCHER ATTEMPT RESET ERROR:', cleanupError);
+      }
     } catch (error) {
+      let voucherError = error;
+
+      if (error.code === 'VOUCHER_INVALID') {
+        try {
+          const attempt = await recordInvalidVoucherAttempt({
+            organizationId: siteConfig.organization_id,
+            siteId: siteConfig.id,
+            deviceId: device.id
+          });
+
+          if (attempt.blocked) {
+            voucherError = new Error('Voucher attempts temporarily blocked');
+            voucherError.code = 'VOUCHER_RATE_LIMIT';
+            voucherError.statusCode = 429;
+            voucherError.retryAfterSeconds = attempt.retryAfterSeconds;
+          }
+        } catch (rateLimitError) {
+          console.error('VOUCHER ATTEMPT TRACKING ERROR:', rateLimitError);
+        }
+      }
+
       const packagesResult = await pool.query(
         `
           SELECT
@@ -1229,7 +1271,7 @@ app.post('/portal/voucher', async (req, res) => {
 
       const savedCustomer = await findLatestCustomerByDeviceId(device.id);
 
-      return res.status(error.statusCode || 400).render('portal/index', {
+      return res.status(voucherError.statusCode || 400).render('portal/index', {
         title: siteConfig.brand_name,
         packages: packagesResult.rows,
         device,
@@ -1244,7 +1286,7 @@ app.post('/portal/voucher', async (req, res) => {
           radioId,
           clientMac: normalizedClientMac
         },
-        voucherError: voucherPortalErrorMessage(error),
+        voucherError: voucherPortalErrorMessage(voucherError),
         voucherCode: String(voucherCode || '').trim()
       });
     }
