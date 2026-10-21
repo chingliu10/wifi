@@ -1097,3 +1097,89 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
 
 .status-redeemed{color:var(--success);background:#eaf8ee}
 .status-unused{color:#475467;background:#f2f4f7}
+
+
+.voucher-rollout-panel{
+  margin:0 0 14px
+}
+.voucher-rollout-panel .panel-head{
+  align-items:flex-start;
+  gap:16px
+}
+.voucher-rollout-panel .inline-action-form{
+  display:flex;
+  justify-content:flex-end
+}
+.voucher-cancel-batch-form{
+  display:flex;
+  justify-content:flex-end;
+  margin:0 0 14px
+}
+.voucher-inline-danger{
+  min-height:30px;
+  padding:6px 9px;
+  border:1px solid #f4c7c2;
+  border-radius:7px;
+  color:var(--danger);
+  background:#fff0ee;
+  font:inherit;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer
+}
+.voucher-inline-danger:hover{
+  background:#ffe7e3
+}
+
+@media(max-width:760px){
+  .voucher-rollout-panel .panel-head{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .voucher-rollout-panel .inline-action-form,
+  .voucher-cancel-batch-form{
+    justify-content:stretch
+  }
+  .voucher-rollout-panel .inline-action-form button,
+  .voucher-cancel-batch-form button{
+    width:100%
+  }
+  .voucher-page-actions{
+    grid-template-columns:1fr
+  }
+  .voucher-page-actions a,
+  .voucher-page-actions button{
+    width:100%
+  }
+}
+
+@media print{
+  .sidebar,
+  .topbar,
+  .mobile-bottom-nav,
+  .voucher-page-actions,
+  .voucher-cancel-batch-form,
+  .voucher-copy-button,
+  .admin-pagination,
+  .inline-action-form{
+    display:none!important
+  }
+  .main,
+  .content{
+    margin:0!important;
+    padding:0!important
+  }
+  .voucher-code-panel{
+    border:0!important;
+    box-shadow:none!important
+  }
+  .voucher-code-panel .table-wrap{
+    overflow:visible!important
+  }
+  .voucher-code-panel table{
+    font-size:10px
+  }
+  .voucher-code-panel tr{
+    break-inside:avoid
+  }
+}
