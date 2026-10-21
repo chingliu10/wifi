@@ -405,11 +405,14 @@ test(
       password: 'SafePassword123!'
     });
 
+    const requestKey = 'test-sale-' + suffix;
+
     const created = await createCashierVoucherSale({
       organizationId: org.id,
       siteId: site.id,
       packageId: pkg.id,
-      cashierUserId: cashier.id
+      cashierUserId: cashier.id,
+      requestKey
     });
 
     assert.match(created.code, /^\d{4} \d{4}$/);
@@ -417,6 +420,29 @@ test(
     assert.equal(Number(created.sale.cashier_user_id), Number(cashier.id));
     assert.equal(Number(created.sale.sale_price_tzs), Number(pkg.price_tzs));
     assert.equal(created.sale.sale_status, 'issued');
+
+    const duplicate = await createCashierVoucherSale({
+      organizationId: org.id,
+      siteId: site.id,
+      packageId: pkg.id,
+      cashierUserId: cashier.id,
+      requestKey
+    });
+
+    assert.equal(duplicate.reused, true);
+    assert.equal(Number(duplicate.sale.id), Number(created.sale.id));
+    assert.equal(duplicate.code, created.code);
+
+    const saleCount = await pool.query(
+      `
+        SELECT COUNT(*)::INTEGER AS total
+        FROM voucher_sales
+        WHERE cashier_user_id = $1
+      `,
+      [cashier.id]
+    );
+
+    assert.equal(saleCount.rows[0].total, 1);
 
     const receipt = await getCashierVoucherSale({
       cashierUserId: cashier.id,
