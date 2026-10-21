@@ -251,6 +251,16 @@ test('voucher lifecycle is single-use, idempotent for the same device, scoped an
     (error) => error.code === 'VOUCHER_EXPIRED'
   );
 
+  const redeemedRetryAfterDeadline = await redeemVoucher({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: device.id,
+    clientMac: device.mac_address,
+    code: generated.codes[0]
+  });
+
+  assert.equal(redeemedRetryAfterDeadline.reused, true);
+
   await pool.query(
     `
       UPDATE voucher_batches
@@ -264,6 +274,16 @@ test('voucher lifecycle is single-use, idempotent for the same device, scoped an
     organizationId: org.id,
     batchId: generated.batch.id
   });
+
+  const redeemedRetryAfterBatchCancel = await redeemVoucher({
+    organizationId: org.id,
+    siteId: site.id,
+    deviceId: device.id,
+    clientMac: device.mac_address,
+    code: generated.codes[0]
+  });
+
+  assert.equal(redeemedRetryAfterBatchCancel.reused, true);
 
   const finalView = await getVoucherBatch({
     organizationId: org.id,
