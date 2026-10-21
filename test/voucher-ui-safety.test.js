@@ -29,6 +29,9 @@ test('voucher UI is feature-gated and preserves the working payment form', () =>
 
   assert.match(portal, /inputmode="numeric"/);
   assert.match(portal, /placeholder="Mfano: 4827 1936"/);
+  assert.match(portal, /id="voucher-open-button"/);
+  assert.match(portal, /id="voucher-modal"/);
+  assert.match(portal, /aria-haspopup="dialog"/);
 });
 
 test('voucher redemption uses External Portal and does not introduce MAC-auth provisioning', () => {
