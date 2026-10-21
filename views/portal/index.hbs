@@ -143,6 +143,52 @@
         <a href="tel:{{siteConfig.support_phone}}">{{siteConfig.support_phone}}</a>
       </p>
     </form>
+
+    {{#if siteConfig.voucher_portal_enabled}}
+      <section class="voucher-access">
+        <details class="voucher-entry" {{#if voucherError}}open{{/if}}>
+          <summary>
+            <span>NINA VOCHA</span>
+            <small>Tumia code ya vocha badala ya kulipa</small>
+          </summary>
+
+          <form class="voucher-form" method="POST" action="/portal/voucher">
+            <input type="hidden" name="clientMac" value="{{portal.clientMac}}">
+            <input type="hidden" name="clientIp" value="{{portal.clientIp}}">
+            <input type="hidden" name="site" value="{{portal.site}}">
+            <input type="hidden" name="apMac" value="{{portal.apMac}}">
+            <input type="hidden" name="ssidName" value="{{portal.ssidName}}">
+            <input type="hidden" name="redirectUrl" value="{{portal.redirectUrl}}">
+            <input type="hidden" name="radioId" value="{{portal.radioId}}">
+
+            <label for="voucher-code">Code ya vocha</label>
+            <input
+              id="voucher-code"
+              name="voucherCode"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              maxlength="40"
+              placeholder="Mfano: SMA-ABCD-EFGH-JKLM"
+              value="{{voucherCode}}"
+              required
+            >
+
+            {{#if voucherError}}
+              <div class="status-box status-box-error" role="alert">
+                {{voucherError}}
+              </div>
+            {{/if}}
+
+            <button class="voucher-submit-button" type="submit">
+              TUMIA VOCHA
+            </button>
+          </form>
+        </details>
+      </section>
+    {{/if}}
   </section>
 </main>
 
@@ -334,3 +380,27 @@
     updateButton();
   })();
 </script>
+
+{{#if siteConfig.voucher_portal_enabled}}
+<script>
+  (() => {
+    const form = document.querySelector('.voucher-form');
+    const input = document.getElementById('voucher-code');
+    const button = form?.querySelector('.voucher-submit-button');
+
+    if (!form || !input || !button) return;
+
+    input.addEventListener('input', () => {
+      input.value = input.value
+        .toUpperCase()
+        .replace(/[^A-Z0-9-]/g, '')
+        .slice(0, 40);
+    });
+
+    form.addEventListener('submit', () => {
+      button.disabled = true;
+      button.textContent = 'INAKAGUA VOCHA…';
+    });
+  })();
+</script>
+{{/if}}
