@@ -311,6 +311,7 @@ const listVoucherBatches = async ({
       SELECT COUNT(*)::INTEGER AS total
       FROM voucher_batches
       WHERE organization_id = $1
+        AND batch_type = 'admin'
     `,
     [organizationId]
   );
@@ -355,6 +356,7 @@ const listVoucherBatches = async ({
         JOIN sites s ON s.id = vb.site_id
         LEFT JOIN vouchers v ON v.batch_id = vb.id
         WHERE vb.organization_id = $1
+          AND vb.batch_type = 'admin'
         GROUP BY vb.id, s.name
         ORDER BY vb.created_at DESC, vb.id DESC
         LIMIT $2 OFFSET $3
@@ -929,6 +931,263 @@ const cancelVoucher = async ({
   return { cancelled: true };
 };
 
+
+const createCashierVoucherSale = async ({
+  organizationId,
+  siteId,
+  packageId,
+  cashierUserId
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const cashierResult = await client.query(
+      `
+        SELECT
+          id,
+          organization_id,
+          site_id,
+          role,
+          active
+        FROM platform_users
+        WHERE id = $1
+        LIMIT 1
+        FOR SHARE
+      `,
+      [cashierUserId]
+    );
+
+    const cashier = cashierResult.rows[0];
+
+    if (
+      !cashier ||
+      !cashier.active ||
+      cashier.role !== 'cashier' ||
+      Number(cashier.organization_id) !== Number(organizationId) ||
+      Number(cashier.site_id) !== Number(siteId)
+    ) {
+      throw voucherError(
+        'CASHIER_NOT_AUTHORIZED',
+        'Cashier is not authorized for this site',
+        403
+      );
+    }
+
+    const packageResult = await client.query(
+      `
+        SELECT
+          p.id,
+          p.site_id,
+          p.name,
+          p.price_tzs,
+          p.duration_seconds,
+          s.organization_id
+        FROM packages p
+        JOIN sites s ON s.id = p.site_id
+        JOIN organizations o ON o.id = s.organization_id
+        WHERE p.id = $1
+          AND p.site_id = $2
+          AND s.organization_id = $3
+          AND p.active = TRUE
+          AND p.deleted_at IS NULL
+          AND s.active = TRUE
+          AND o.active = TRUE
+          AND o.vouchers_enabled = TRUE
+          AND o.voucher_portal_enabled = TRUE
+        LIMIT 1
+        FOR SHARE OF p, s
+      `,
+      [packageId, siteId, organizationId]
+    );
+
+    const packageData = packageResult.rows[0];
+
+    if (!packageData) {
+      throw voucherError(
+        'CASHIER_PACKAGE_UNAVAILABLE',
+        'This package is not available for cashier voucher sales'
+      );
+    }
+
+    const batchReference =
+      'VS-' +
+      Date.now().toString(36).toUpperCase() +
+      '-' +
+      randomToken(6);
+
+    const batchResult = await client.query(
+      `
+        INSERT INTO voucher_batches (
+          organization_id,
+          site_id,
+          package_id,
+          created_by_user_id,
+          cashier_user_id,
+          batch_type,
+          batch_reference,
+          quantity,
+          package_name_snapshot,
+          package_price_tzs_snapshot,
+          package_duration_seconds_snapshot,
+          redeemable_until
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $4,
+          'cashier',
+          $5,
+          1,
+          $6,
+          $7,
+          $8,
+          NULL
+        )
+        RETURNING *
+      `,
+      [
+        organizationId,
+        siteId,
+        packageId,
+        cashierUserId,
+        batchReference,
+        packageData.name,
+        packageData.price_tzs,
+        packageData.duration_seconds
+      ]
+    );
+
+    const batch = batchResult.rows[0];
+    let voucher = null;
+    let code = null;
+
+    while (!voucher) {
+      const candidate = generateVoucherCode();
+      const hash = hashVoucherCode(candidate);
+
+      const voucherResult = await client.query(
+        `
+          INSERT INTO vouchers (
+            organization_id,
+            site_id,
+            batch_id,
+            code_hash,
+            code_enc,
+            code_last4
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (code_hash) DO NOTHING
+          RETURNING *
+        `,
+        [
+          organizationId,
+          siteId,
+          batch.id,
+          hash,
+          encryptSecret(candidate),
+          normalizeVoucherCode(candidate).slice(-4)
+        ]
+      );
+
+      if (voucherResult.rows[0]) {
+        voucher = voucherResult.rows[0];
+        code = candidate;
+      }
+    }
+
+    const saleResult = await client.query(
+      `
+        INSERT INTO voucher_sales (
+          organization_id,
+          site_id,
+          package_id,
+          voucher_id,
+          cashier_user_id,
+          package_name_snapshot,
+          package_duration_seconds_snapshot,
+          sale_price_tzs
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `,
+      [
+        organizationId,
+        siteId,
+        packageId,
+        voucher.id,
+        cashierUserId,
+        packageData.name,
+        packageData.duration_seconds,
+        packageData.price_tzs
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      sale: saleResult.rows[0],
+      voucher,
+      batch,
+      code,
+      package: packageData
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const getCashierVoucherSale = async ({
+  cashierUserId,
+  saleId
+}) => {
+  const result = await pool.query(
+    `
+      SELECT
+        vs.id,
+        vs.organization_id,
+        vs.site_id,
+        vs.package_id,
+        vs.voucher_id,
+        vs.cashier_user_id,
+        vs.package_name_snapshot,
+        vs.package_duration_seconds_snapshot,
+        vs.sale_price_tzs,
+        vs.sale_status,
+        vs.issued_at,
+        v.code_enc,
+        v.code_last4,
+        v.status AS voucher_status,
+        v.redeemed_at,
+        s.name AS site_name
+      FROM voucher_sales vs
+      JOIN vouchers v ON v.id = vs.voucher_id
+      JOIN sites s ON s.id = vs.site_id
+      WHERE vs.id = $1
+        AND vs.cashier_user_id = $2
+      LIMIT 1
+    `,
+    [saleId, cashierUserId]
+  );
+
+  const sale = result.rows[0];
+
+  if (!sale) {
+    return null;
+  }
+
+  return {
+    ...sale,
+    code: decryptSecret(sale.code_enc)
+  };
+};
+
 module.exports = {
   MAX_BATCH_QUANTITY,
   normalizeVoucherCode,
@@ -942,5 +1201,7 @@ module.exports = {
   cancelVoucher,
   assertVoucherAttemptAllowed,
   recordInvalidVoucherAttempt,
-  clearVoucherAttempts
+  clearVoucherAttempts,
+  createCashierVoucherSale,
+  getCashierVoucherSale
 };
