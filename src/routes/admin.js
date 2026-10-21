@@ -37,7 +37,9 @@ const {
   getVoucherAdminOptions,
   createVoucherBatch,
   listVoucherBatches,
-  getVoucherBatch
+  getVoucherBatch,
+  cancelVoucherBatch,
+  cancelVoucher
 } = require('../services/vouchers/voucher-service');
 const {
   createComplimentarySubscription
@@ -1132,6 +1134,54 @@ router.post(
   }
 );
 
+router.post(
+  '/organizations/:id/features/voucher-portal',
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const organizationId = Number(req.params.id);
+      const enabled =
+        String(req.body.enabled || '').toLowerCase() === 'true' ||
+        String(req.body.enabled || '') === '1' ||
+        String(req.body.enabled || '').toLowerCase() === 'on';
+
+      if (!organizationId) {
+        return res.status(400).send('Invalid client.');
+      }
+
+      const updated = await pool.query(
+        `
+          UPDATE organizations
+          SET
+            voucher_portal_enabled = $2,
+            updated_at = NOW()
+          WHERE id = $1
+            AND active = TRUE
+            AND vouchers_enabled = TRUE
+          RETURNING id
+        `,
+        [organizationId, enabled]
+      );
+
+      if (!updated.rows[0]) {
+        return res.status(409).send(
+          'Enable voucher management before enabling voucher redemption.'
+        );
+      }
+
+      return res.redirect(
+        '/admin/vouchers?org=' +
+          organizationId +
+          '&portal=' +
+          (enabled ? 'enabled' : 'disabled')
+      );
+    } catch (error) {
+      console.error('ADMIN VOUCHER PORTAL UPDATE ERROR:', error);
+      return res.status(500).send('Unable to update voucher portal.');
+    }
+  }
+);
+
 router.get('/vouchers', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -1199,6 +1249,55 @@ router.post('/vouchers/batches', async (req, res) => {
   }
 });
 
+router.post('/vouchers/batches/:id/cancel', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    ensureVoucherFeatureEnabled(selectedOrg);
+
+    await cancelVoucherBatch({
+      organizationId: selectedOrg.id,
+      batchId: Number(req.params.id)
+    });
+
+    return res.redirect(
+      '/admin/vouchers/batches/' +
+        encodeURIComponent(req.params.id) +
+        '?org=' +
+        encodeURIComponent(selectedOrg.id) +
+        '&cancelled=1'
+    );
+  } catch (error) {
+    console.error('ADMIN VOUCHER BATCH CANCEL ERROR:', error);
+    return res.status(error.statusCode || 400).send(error.message);
+  }
+});
+
+router.post('/vouchers/:id/cancel', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const batchId = Number(req.body.batchId);
+
+    ensureVoucherFeatureEnabled(selectedOrg);
+
+    await cancelVoucher({
+      organizationId: selectedOrg.id,
+      voucherId: Number(req.params.id)
+    });
+
+    return res.redirect(
+      '/admin/vouchers/batches/' +
+        encodeURIComponent(batchId) +
+        '?org=' +
+        encodeURIComponent(selectedOrg.id) +
+        '&voucherCancelled=1'
+    );
+  } catch (error) {
+    console.error('ADMIN VOUCHER CANCEL ERROR:', error);
+    return res.status(error.statusCode || 400).send(error.message);
+  }
+});
+
 router.get('/vouchers/batches/:id', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -1221,7 +1320,10 @@ router.get('/vouchers/batches/:id', async (req, res) => {
       selectedOrg,
       batch: batchView.batch,
       vouchers: batchView.vouchers,
-      created: String(req.query.created || '') === '1'
+      created: String(req.query.created || '') === '1',
+      cancelled: String(req.query.cancelled || '') === '1',
+      voucherCancelled:
+        String(req.query.voucherCancelled || '') === '1'
     });
   } catch (error) {
     console.error('ADMIN VOUCHER BATCH ERROR:', error);
