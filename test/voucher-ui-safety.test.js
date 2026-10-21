@@ -26,6 +26,9 @@ test('voucher UI is feature-gated and preserves the working payment form', () =>
     voucherFormIndex > gateIndex,
     'voucher form must remain behind the portal feature gate'
   );
+
+  assert.match(portal, /inputmode="numeric"/);
+  assert.match(portal, /placeholder="Mfano: 4827 1936"/);
 });
 
 test('voucher redemption uses External Portal and does not introduce MAC-auth provisioning', () => {
