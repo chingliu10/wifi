@@ -219,61 +219,47 @@ const createVoucherBatch = async ({
 
     const batch = batchResult.rows[0];
     const generated = [];
-    const hashes = [];
-    const encrypted = [];
-    const last4 = [];
     const seen = new Set();
 
     while (generated.length < safeQuantity) {
-      const code = generateVoucherCode({
-        name: packageData.site_name,
-        slug: packageData.site_slug
-      });
+      const code = generateVoucherCode();
       const hash = hashVoucherCode(code);
 
       if (seen.has(hash)) {
         continue;
       }
 
+      const insertResult = await client.query(
+        `
+          INSERT INTO vouchers (
+            organization_id,
+            site_id,
+            batch_id,
+            code_hash,
+            code_enc,
+            code_last4
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (code_hash) DO NOTHING
+          RETURNING id
+        `,
+        [
+          organizationId,
+          siteId,
+          batch.id,
+          hash,
+          encryptSecret(code),
+          normalizeVoucherCode(code).slice(-4)
+        ]
+      );
+
+      if (!insertResult.rows[0]) {
+        continue;
+      }
+
       seen.add(hash);
       generated.push(code);
-      hashes.push(hash);
-      encrypted.push(encryptSecret(code));
-      last4.push(normalizeVoucherCode(code).slice(-4));
     }
-
-    await client.query(
-      `
-        INSERT INTO vouchers (
-          organization_id,
-          site_id,
-          batch_id,
-          code_hash,
-          code_enc,
-          code_last4
-        )
-        SELECT
-          $1,
-          $2,
-          $3,
-          generated.code_hash,
-          generated.code_enc,
-          generated.code_last4
-        FROM UNNEST(
-          $4::text[],
-          $5::text[],
-          $6::text[]
-        ) AS generated(code_hash, code_enc, code_last4)
-      `,
-      [
-        organizationId,
-        siteId,
-        batch.id,
-        hashes,
-        encrypted,
-        last4
-      ]
-    );
 
     await client.query('COMMIT');
 
