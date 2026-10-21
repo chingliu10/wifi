@@ -1,6 +1,6 @@
 <section class="page-head">
   <div>
-    <p class="eyebrow">{{sale.site_name}}</p>
+    <p class="eyebrow cashier-receipt-site">{{sale.site_name}}</p>
     <h2>{{t 'cashier.voucherReady'}}</h2>
     <p>{{t 'cashier.giveCodeToCustomer'}}</p>
   </div>
@@ -43,6 +43,9 @@
     const code = document.getElementById('cashier-voucher-code')?.textContent?.trim();
     const copyButton = document.getElementById('copy-voucher-code');
     const shareButton = document.getElementById('share-voucher-code');
+    const siteName = document.querySelector('.cashier-receipt-site')?.textContent?.trim() || '';
+    const packageName = document.querySelector('.cashier-receipt-label')?.textContent?.trim() || '';
+    const price = document.querySelector('.cashier-receipt-price')?.textContent?.trim() || '';
 
     copyButton?.addEventListener('click', async () => {
       if (!code) return;
@@ -66,9 +69,9 @@
         await navigator.share({
           title: 'WiFi Voucher',
           text:
-            '{{sale.site_name}}\n' +
-            '{{sale.package_name_snapshot}} - {{formatTzs sale.sale_price_tzs}} TZS\n' +
-            '{{t 'vouchers.code'}}: ' + code
+            siteName + '\n' +
+            packageName + ' - ' + price + '\n' +
+            'Voucher: ' + code
         });
       } catch (error) {
         // The customer may close the native share sheet.
