@@ -49,6 +49,7 @@
       {{#each packages}}
         <form method="POST" action="/admin/cashier/sales" class="cashier-package-card">
           <input type="hidden" name="packageId" value="{{id}}">
+          <input type="hidden" name="requestKey" value="{{../saleRequestKey}}">
 
           <div>
             <strong>{{name}}</strong>
