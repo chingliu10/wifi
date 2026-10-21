@@ -51,4 +51,14 @@ jobs:
         run: npm run migrate
 
       - name: Run voucher regression tests
-        run: npm run test:vouchers
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:vouchers 2>&1 | tee voucher-test.log
+
+      - name: Upload voucher test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voucher-test-log
+          path: voucher-test.log
