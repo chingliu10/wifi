@@ -166,12 +166,12 @@
               id="voucher-code"
               name="voucherCode"
               type="text"
-              inputmode="text"
-              autocomplete="off"
+              inputmode="numeric"
+              autocomplete="one-time-code"
               autocapitalize="characters"
               spellcheck="false"
               maxlength="40"
-              placeholder="Mfano: SMA-ABCD-EFGH-JKLM"
+              placeholder="Mfano: 4827 1936"
               value="{{voucherCode}}"
               required
             >
@@ -391,7 +391,20 @@
     if (!form || !input || !button) return;
 
     input.addEventListener('input', () => {
-      input.value = input.value
+      const raw = input.value;
+
+      if (/^[0-9\s-]*$/.test(raw)) {
+        const digits = raw.replace(/\D/g, '').slice(0, 8);
+        input.value =
+          digits.length > 4
+            ? digits.slice(0, 4) + ' ' + digits.slice(4)
+            : digits;
+        return;
+      }
+
+      // Backward compatibility for any older alphanumeric vouchers
+      // generated before numeric codes were introduced.
+      input.value = raw
         .toUpperCase()
         .replace(/[^A-Z0-9-]/g, '')
         .slice(0, 40);
