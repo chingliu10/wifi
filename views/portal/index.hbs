@@ -146,11 +146,48 @@
 
     {{#if siteConfig.voucher_portal_enabled}}
       <section class="voucher-access">
-        <details class="voucher-entry" {{#if voucherError}}open{{/if}}>
-          <summary>
-            <span>NINA VOCHA</span>
-            <small>Tumia code ya vocha badala ya kulipa</small>
-          </summary>
+        <button
+          class="voucher-open-button"
+          id="voucher-open-button"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="voucher-modal"
+        >
+          <span>NINA VOCHA</span>
+          <small>Tumia code ya vocha badala ya kulipa</small>
+        </button>
+      </section>
+
+      <div
+        class="voucher-modal {{#if voucherError}}is-visible{{/if}}"
+        id="voucher-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voucher-modal-title"
+        aria-hidden="{{#if voucherError}}false{{else}}true{{/if}}"
+      >
+        <button
+          class="voucher-modal-backdrop"
+          type="button"
+          aria-label="Funga vocha"
+          data-voucher-close
+        ></button>
+
+        <div class="voucher-modal-card" role="document">
+          <div class="voucher-modal-head">
+            <div>
+              <p class="voucher-modal-eyebrow">VOCHA</p>
+              <h2 id="voucher-modal-title">Ingiza code ya vocha</h2>
+              <p>Tumia vocha yako kuunganisha internet bila malipo ya simu.</p>
+            </div>
+
+            <button
+              class="voucher-modal-close"
+              type="button"
+              aria-label="Funga"
+              data-voucher-close
+            >×</button>
+          </div>
 
           <form class="voucher-form" method="POST" action="/portal/voucher">
             <input type="hidden" name="clientMac" value="{{portal.clientMac}}">
@@ -186,8 +223,8 @@
               TUMIA VOCHA
             </button>
           </form>
-        </details>
-      </section>
+        </div>
+      </div>
     {{/if}}
   </section>
 </main>
@@ -387,8 +424,37 @@
     const form = document.querySelector('.voucher-form');
     const input = document.getElementById('voucher-code');
     const button = form?.querySelector('.voucher-submit-button');
+    const modal = document.getElementById('voucher-modal');
+    const openButton = document.getElementById('voucher-open-button');
+    const closeButtons = document.querySelectorAll('[data-voucher-close]');
 
-    if (!form || !input || !button) return;
+    if (!form || !input || !button || !modal || !openButton) return;
+
+    const openModal = () => {
+      modal.classList.add('is-visible');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('voucher-modal-open');
+
+      window.setTimeout(() => input.focus(), 80);
+    };
+
+    const closeModal = () => {
+      modal.classList.remove('is-visible');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('voucher-modal-open');
+      openButton.focus();
+    };
+
+    openButton.addEventListener('click', openModal);
+    closeButtons.forEach((closeButton) => {
+      closeButton.addEventListener('click', closeModal);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+        closeModal();
+      }
+    });
 
     input.addEventListener('input', () => {
       const raw = input.value;
@@ -402,8 +468,7 @@
         return;
       }
 
-      // Backward compatibility for any older alphanumeric vouchers
-      // generated before numeric codes were introduced.
+      // Backward compatibility for older alphanumeric vouchers.
       input.value = raw
         .toUpperCase()
         .replace(/[^A-Z0-9-]/g, '')
@@ -414,6 +479,11 @@
       button.disabled = true;
       button.textContent = 'INAKAGUA VOCHA…';
     });
+
+    if (modal.classList.contains('is-visible')) {
+      document.body.classList.add('voucher-modal-open');
+      window.setTimeout(() => input.focus(), 80);
+    }
   })();
 </script>
 {{/if}}
