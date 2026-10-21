@@ -3,6 +3,11 @@ const pool = require('../../config/database');
 const { encryptSecret, decryptSecret } = require('../secret-crypto');
 
 const VOUCHER_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const VOUCHER_DIGITS = '0123456789';
+const VOUCHER_NUMERIC_LENGTH = 8;
+const VOUCHER_MAX_FAILED_ATTEMPTS = 5;
+const VOUCHER_FAILURE_WINDOW_MINUTES = 10;
+const VOUCHER_BLOCK_MINUTES = 10;
 const MAX_BATCH_QUANTITY = 500;
 
 const randomToken = (length) => {
@@ -34,15 +39,14 @@ const makeSitePrefix = (site) => {
   return (raw.slice(0, 3) || 'WIFI').padEnd(3, 'X');
 };
 
-const generateVoucherCode = (site) => {
-  const token = randomToken(12);
+const generateVoucherCode = () => {
+  let digits = '';
 
-  return [
-    makeSitePrefix(site),
-    token.slice(0, 4),
-    token.slice(4, 8),
-    token.slice(8, 12)
-  ].join('-');
+  for (let i = 0; i < VOUCHER_NUMERIC_LENGTH; i += 1) {
+    digits += VOUCHER_DIGITS[crypto.randomInt(VOUCHER_DIGITS.length)];
+  }
+
+  return digits.slice(0, 4) + ' ' + digits.slice(4);
 };
 
 const generateBatchReference = () =>
@@ -429,6 +433,160 @@ const getVoucherBatch = async ({
 };
 
 
+const getVoucherAttemptState = async ({
+  organizationId,
+  siteId,
+  deviceId
+}) => {
+  const result = await pool.query(
+    `
+      SELECT
+        failure_count,
+        window_started_at,
+        blocked_until
+      FROM voucher_redemption_attempts
+      WHERE organization_id = $1
+        AND site_id = $2
+        AND device_id = $3
+      LIMIT 1
+    `,
+    [organizationId, siteId, deviceId]
+  );
+
+  return result.rows[0] || null;
+};
+
+const assertVoucherAttemptAllowed = async ({
+  organizationId,
+  siteId,
+  deviceId
+}) => {
+  const state = await getVoucherAttemptState({
+    organizationId,
+    siteId,
+    deviceId
+  });
+
+  if (!state?.blocked_until) {
+    return;
+  }
+
+  const blockedUntil = new Date(state.blocked_until).getTime();
+
+  if (blockedUntil <= Date.now()) {
+    return;
+  }
+
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil((blockedUntil - Date.now()) / 1000)
+  );
+
+  const error = new Error(
+    'Too many invalid voucher attempts. Please try again later.'
+  );
+  error.code = 'VOUCHER_RATE_LIMIT';
+  error.statusCode = 429;
+  error.retryAfterSeconds = retryAfterSeconds;
+  throw error;
+};
+
+const recordInvalidVoucherAttempt = async ({
+  organizationId,
+  siteId,
+  deviceId
+}) => {
+  const result = await pool.query(
+    `
+      INSERT INTO voucher_redemption_attempts (
+        organization_id,
+        site_id,
+        device_id,
+        failure_count,
+        window_started_at,
+        last_failed_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, 1, NOW(), NOW(), NOW())
+      ON CONFLICT (organization_id, site_id, device_id)
+      DO UPDATE SET
+        failure_count = CASE
+          WHEN voucher_redemption_attempts.window_started_at
+            <= NOW() - ($4 * INTERVAL '1 minute')
+          THEN 1
+          ELSE voucher_redemption_attempts.failure_count + 1
+        END,
+        window_started_at = CASE
+          WHEN voucher_redemption_attempts.window_started_at
+            <= NOW() - ($4 * INTERVAL '1 minute')
+          THEN NOW()
+          ELSE voucher_redemption_attempts.window_started_at
+        END,
+        last_failed_at = NOW(),
+        updated_at = NOW(),
+        blocked_until = CASE
+          WHEN (
+            CASE
+              WHEN voucher_redemption_attempts.window_started_at
+                <= NOW() - ($4 * INTERVAL '1 minute')
+              THEN 1
+              ELSE voucher_redemption_attempts.failure_count + 1
+            END
+          ) >= $5
+          THEN NOW() + ($6 * INTERVAL '1 minute')
+          ELSE NULL
+        END
+      RETURNING failure_count, blocked_until
+    `,
+    [
+      organizationId,
+      siteId,
+      deviceId,
+      VOUCHER_FAILURE_WINDOW_MINUTES,
+      VOUCHER_MAX_FAILED_ATTEMPTS,
+      VOUCHER_BLOCK_MINUTES
+    ]
+  );
+
+  const state = result.rows[0];
+
+  if (state?.blocked_until) {
+    const blockedUntil = new Date(state.blocked_until).getTime();
+
+    return {
+      blocked: true,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((blockedUntil - Date.now()) / 1000)
+      )
+    };
+  }
+
+  return {
+    blocked: false,
+    attemptsRemaining: Math.max(
+      0,
+      VOUCHER_MAX_FAILED_ATTEMPTS - Number(state?.failure_count || 0)
+    )
+  };
+};
+
+const clearVoucherAttempts = async ({
+  organizationId,
+  siteId,
+  deviceId
+}) => {
+  await pool.query(
+    `
+      DELETE FROM voucher_redemption_attempts
+      WHERE organization_id = $1
+        AND site_id = $2
+        AND device_id = $3
+    `,
+    [organizationId, siteId, deviceId]
+  );
+};
+
 const voucherError = (code, message, statusCode = 400) => {
   const error = new Error(message);
   error.code = code;
@@ -772,5 +930,8 @@ module.exports = {
   getVoucherBatch,
   redeemVoucher,
   cancelVoucherBatch,
-  cancelVoucher
+  cancelVoucher,
+  assertVoucherAttemptAllowed,
+  recordInvalidVoucherAttempt,
+  clearVoucherAttempts
 };
