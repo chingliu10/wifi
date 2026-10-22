@@ -32,6 +32,7 @@ const {
   clearVoucherAttempts,
   createCashierVoucherSale,
   getCashierVoucherSale,
+  voidCashierVoucherSale,
   listVoucherBatches
 } = require('../src/services/vouchers/voucher-service');
 const { createCashier } = require('../src/services/auth-service');
@@ -471,6 +472,41 @@ test(
 
     assert.equal(paymentCount.rows[0].total, 0);
 
+    const voidedSale = await createCashierVoucherSale({
+      organizationId: org.id,
+      siteId: site.id,
+      packageId: pkg.id,
+      cashierUserId: cashier.id,
+      requestKey: 'void-sale-' + suffix
+    });
+
+    const voidResult = await voidCashierVoucherSale({
+      cashierUserId: cashier.id,
+      saleId: voidedSale.sale.id
+    });
+
+    assert.equal(voidResult.voided, true);
+
+    const voidedReceipt = await getCashierVoucherSale({
+      cashierUserId: cashier.id,
+      saleId: voidedSale.sale.id
+    });
+
+    assert.equal(voidedReceipt.sale_status, 'voided');
+    assert.equal(voidedReceipt.voucher_status, 'cancelled');
+    assert.equal(voidedReceipt.voidable, false);
+
+    await assert.rejects(
+      redeemVoucher({
+        organizationId: org.id,
+        siteId: site.id,
+        deviceId: device.id,
+        clientMac: device.mac_address,
+        code: voidedSale.code
+      }),
+      (error) => error.code === 'VOUCHER_CANCELLED'
+    );
+
     const redeemed = await redeemVoucher({
       organizationId: org.id,
       siteId: site.id,
@@ -480,6 +516,14 @@ test(
     });
 
     assert.equal(redeemed.subscription.access_source, 'voucher');
+
+    await assert.rejects(
+      voidCashierVoucherSale({
+        cashierUserId: cashier.id,
+        saleId: created.sale.id
+      }),
+      (error) => error.code === 'CASHIER_VOUCHER_NOT_VOIDABLE'
+    );
 
     const redeemedReceipt = await getCashierVoucherSale({
       cashierUserId: cashier.id,
