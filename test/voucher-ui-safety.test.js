@@ -87,3 +87,16 @@ test('cashier Handlebars templates compile', () => {
     );
   }
 });
+
+test('cashier can void only through the dedicated voucher-sale action', () => {
+  const adminRoutes = read('src/routes/admin.js');
+  const receipt = read('views/admin/cashier-receipt.hbs');
+
+  assert.match(
+    adminRoutes,
+    /router\.post\('\/cashier\/sales\/:id\/void'/
+  );
+  assert.match(adminRoutes, /voidCashierVoucherSale/);
+  assert.match(receipt, /cashier\.voidVoucher/);
+  assert.match(receipt, /\{\{#if sale\.voidable\}\}/);
+});
