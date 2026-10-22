@@ -6,6 +6,10 @@
   </div>
 </section>
 
+{{#if voided}}
+  <div class="notice notice-success">{{t 'cashier.voided'}}</div>
+{{/if}}
+
 {{#if error}}
   <div class="notice">{{error}}</div>
 {{/if}}
