@@ -1329,7 +1329,10 @@ const getCashierVoucherSale = async ({
 
   return {
     ...sale,
-    code: decryptSecret(sale.code_enc)
+    code: decryptSecret(sale.code_enc),
+    voidable:
+      sale.sale_status === 'issued' &&
+      sale.voucher_status === 'unused'
   };
 };
 
