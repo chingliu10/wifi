@@ -1191,6 +1191,103 @@ const createCashierVoucherSale = async ({
   }
 };
 
+const voidCashierVoucherSale = async ({
+  cashierUserId,
+  saleId
+}) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const saleResult = await client.query(
+      `
+        SELECT
+          vs.id,
+          vs.organization_id,
+          vs.site_id,
+          vs.voucher_id,
+          vs.cashier_user_id,
+          vs.sale_status,
+          v.status AS voucher_status,
+          v.batch_id
+        FROM voucher_sales vs
+        JOIN vouchers v ON v.id = vs.voucher_id
+        WHERE vs.id = $1
+          AND vs.cashier_user_id = $2
+        LIMIT 1
+        FOR UPDATE OF vs, v
+      `,
+      [saleId, cashierUserId]
+    );
+
+    const sale = saleResult.rows[0];
+
+    if (!sale) {
+      throw voucherError(
+        'CASHIER_SALE_NOT_FOUND',
+        'Voucher sale was not found',
+        404
+      );
+    }
+
+    if (sale.sale_status === 'voided') {
+      await client.query('COMMIT');
+      return { voided: true, reused: true };
+    }
+
+    if (sale.voucher_status !== 'unused') {
+      throw voucherError(
+        'CASHIER_VOUCHER_NOT_VOIDABLE',
+        'Only an unused voucher can be voided'
+      );
+    }
+
+    await client.query(
+      `
+        UPDATE vouchers
+        SET
+          status = 'cancelled',
+          cancelled_at = NOW()
+        WHERE id = $1
+          AND status = 'unused'
+      `,
+      [sale.voucher_id]
+    );
+
+    await client.query(
+      `
+        UPDATE voucher_sales
+        SET
+          sale_status = 'voided',
+          voided_at = NOW(),
+          voided_by_user_id = $2
+        WHERE id = $1
+      `,
+      [sale.id, cashierUserId]
+    );
+
+    await client.query(
+      `
+        UPDATE voucher_batches
+        SET active = FALSE
+        WHERE id = $1
+          AND batch_type = 'cashier'
+      `,
+      [sale.batch_id]
+    );
+
+    await client.query('COMMIT');
+
+    return { voided: true, reused: false };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 const getCashierVoucherSale = async ({
   cashierUserId,
   saleId
@@ -1251,5 +1348,6 @@ module.exports = {
   recordInvalidVoucherAttempt,
   clearVoucherAttempts,
   createCashierVoucherSale,
-  getCashierVoucherSale
+  getCashierVoucherSale,
+  voidCashierVoucherSale
 };
