@@ -42,7 +42,8 @@ const {
   cancelVoucherBatch,
   cancelVoucher,
   createCashierVoucherSale,
-  getCashierVoucherSale
+  getCashierVoucherSale,
+  voidCashierVoucherSale
 } = require('../services/vouchers/voucher-service');
 const {
   createComplimentarySubscription
@@ -916,6 +917,7 @@ router.get('/cashier', async (req, res) => {
       stats: statsResult.rows[0] || {},
       recentSales,
       saleRequestKey: crypto.randomUUID(),
+      voided: String(req.query.voided || '') === '1',
       error:
         !selectedOrg?.vouchers_enabled
           ? req.t('cashier.vouchersDisabled')
@@ -950,6 +952,33 @@ router.post('/cashier/sales', async (req, res) => {
     console.error('CASHIER VOUCHER SALE ERROR:', error);
     return res.status(error.statusCode || 400).send(
       error.message || 'Unable to issue voucher.'
+    );
+  }
+});
+
+router.post('/cashier/sales/:id/void', async (req, res) => {
+  try {
+    if (req.authUser.role !== 'cashier') {
+      return res.status(403).send('Cashier access is required.');
+    }
+
+    await voidCashierVoucherSale({
+      cashierUserId: req.authUser.id,
+      saleId: Number(req.params.id)
+    });
+
+    return res.redirect('/admin/cashier?voided=1');
+  } catch (error) {
+    console.error('VOID CASHIER VOUCHER SALE ERROR:', error);
+
+    if (error.code === 'CASHIER_VOUCHER_NOT_VOIDABLE') {
+      return res.status(409).send(
+        'This voucher has already been used and cannot be voided.'
+      );
+    }
+
+    return res.status(error.statusCode || 400).send(
+      error.message || 'Unable to void voucher.'
     );
   }
 });
