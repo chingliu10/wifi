@@ -33,6 +33,19 @@
     </ol>
   </div>
 
+  {{#if sale.voidable}}
+    <form
+      method="POST"
+      action="/admin/cashier/sales/{{sale.id}}/void"
+      class="cashier-void-form"
+      onsubmit="return confirm('{{t 'cashier.voidConfirm'}}')"
+    >
+      <button type="submit" class="secondary-button cashier-void-button">
+        {{t 'cashier.voidVoucher'}}
+      </button>
+    </form>
+  {{/if}}
+
   <a class="primary-link cashier-next-sale" href="/admin/cashier">
     {{t 'cashier.nextCustomer'}}
   </a>
