@@ -108,7 +108,7 @@ test('voucher admin exposes consolidated status and redemption activity', () => 
 
   assert.match(portal, /voucherStats\.redeemed/);
   assert.match(portal, /voucherStats\.unused/);
-  assert.match(portal, /voucherStats\.cashier_expected_cash/);
+  assert.match(portal, /cashierSummary\.totals\.expected_cash_today/);
   assert.match(portal, /voucherActivity/);
   assert.match(portal, /redeemed_mac/);
   assert.match(portal, /known_phone/);
