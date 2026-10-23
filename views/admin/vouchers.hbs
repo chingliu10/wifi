@@ -54,6 +54,176 @@
 {{/if}}
 
 {{#if selectedOrg}}
+  <section class="stats-grid voucher-overview-stats">
+    <article class="stat-card">
+      <span>{{t 'vouchers.total'}}</span>
+      <strong>{{voucherStats.total}}</strong>
+      <small>{{t 'vouchers.totalHint'}}</small>
+    </article>
+
+    <article class="stat-card">
+      <span>{{t 'vouchers.redeemed'}}</span>
+      <strong>{{voucherStats.redeemed}}</strong>
+      <small>{{voucherStats.redemption_rate}}% {{t 'vouchers.redemptionRate'}}</small>
+    </article>
+
+    <article class="stat-card">
+      <span>{{t 'vouchers.unused'}}</span>
+      <strong>{{voucherStats.unused}}</strong>
+      <small>{{t 'vouchers.readyToUse'}}</small>
+    </article>
+
+    <article class="stat-card">
+      <span>{{t 'vouchers.redeemedToday'}}</span>
+      <strong>{{voucherStats.redeemed_today}}</strong>
+      <small>{{t 'vouchers.usedTodayHint'}}</small>
+    </article>
+
+    <article class="stat-card">
+      <span>{{t 'vouchers.cashierSold'}}</span>
+      <strong>{{voucherStats.cashier_sold}}</strong>
+      <small>{{formatTzs voucherStats.cashier_expected_cash}} TZS {{t 'vouchers.expectedCash'}}</small>
+    </article>
+
+    <article class="stat-card">
+      <span>{{t 'vouchers.inactive'}}</span>
+      <strong>{{voucherStats.cancelled}} / {{voucherStats.expired}}</strong>
+      <small>{{t 'vouchers.cancelledExpired'}}</small>
+    </article>
+  </section>
+
+  <section class="panel table-panel voucher-activity-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'vouchers.activityTitle'}}</h3>
+        <p>{{t 'vouchers.activityHint'}}</p>
+      </div>
+    </div>
+
+    <form method="GET" action="/admin/vouchers" class="filter-bar voucher-activity-filters">
+      <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+      <label>
+        <span>{{t 'common.search'}}</span>
+        <input
+          type="search"
+          name="voucherSearch"
+          value="{{voucherFilters.search}}"
+          placeholder="{{t 'vouchers.searchPlaceholder'}}"
+        >
+      </label>
+
+      <label>
+        <span>{{t 'vouchers.status'}}</span>
+        <select name="voucherStatus">
+          <option value="">{{t 'common.allStatuses'}}</option>
+          <option value="unused" {{#if voucherFilters.statusUnused}}selected{{/if}}>{{t 'status.unused'}}</option>
+          <option value="redeemed" {{#if voucherFilters.statusRedeemed}}selected{{/if}}>{{t 'status.redeemed'}}</option>
+          <option value="expired" {{#if voucherFilters.statusExpired}}selected{{/if}}>{{t 'status.expired'}}</option>
+          <option value="cancelled" {{#if voucherFilters.statusCancelled}}selected{{/if}}>{{t 'status.cancelled'}}</option>
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'vouchers.source'}}</span>
+        <select name="voucherSource">
+          <option value="">{{t 'common.all'}}</option>
+          <option value="admin" {{#if voucherFilters.sourceAdmin}}selected{{/if}}>{{t 'vouchers.sourceBatch'}}</option>
+          <option value="cashier" {{#if voucherFilters.sourceCashier}}selected{{/if}}>{{t 'vouchers.sourceCashier'}}</option>
+        </select>
+      </label>
+
+      <div class="filter-actions">
+        <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+        <a class="secondary-button" href="/admin/vouchers?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
+      </div>
+    </form>
+
+    <div class="table-wrap">
+      <table class="responsive-table">
+        <thead>
+          <tr>
+            <th>{{t 'vouchers.code'}}</th>
+            <th>{{t 'vouchers.status'}}</th>
+            <th>{{t 'vouchers.source'}}</th>
+            <th>{{t 'common.site'}} / {{t 'common.package'}}</th>
+            <th>{{t 'vouchers.issuedBy'}}</th>
+            <th>{{t 'vouchers.usedBy'}}</th>
+            <th>{{t 'vouchers.redeemedAt'}}</th>
+            <th>{{t 'vouchers.accessUntil'}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each voucherActivity}}
+            <tr>
+              <td data-label="{{t 'vouchers.code'}}">
+                <strong class="voucher-last4">•••• {{code_last4}}</strong>
+                <small>{{batch_reference}}</small>
+              </td>
+              <td data-label="{{t 'vouchers.status'}}">
+                <span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span>
+              </td>
+              <td data-label="{{t 'vouchers.source'}}">
+                {{#if cashier_name}}
+                  <strong>{{t 'vouchers.sourceCashier'}}</strong>
+                  <small>{{cashier_name}}</small>
+                {{else}}
+                  <strong>{{t 'vouchers.sourceBatch'}}</strong>
+                  <small>{{batch_reference}}</small>
+                {{/if}}
+              </td>
+              <td data-label="{{t 'common.site'}} / {{t 'common.package'}}">
+                <strong>{{site_name}}</strong>
+                <small>{{package_name_snapshot}} · {{formatTzs package_price_tzs_snapshot}} TZS</small>
+              </td>
+              <td data-label="{{t 'vouchers.issuedBy'}}">
+                {{#if cashier_name}}
+                  <strong>{{cashier_name}}</strong>
+                  <small>{{cashier_username}}</small>
+                {{else}}
+                  <span class="muted-value">{{t 'vouchers.adminBatch'}}</span>
+                {{/if}}
+              </td>
+              <td data-label="{{t 'vouchers.usedBy'}}">
+                {{#if redeemed_mac}}
+                  <strong>{{redeemed_mac}}</strong>
+                  {{#if known_phone}}
+                    <small>{{known_phone}}{{#if known_customer_name}} · {{known_customer_name}}{{/if}}</small>
+                  {{else}}
+                    <small>{{t 'vouchers.noKnownPhone'}}</small>
+                  {{/if}}
+                {{else}}
+                  <span class="muted-value">—</span>
+                {{/if}}
+              </td>
+              <td data-label="{{t 'vouchers.redeemedAt'}}">
+                {{#if redeemed_at}}
+                  {{formatDate redeemed_at}}
+                {{else}}
+                  <span class="muted-value">—</span>
+                {{/if}}
+              </td>
+              <td data-label="{{t 'vouchers.accessUntil'}}">
+                {{#if access_expires_at}}
+                  <strong>{{formatDate access_expires_at}}</strong>
+                  <small>{{subscription_status}}</small>
+                {{else}}
+                  <span class="muted-value">—</span>
+                {{/if}}
+              </td>
+            </tr>
+          {{else}}
+            <tr>
+              <td colspan="8" class="empty">{{t 'vouchers.noActivity'}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    {{> admin-pagination voucherActivityPagination}}
+  </section>
+
   {{#if sites}}
     {{#if packages}}
       <section class="panel form-panel voucher-create-panel">
