@@ -100,3 +100,20 @@ test('cashier can void only through the dedicated voucher-sale action', () => {
   assert.match(receipt, /cashier\.voidVoucher/);
   assert.match(receipt, /\{\{#if sale\.voidable\}\}/);
 });
+
+test('voucher admin exposes consolidated status and redemption activity', () => {
+  const portal = read('views/admin/vouchers.hbs');
+  const voucherService = read('src/services/vouchers/voucher-service.js');
+
+  assert.match(portal, /voucherStats\.redeemed/);
+  assert.match(portal, /voucherStats\.unused/);
+  assert.match(portal, /voucherStats\.cashier_expected_cash/);
+  assert.match(portal, /voucherActivity/);
+  assert.match(portal, /redeemed_mac/);
+  assert.match(portal, /known_phone/);
+  assert.match(portal, /access_expires_at/);
+
+  assert.match(voucherService, /const getVoucherOverview/);
+  assert.match(voucherService, /LEFT JOIN voucher_sales/);
+  assert.match(voucherService, /LEFT JOIN LATERAL/);
+});
