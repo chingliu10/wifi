@@ -1792,3 +1792,35 @@ body.voucher-admin-modal-open{overflow:hidden}
     flex:1
   }
 }
+
+
+/* Live client access source */
+.live-access-plan{
+  display:grid;
+  gap:2px;
+  margin-top:6px;
+  min-width:150px
+}
+.live-access-plan strong{
+  color:var(--text);
+  font-size:10px;
+  line-height:1.35
+}
+.live-access-plan small{
+  display:block;
+  margin:0;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.35;
+  white-space:normal
+}
+.live-access-plan-warning{
+  padding:6px 7px;
+  border:1px solid #f3d2ad;
+  border-radius:7px;
+  background:#fff8e7
+}
+.live-access-plan-warning small{
+  color:var(--warning);
+  font-weight:700
+}
