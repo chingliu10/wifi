@@ -34,7 +34,8 @@ const {
   getCashierVoucherSale,
   voidCashierVoucherSale,
   listVoucherBatches,
-  getVoucherOverview
+  getVoucherOverview,
+  getCashierVoucherSalesSummary
 } = require('../src/services/vouchers/voucher-service');
 const { createCashier } = require('../src/services/auth-service');
 
@@ -595,6 +596,23 @@ test(
 
     assert.equal(filteredOverview.total, 1);
     assert.equal(filteredOverview.vouchers.length, 1);
+
+    const cashierSummary = await getCashierVoucherSalesSummary({
+      organizationId: org.id
+    });
+
+    const cashierRow = cashierSummary.cashiers.find(
+      (row) => Number(row.id) === Number(cashier.id)
+    );
+
+    assert.ok(cashierRow);
+    assert.equal(Number(cashierSummary.totals.sold_today), 1);
+    assert.equal(
+      Number(cashierSummary.totals.expected_cash_today),
+      Number(pkg.price_tzs)
+    );
+    assert.equal(Number(cashierSummary.totals.redeemed_today), 1);
+    assert.equal(Number(cashierRow.sold_today), 1);
 
     const foreignReceipt = await getCashierVoucherSale({
       cashierUserId: cashier.id + 999999,
