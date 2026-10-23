@@ -533,6 +533,33 @@ test(
 
     assert.equal(redeemedReceipt.voucher_status, 'redeemed');
 
+    await pool.query(
+      `
+        INSERT INTO payment_transactions (
+          reference,
+          phone,
+          package_id,
+          client_mac,
+          device_id,
+          amount_tzs,
+          status,
+          provider,
+          paid_at,
+          customer_name
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, 'paid', 'test', NOW(), $7)
+      `,
+      [
+        'known-phone-' + suffix,
+        '0712345678',
+        pkg.id,
+        device.mac_address,
+        device.id,
+        pkg.price_tzs,
+        'Known Customer'
+      ]
+    );
+
     const overview = await getVoucherOverview({
       organizationId: org.id,
       page: 1,
@@ -553,6 +580,8 @@ test(
     assert.equal(redeemedActivity.source, 'cashier');
     assert.equal(redeemedActivity.redeemed_mac, device.mac_address);
     assert.equal(redeemedActivity.cashier_name, 'Voucher Cashier');
+    assert.equal(redeemedActivity.known_phone, '0712345678');
+    assert.equal(redeemedActivity.known_customer_name, 'Known Customer');
     assert.ok(redeemedActivity.access_expires_at);
 
     const filteredOverview = await getVoucherOverview({
