@@ -39,6 +39,7 @@ const {
   createVoucherBatch,
   listVoucherBatches,
   getVoucherOverview,
+  getCashierVoucherSalesSummary,
   getVoucherBatch,
   cancelVoucherBatch,
   cancelVoucher,
@@ -579,40 +580,73 @@ const renderVoucherAdmin = async ({
 }) => {
   ensureVoucherFeatureEnabled(selectedOrg);
 
-  const page = getPage(req.query.page);
+  const requestedTab = String(req.query.tab || '').toLowerCase();
+  const activeTab = error
+    ? 'batches'
+    : ['overview', 'vouchers', 'cashier', 'batches'].includes(requestedTab)
+      ? requestedTab
+      : 'overview';
+
+  const batchPage = getPage(req.query.page);
   const activityPage = getPage(req.query.activityPage);
   const voucherStatus = String(req.query.voucherStatus || '');
   const voucherSource = String(req.query.voucherSource || '');
   const voucherSearch = String(req.query.voucherSearch || '');
 
-  const [{ sites, packages }, batchResult, voucherOverview] =
-    await Promise.all([
-      getVoucherAdminOptions(selectedOrg.id),
-      listVoucherBatches({
-        organizationId: selectedOrg.id,
-        page,
-        pageSize: ADMIN_PAGE_SIZE
-      }),
-      getVoucherOverview({
-        organizationId: selectedOrg.id,
-        status: voucherStatus,
-        source: voucherSource,
-        search: voucherSearch,
-        page: activityPage,
-        pageSize: ADMIN_PAGE_SIZE
-      })
-    ]);
+  const activitySource =
+    activeTab === 'cashier'
+      ? 'cashier'
+      : activeTab === 'overview'
+        ? ''
+        : voucherSource;
 
-  const pagination = buildPagination({
-    page,
+  const activityStatus =
+    activeTab === 'overview'
+      ? ''
+      : voucherStatus;
+
+  const activitySearch =
+    activeTab === 'overview'
+      ? ''
+      : voucherSearch;
+
+  const activityPageSize =
+    activeTab === 'overview'
+      ? 8
+      : ADMIN_PAGE_SIZE;
+
+  const [
+    { sites, packages },
+    batchResult,
+    voucherOverview,
+    cashierSummary
+  ] = await Promise.all([
+    getVoucherAdminOptions(selectedOrg.id),
+    listVoucherBatches({
+      organizationId: selectedOrg.id,
+      page: batchPage,
+      pageSize: ADMIN_PAGE_SIZE
+    }),
+    getVoucherOverview({
+      organizationId: selectedOrg.id,
+      status: activityStatus,
+      source: activitySource,
+      search: activitySearch,
+      page: activeTab === 'overview' ? 1 : activityPage,
+      pageSize: activityPageSize
+    }),
+    getCashierVoucherSalesSummary({
+      organizationId: selectedOrg.id
+    })
+  ]);
+
+  const batchPagination = buildPagination({
+    page: batchPage,
     total: batchResult.total,
     basePath: '/admin/vouchers',
     query: {
       org: selectedOrg.id,
-      voucherStatus: voucherOverview.filters.status,
-      voucherSource: voucherOverview.filters.source,
-      voucherSearch: voucherOverview.filters.search,
-      activityPage
+      tab: 'batches'
     }
   });
 
@@ -623,12 +657,22 @@ const renderVoucherAdmin = async ({
     pageParam: 'activityPage',
     query: {
       org: selectedOrg.id,
+      tab: activeTab,
       voucherStatus: voucherOverview.filters.status,
-      voucherSource: voucherOverview.filters.source,
-      voucherSearch: voucherOverview.filters.search,
-      page
+      voucherSource:
+        activeTab === 'cashier'
+          ? ''
+          : voucherOverview.filters.source,
+      voucherSearch: voucherOverview.filters.search
     }
   });
+
+  const stats = {
+    ...voucherOverview.stats,
+    invalid:
+      Number(voucherOverview.stats.cancelled || 0) +
+      Number(voucherOverview.stats.expired || 0)
+  };
 
   return renderAdmin(req, res, 'admin/vouchers', {
     titleKey: 'vouchers.title',
@@ -637,10 +681,11 @@ const renderVoucherAdmin = async ({
     sites,
     packages,
     batches: batchResult.batches,
-    pagination,
-    voucherStats: voucherOverview.stats,
+    batchPagination,
+    voucherStats: stats,
     voucherActivity: voucherOverview.vouchers,
     voucherActivityPagination: activityPagination,
+    cashierSummary,
     voucherFilters: {
       ...voucherOverview.filters,
       statusUnused: voucherOverview.filters.status === 'unused',
@@ -650,6 +695,13 @@ const renderVoucherAdmin = async ({
       sourceAdmin: voucherOverview.filters.source === 'admin',
       sourceCashier: voucherOverview.filters.source === 'cashier'
     },
+    activeTab,
+    tabOverview: activeTab === 'overview',
+    tabVouchers: activeTab === 'vouchers',
+    tabCashier: activeTab === 'cashier',
+    tabBatches: activeTab === 'batches',
+    canCreateBatch: Boolean(sites.length && packages.length),
+    openCreateModal: Boolean(error),
     maxBatchQuantity: MAX_BATCH_QUANTITY,
     error
   });
