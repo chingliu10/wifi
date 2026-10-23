@@ -280,16 +280,36 @@ const loadLiveClientSnapshot = async ({
     }),
     pool.query(
       `
-        SELECT DISTINCT ON (client_mac)
-          client_mac,
-          expires_at
-        FROM subscriptions
-        WHERE site_id = $1
-          AND client_mac IS NOT NULL
-          AND status = 'active'
-          AND starts_at <= NOW()
-          AND expires_at > NOW()
-        ORDER BY client_mac, expires_at DESC
+        SELECT DISTINCT ON (sub.client_mac)
+          sub.client_mac,
+          sub.starts_at,
+          sub.expires_at,
+          sub.access_source,
+          COALESCE(
+            vb.package_name_snapshot,
+            p.name,
+            'Complimentary access'
+          ) AS package_name,
+          COALESCE(
+            vb.package_duration_seconds_snapshot,
+            p.duration_seconds
+          ) AS package_duration_seconds,
+          v.code_last4 AS voucher_last4,
+          pt.reference AS payment_reference,
+          pt.phone AS payment_phone,
+          pt.customer_name AS payment_customer_name
+        FROM subscriptions sub
+        LEFT JOIN packages p ON p.id = sub.package_id
+        LEFT JOIN vouchers v ON v.subscription_id = sub.id
+        LEFT JOIN voucher_batches vb ON vb.id = v.batch_id
+        LEFT JOIN payment_transactions pt
+          ON pt.id = sub.payment_transaction_id
+        WHERE sub.site_id = $1
+          AND sub.client_mac IS NOT NULL
+          AND sub.status = 'active'
+          AND sub.starts_at <= NOW()
+          AND sub.expires_at > NOW()
+        ORDER BY sub.client_mac, sub.expires_at DESC
       `,
       [selectedSite.id]
     )
@@ -348,7 +368,18 @@ const loadLiveClientSnapshot = async ({
       activity_waiting: Boolean(authRecord && directActivity <= 0),
       auth_type: authRecord ? Number(authRecord.authType) : null,
       package_active: Boolean(subscription),
-      subscription_expires_at: subscription?.expires_at || null
+      subscription_starts_at: subscription?.starts_at || null,
+      subscription_expires_at: subscription?.expires_at || null,
+      access_source: subscription?.access_source || null,
+      package_name: subscription?.package_name || null,
+      package_duration_seconds:
+        subscription?.package_duration_seconds || null,
+      voucher_last4: subscription?.voucher_last4 || null,
+      payment_reference: subscription?.payment_reference || null,
+      payment_phone: subscription?.payment_phone || null,
+      payment_customer_name:
+        subscription?.payment_customer_name || null,
+      subscription_mismatch: Boolean(authRecord && !subscription)
     };
   });
 
