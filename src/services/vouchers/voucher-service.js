@@ -371,6 +371,198 @@ const listVoucherBatches = async ({
   };
 };
 
+const getVoucherOverview = async ({
+  organizationId,
+  status = '',
+  source = '',
+  search = '',
+  page = 1,
+  pageSize = 25
+}) => {
+  const safeStatus = ['unused', 'redeemed', 'expired', 'cancelled'].includes(
+    String(status || '').toLowerCase()
+  )
+    ? String(status).toLowerCase()
+    : '';
+
+  const safeSource = ['admin', 'cashier'].includes(
+    String(source || '').toLowerCase()
+  )
+    ? String(source).toLowerCase()
+    : '';
+
+  const safeSearch = String(search || '').trim().slice(0, 100);
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.max(1, Math.min(100, Number(pageSize) || 25));
+  const offset = (safePage - 1) * safePageSize;
+
+  const statsResult = await pool.query(
+    `
+      SELECT
+        COUNT(v.id)::INTEGER AS total,
+        COUNT(v.id) FILTER (
+          WHERE v.status = 'unused'
+            AND vb.active = TRUE
+            AND (
+              vb.redeemable_until IS NULL
+              OR vb.redeemable_until >= NOW()
+            )
+        )::INTEGER AS unused,
+        COUNT(v.id) FILTER (
+          WHERE v.status = 'redeemed'
+        )::INTEGER AS redeemed,
+        COUNT(v.id) FILTER (
+          WHERE v.status = 'cancelled'
+        )::INTEGER AS cancelled,
+        COUNT(v.id) FILTER (
+          WHERE v.status = 'expired'
+             OR (
+               v.status = 'unused'
+               AND vb.redeemable_until IS NOT NULL
+               AND vb.redeemable_until < NOW()
+             )
+        )::INTEGER AS expired,
+        COUNT(v.id) FILTER (
+          WHERE v.redeemed_at::date = CURRENT_DATE
+        )::INTEGER AS redeemed_today,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+        )::INTEGER AS cashier_sold,
+        COALESCE(
+          SUM(vs.sale_price_tzs) FILTER (
+            WHERE vs.sale_status = 'issued'
+          ),
+          0
+        )::BIGINT AS cashier_expected_cash
+      FROM vouchers v
+      JOIN voucher_batches vb ON vb.id = v.batch_id
+      LEFT JOIN voucher_sales vs ON vs.voucher_id = v.id
+      WHERE v.organization_id = $1
+    `,
+    [organizationId]
+  );
+
+  const rows = (
+    await pool.query(
+      `
+        WITH voucher_activity AS (
+          SELECT
+            v.id,
+            v.code_last4,
+            CASE
+              WHEN v.status = 'unused'
+                AND vb.redeemable_until IS NOT NULL
+                AND vb.redeemable_until < NOW()
+              THEN 'expired'
+              ELSE v.status
+            END AS effective_status,
+            vb.batch_type AS source,
+            vb.batch_reference,
+            vb.package_name_snapshot,
+            vb.package_price_tzs_snapshot,
+            vb.package_duration_seconds_snapshot,
+            v.created_at,
+            v.redeemed_at,
+            v.cancelled_at,
+            s.name AS site_name,
+            d.mac_address AS redeemed_mac,
+            sub.status AS subscription_status,
+            sub.starts_at AS access_starts_at,
+            sub.expires_at AS access_expires_at,
+            vs.id AS sale_id,
+            vs.sale_status,
+            vs.issued_at,
+            vs.sale_price_tzs,
+            cashier.full_name AS cashier_name,
+            cashier.username AS cashier_username,
+            known_customer.phone AS known_phone,
+            known_customer.customer_name AS known_customer_name
+          FROM vouchers v
+          JOIN voucher_batches vb ON vb.id = v.batch_id
+          JOIN sites s ON s.id = v.site_id
+          LEFT JOIN devices d ON d.id = v.redeemed_device_id
+          LEFT JOIN subscriptions sub ON sub.id = v.subscription_id
+          LEFT JOIN voucher_sales vs ON vs.voucher_id = v.id
+          LEFT JOIN platform_users cashier ON cashier.id = vs.cashier_user_id
+          LEFT JOIN LATERAL (
+            SELECT
+              pt.phone,
+              pt.customer_name
+            FROM payment_transactions pt
+            WHERE pt.organization_id = v.organization_id
+              AND pt.device_id = v.redeemed_device_id
+            ORDER BY
+              COALESCE(pt.paid_at, pt.created_at) DESC,
+              pt.id DESC
+            LIMIT 1
+          ) known_customer ON TRUE
+          WHERE v.organization_id = $1
+        )
+        SELECT
+          *,
+          COUNT(*) OVER()::INTEGER AS filtered_total
+        FROM voucher_activity
+        WHERE ($2::text = '' OR effective_status = $2)
+          AND ($3::text = '' OR source = $3)
+          AND (
+            $4::text = ''
+            OR code_last4 ILIKE '%' || $4 || '%'
+            OR batch_reference ILIKE '%' || $4 || '%'
+            OR package_name_snapshot ILIKE '%' || $4 || '%'
+            OR site_name ILIKE '%' || $4 || '%'
+            OR COALESCE(redeemed_mac, '') ILIKE '%' || $4 || '%'
+            OR COALESCE(known_phone, '') ILIKE '%' || $4 || '%'
+            OR COALESCE(known_customer_name, '') ILIKE '%' || $4 || '%'
+            OR COALESCE(cashier_name, '') ILIKE '%' || $4 || '%'
+            OR COALESCE(cashier_username, '') ILIKE '%' || $4 || '%'
+          )
+        ORDER BY COALESCE(issued_at, created_at) DESC, id DESC
+        LIMIT $5 OFFSET $6
+      `,
+      [
+        organizationId,
+        safeStatus,
+        safeSource,
+        safeSearch,
+        safePageSize,
+        offset
+      ]
+    )
+  ).rows;
+
+  const stats = statsResult.rows[0] || {
+    total: 0,
+    unused: 0,
+    redeemed: 0,
+    cancelled: 0,
+    expired: 0,
+    redeemed_today: 0,
+    cashier_sold: 0,
+    cashier_expected_cash: 0
+  };
+
+  const usableTotal =
+    Number(stats.redeemed || 0) +
+    Number(stats.unused || 0);
+
+  return {
+    stats: {
+      ...stats,
+      redemption_rate:
+        usableTotal > 0
+          ? Math.round((Number(stats.redeemed || 0) / usableTotal) * 100)
+          : 0
+    },
+    vouchers: rows,
+    total: rows[0]?.filtered_total || 0,
+    filters: {
+      status: safeStatus,
+      source: safeSource,
+      search: safeSearch
+    }
+  };
+};
+
 const getVoucherBatch = async ({
   organizationId,
   batchId,
@@ -1343,6 +1535,7 @@ module.exports = {
   getVoucherAdminOptions,
   createVoucherBatch,
   listVoucherBatches,
+  getVoucherOverview,
   getVoucherBatch,
   redeemVoucher,
   cancelVoucherBatch,
