@@ -38,6 +38,7 @@ const {
   getVoucherAdminOptions,
   createVoucherBatch,
   listVoucherBatches,
+  getVoucherOverview,
   getVoucherBatch,
   cancelVoucherBatch,
   cancelVoucher,
@@ -579,21 +580,53 @@ const renderVoucherAdmin = async ({
   ensureVoucherFeatureEnabled(selectedOrg);
 
   const page = getPage(req.query.page);
-  const [{ sites, packages }, batchResult] = await Promise.all([
-    getVoucherAdminOptions(selectedOrg.id),
-    listVoucherBatches({
-      organizationId: selectedOrg.id,
-      page,
-      pageSize: ADMIN_PAGE_SIZE
-    })
-  ]);
+  const activityPage = getPage(req.query.activityPage);
+  const voucherStatus = String(req.query.voucherStatus || '');
+  const voucherSource = String(req.query.voucherSource || '');
+  const voucherSearch = String(req.query.voucherSearch || '');
+
+  const [{ sites, packages }, batchResult, voucherOverview] =
+    await Promise.all([
+      getVoucherAdminOptions(selectedOrg.id),
+      listVoucherBatches({
+        organizationId: selectedOrg.id,
+        page,
+        pageSize: ADMIN_PAGE_SIZE
+      }),
+      getVoucherOverview({
+        organizationId: selectedOrg.id,
+        status: voucherStatus,
+        source: voucherSource,
+        search: voucherSearch,
+        page: activityPage,
+        pageSize: ADMIN_PAGE_SIZE
+      })
+    ]);
 
   const pagination = buildPagination({
     page,
     total: batchResult.total,
     basePath: '/admin/vouchers',
     query: {
-      org: selectedOrg.id
+      org: selectedOrg.id,
+      voucherStatus: voucherOverview.filters.status,
+      voucherSource: voucherOverview.filters.source,
+      voucherSearch: voucherOverview.filters.search,
+      activityPage
+    }
+  });
+
+  const activityPagination = buildPagination({
+    page: activityPage,
+    total: voucherOverview.total,
+    basePath: '/admin/vouchers',
+    pageParam: 'activityPage',
+    query: {
+      org: selectedOrg.id,
+      voucherStatus: voucherOverview.filters.status,
+      voucherSource: voucherOverview.filters.source,
+      voucherSearch: voucherOverview.filters.search,
+      page
     }
   });
 
@@ -605,6 +638,10 @@ const renderVoucherAdmin = async ({
     packages,
     batches: batchResult.batches,
     pagination,
+    voucherStats: voucherOverview.stats,
+    voucherActivity: voucherOverview.vouchers,
+    voucherActivityPagination: activityPagination,
+    voucherFilters: voucherOverview.filters,
     maxBatchQuantity: MAX_BATCH_QUANTITY,
     error
   });
