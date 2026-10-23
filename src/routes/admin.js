@@ -371,6 +371,10 @@ const loadLiveClientSnapshot = async ({
       subscription_starts_at: subscription?.starts_at || null,
       subscription_expires_at: subscription?.expires_at || null,
       access_source: subscription?.access_source || null,
+      access_source_paid: subscription?.access_source === 'paid',
+      access_source_voucher: subscription?.access_source === 'voucher',
+      access_source_complimentary:
+        subscription?.access_source === 'complimentary',
       package_name: subscription?.package_name || null,
       package_duration_seconds:
         subscription?.package_duration_seconds || null,
