@@ -33,7 +33,8 @@ const {
   createCashierVoucherSale,
   getCashierVoucherSale,
   voidCashierVoucherSale,
-  listVoucherBatches
+  listVoucherBatches,
+  getVoucherOverview
 } = require('../src/services/vouchers/voucher-service');
 const { createCashier } = require('../src/services/auth-service');
 
@@ -531,6 +532,40 @@ test(
     });
 
     assert.equal(redeemedReceipt.voucher_status, 'redeemed');
+
+    const overview = await getVoucherOverview({
+      organizationId: org.id,
+      page: 1,
+      pageSize: 25
+    });
+
+    assert.equal(Number(overview.stats.redeemed), 1);
+    assert.equal(Number(overview.stats.cancelled), 1);
+    assert.equal(Number(overview.stats.cashier_sold), 1);
+    assert.equal(Number(overview.stats.cashier_expected_cash), Number(pkg.price_tzs));
+
+    const redeemedActivity = overview.vouchers.find(
+      (voucher) => Number(voucher.id) === Number(created.voucher.id)
+    );
+
+    assert.ok(redeemedActivity);
+    assert.equal(redeemedActivity.effective_status, 'redeemed');
+    assert.equal(redeemedActivity.source, 'cashier');
+    assert.equal(redeemedActivity.redeemed_mac, device.mac_address);
+    assert.equal(redeemedActivity.cashier_name, 'Voucher Cashier');
+    assert.ok(redeemedActivity.access_expires_at);
+
+    const filteredOverview = await getVoucherOverview({
+      organizationId: org.id,
+      status: 'redeemed',
+      source: 'cashier',
+      search: device.mac_address,
+      page: 1,
+      pageSize: 25
+    });
+
+    assert.equal(filteredOverview.total, 1);
+    assert.equal(filteredOverview.vouchers.length, 1);
 
     const foreignReceipt = await getCashierVoucherSale({
       cashierUserId: cashier.id + 999999,
