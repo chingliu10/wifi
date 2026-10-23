@@ -641,7 +641,15 @@ const renderVoucherAdmin = async ({
     voucherStats: voucherOverview.stats,
     voucherActivity: voucherOverview.vouchers,
     voucherActivityPagination: activityPagination,
-    voucherFilters: voucherOverview.filters,
+    voucherFilters: {
+      ...voucherOverview.filters,
+      statusUnused: voucherOverview.filters.status === 'unused',
+      statusRedeemed: voucherOverview.filters.status === 'redeemed',
+      statusExpired: voucherOverview.filters.status === 'expired',
+      statusCancelled: voucherOverview.filters.status === 'cancelled',
+      sourceAdmin: voucherOverview.filters.source === 'admin',
+      sourceCashier: voucherOverview.filters.source === 'cashier'
+    },
     maxBatchQuantity: MAX_BATCH_QUANTITY,
     error
   });
