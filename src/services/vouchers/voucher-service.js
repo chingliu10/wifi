@@ -448,6 +448,7 @@ const getVoucherOverview = async ({
         WITH voucher_activity AS (
           SELECT
             v.id,
+            v.code_enc,
             v.code_last4,
             CASE
               WHEN v.status = 'unused'
@@ -553,13 +554,119 @@ const getVoucherOverview = async ({
           ? Math.round((Number(stats.redeemed || 0) / usableTotal) * 100)
           : 0
     },
-    vouchers: rows,
+    vouchers: rows.map((voucher) => ({
+      ...voucher,
+      code: decryptSecret(voucher.code_enc)
+    })),
     total: rows[0]?.filtered_total || 0,
     filters: {
       status: safeStatus,
       source: safeSource,
       search: safeSearch
     }
+  };
+};
+
+const getCashierVoucherSalesSummary = async ({
+  organizationId
+}) => {
+  const totalsResult = await pool.query(
+    `
+      SELECT
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND vs.issued_at::date = CURRENT_DATE
+        )::INTEGER AS sold_today,
+        COALESCE(
+          SUM(vs.sale_price_tzs) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+          ),
+          0
+        )::BIGINT AS expected_cash_today,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND vs.issued_at::date = CURRENT_DATE
+            AND v.status = 'redeemed'
+        )::INTEGER AS redeemed_today,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND vs.issued_at::date = CURRENT_DATE
+            AND v.status = 'unused'
+        )::INTEGER AS waiting_today,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'voided'
+            AND vs.voided_at::date = CURRENT_DATE
+        )::INTEGER AS voided_today
+      FROM voucher_sales vs
+      JOIN vouchers v ON v.id = vs.voucher_id
+      WHERE vs.organization_id = $1
+    `,
+    [organizationId]
+  );
+
+  const cashiers = (
+    await pool.query(
+      `
+        SELECT
+          u.id,
+          u.full_name,
+          u.username,
+          s.name AS site_name,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+          )::INTEGER AS sold_today,
+          COALESCE(
+            SUM(vs.sale_price_tzs) FILTER (
+              WHERE vs.sale_status = 'issued'
+                AND vs.issued_at::date = CURRENT_DATE
+            ),
+            0
+          )::BIGINT AS expected_cash_today,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+              AND v.status = 'redeemed'
+          )::INTEGER AS redeemed_today,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+              AND v.status = 'unused'
+          )::INTEGER AS waiting_today
+        FROM platform_users u
+        JOIN sites s ON s.id = u.site_id
+        LEFT JOIN voucher_sales vs
+          ON vs.cashier_user_id = u.id
+          AND vs.organization_id = $1
+        LEFT JOIN vouchers v ON v.id = vs.voucher_id
+        WHERE u.organization_id = $1
+          AND u.role = 'cashier'
+        GROUP BY u.id, s.name
+        ORDER BY
+          COALESCE(
+            SUM(vs.sale_price_tzs) FILTER (
+              WHERE vs.sale_status = 'issued'
+                AND vs.issued_at::date = CURRENT_DATE
+            ),
+            0
+          ) DESC,
+          u.full_name,
+          u.id
+      `,
+      [organizationId]
+    )
+  ).rows;
+
+  return {
+    totals: totalsResult.rows[0] || {
+      sold_today: 0,
+      expected_cash_today: 0,
+      redeemed_today: 0,
+      waiting_today: 0,
+      voided_today: 0
+    },
+    cashiers
   };
 };
 
@@ -1536,6 +1643,7 @@ module.exports = {
   createVoucherBatch,
   listVoucherBatches,
   getVoucherOverview,
+  getCashierVoucherSalesSummary,
   getVoucherBatch,
   redeemVoucher,
   cancelVoucherBatch,
