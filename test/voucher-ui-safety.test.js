@@ -137,3 +137,21 @@ test('voucher management uses focused workspace tabs instead of one long page', 
     /<section class="page-head">[\s\S]*?<h2>\{\{t 'vouchers\.title'\}\}<\/h2>/
   );
 });
+
+test('live clients expose the active Solidus package and access source', () => {
+  const adminRoutes = read('src/routes/admin.js');
+  const liveView = read('views/admin/live-clients.hbs');
+
+  assert.match(adminRoutes, /sub\.access_source/);
+  assert.match(adminRoutes, /vb\.package_name_snapshot/);
+  assert.match(adminRoutes, /pt\.reference AS payment_reference/);
+  assert.match(adminRoutes, /v\.code_last4 AS voucher_last4/);
+  assert.match(adminRoutes, /subscription_mismatch/);
+
+  assert.match(liveView, /access_source_voucher/);
+  assert.match(liveView, /live\.sourceVoucher/);
+  assert.match(liveView, /live\.sourcePaid/);
+  assert.match(liveView, /live\.sourceComplimentary/);
+  assert.match(liveView, /subscription_expires_at/);
+  assert.match(liveView, /live\.unknownSource/);
+});
