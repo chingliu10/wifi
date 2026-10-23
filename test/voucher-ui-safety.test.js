@@ -79,7 +79,8 @@ test('cashier Handlebars templates compile', () => {
     'views/layouts/admin.hbs',
     'views/admin/cashier.hbs',
     'views/admin/cashier-receipt.hbs',
-    'views/admin/cashiers.hbs'
+    'views/admin/cashiers.hbs',
+    'views/admin/vouchers.hbs'
   ]) {
     assert.doesNotThrow(
       () => Handlebars.precompile(read(file)),
@@ -116,4 +117,23 @@ test('voucher admin exposes consolidated status and redemption activity', () => 
   assert.match(voucherService, /const getVoucherOverview/);
   assert.match(voucherService, /LEFT JOIN voucher_sales/);
   assert.match(voucherService, /LEFT JOIN LATERAL/);
+});
+
+test('voucher management uses focused workspace tabs instead of one long page', () => {
+  const view = read('views/admin/vouchers.hbs');
+
+  assert.match(view, /vouchers\.tabOverview/);
+  assert.match(view, /vouchers\.tabAll/);
+  assert.match(view, /vouchers\.tabCashier/);
+  assert.match(view, /vouchers\.tabBatches/);
+
+  assert.match(view, /data-open-voucher-create/);
+  assert.match(view, /id="voucher-create-modal"/);
+  assert.match(view, /data-voucher-detail-open/);
+  assert.match(view, /voucher-detail-drawer/);
+
+  assert.doesNotMatch(
+    view,
+    /<section class="page-head">[\s\S]*?<h2>\{\{t 'vouchers\.title'\}\}<\/h2>/
+  );
 });
