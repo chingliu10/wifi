@@ -1,388 +1,789 @@
-<section class="page-head">
-  <div>
-    <h2>{{t 'vouchers.title'}}</h2>
-    <p>{{t 'vouchers.subtitle'}}</p>
-  </div>
-</section>
-
-{{#if error}}
-  <div class="notice notice-error">{{error}}</div>
-{{/if}}
-
-{{#if selectedOrg.voucher_portal_enabled}}
-  <div class="notice notice-success voucher-safety-note">
-    {{t 'vouchers.portalEnabled'}}
-  </div>
-{{else}}
-  <div class="notice voucher-safety-note">
-    {{t 'vouchers.portalSafety'}}
-  </div>
-{{/if}}
-
-{{#if isSuperAdmin}}
-  <section class="panel voucher-rollout-panel">
-    <div class="panel-head">
-      <div>
-        <h3>{{t 'vouchers.portalAccessTitle'}}</h3>
-        <p>{{t 'vouchers.portalAccessHint'}}</p>
-      </div>
+{{#if selectedOrg}}
+  <section class="voucher-workspace-head">
+    <div>
+      <p>{{t 'vouchers.workspaceSubtitle'}}</p>
     </div>
 
-    <form
-      method="POST"
-      action="/admin/organizations/{{selectedOrg.id}}/features/voucher-portal"
-      class="inline-action-form"
-    >
-      <input
-        type="hidden"
-        name="organizationId"
-        value="{{selectedOrg.id}}"
-      >
+    <div class="voucher-workspace-actions">
       {{#if selectedOrg.voucher_portal_enabled}}
-        <input type="hidden" name="enabled" value="false">
-        <button type="submit" class="secondary-button">
-          {{t 'vouchers.disablePortal'}}
-        </button>
+        <span class="voucher-portal-badge is-on">
+          <span aria-hidden="true"></span>
+          {{t 'vouchers.portalOn'}}
+        </span>
       {{else}}
-        <input type="hidden" name="enabled" value="true">
-        <button type="submit" class="primary-action-button">
-          {{t 'vouchers.enablePortal'}}
+        <span class="voucher-portal-badge is-off">
+          <span aria-hidden="true"></span>
+          {{t 'vouchers.portalOff'}}
+        </span>
+      {{/if}}
+
+      {{#if isSuperAdmin}}
+        <form
+          method="POST"
+          action="/admin/organizations/{{selectedOrg.id}}/features/voucher-portal"
+          class="voucher-portal-toggle-form"
+        >
+          <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+          {{#if selectedOrg.voucher_portal_enabled}}
+            <input type="hidden" name="enabled" value="false">
+            <button type="submit" class="secondary-button">{{t 'vouchers.disablePortalShort'}}</button>
+          {{else}}
+            <input type="hidden" name="enabled" value="true">
+            <button type="submit" class="secondary-button">{{t 'vouchers.enablePortalShort'}}</button>
+          {{/if}}
+        </form>
+      {{/if}}
+
+      {{#if canCreateBatch}}
+        <button type="button" class="primary-action-button" data-open-voucher-create>
+          + {{t 'vouchers.createAction'}}
         </button>
       {{/if}}
-    </form>
-  </section>
-{{/if}}
-
-{{#if selectedOrg}}
-  <section class="stats-grid voucher-overview-stats">
-    <article class="stat-card">
-      <span>{{t 'vouchers.total'}}</span>
-      <strong>{{voucherStats.total}}</strong>
-      <small>{{t 'vouchers.totalHint'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'vouchers.redeemed'}}</span>
-      <strong>{{voucherStats.redeemed}}</strong>
-      <small>{{voucherStats.redemption_rate}}% {{t 'vouchers.redemptionRate'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'vouchers.unused'}}</span>
-      <strong>{{voucherStats.unused}}</strong>
-      <small>{{t 'vouchers.readyToUse'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'vouchers.redeemedToday'}}</span>
-      <strong>{{voucherStats.redeemed_today}}</strong>
-      <small>{{t 'vouchers.usedTodayHint'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'vouchers.cashierSold'}}</span>
-      <strong>{{voucherStats.cashier_sold}}</strong>
-      <small>{{formatTzs voucherStats.cashier_expected_cash}} TZS {{t 'vouchers.cashSalesValue'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'vouchers.inactive'}}</span>
-      <strong>{{voucherStats.cancelled}} / {{voucherStats.expired}}</strong>
-      <small>{{t 'vouchers.cancelledExpired'}}</small>
-    </article>
-  </section>
-
-  <section class="panel table-panel voucher-activity-panel">
-    <div class="panel-head">
-      <div>
-        <h3>{{t 'vouchers.activityTitle'}}</h3>
-        <p>{{t 'vouchers.activityHint'}}</p>
-      </div>
     </div>
-
-    <form method="GET" action="/admin/vouchers" class="filter-bar voucher-activity-filters">
-      <input type="hidden" name="org" value="{{selectedOrg.id}}">
-
-      <label>
-        <span>{{t 'common.search'}}</span>
-        <input
-          type="search"
-          name="voucherSearch"
-          value="{{voucherFilters.search}}"
-          placeholder="{{t 'vouchers.searchPlaceholder'}}"
-        >
-      </label>
-
-      <label>
-        <span>{{t 'vouchers.status'}}</span>
-        <select name="voucherStatus">
-          <option value="">{{t 'common.allStatuses'}}</option>
-          <option value="unused" {{#if voucherFilters.statusUnused}}selected{{/if}}>{{t 'status.unused'}}</option>
-          <option value="redeemed" {{#if voucherFilters.statusRedeemed}}selected{{/if}}>{{t 'status.redeemed'}}</option>
-          <option value="expired" {{#if voucherFilters.statusExpired}}selected{{/if}}>{{t 'status.expired'}}</option>
-          <option value="cancelled" {{#if voucherFilters.statusCancelled}}selected{{/if}}>{{t 'status.cancelled'}}</option>
-        </select>
-      </label>
-
-      <label>
-        <span>{{t 'vouchers.source'}}</span>
-        <select name="voucherSource">
-          <option value="">{{t 'common.all'}}</option>
-          <option value="admin" {{#if voucherFilters.sourceAdmin}}selected{{/if}}>{{t 'vouchers.sourceBatch'}}</option>
-          <option value="cashier" {{#if voucherFilters.sourceCashier}}selected{{/if}}>{{t 'vouchers.sourceCashier'}}</option>
-        </select>
-      </label>
-
-      <div class="filter-actions">
-        <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
-        <a class="secondary-button" href="/admin/vouchers?org={{selectedOrg.id}}">{{t 'common.clear'}}</a>
-      </div>
-    </form>
-
-    <div class="table-wrap">
-      <table class="responsive-table">
-        <thead>
-          <tr>
-            <th>{{t 'vouchers.code'}}</th>
-            <th>{{t 'vouchers.status'}}</th>
-            <th>{{t 'vouchers.source'}}</th>
-            <th>{{t 'common.site'}} / {{t 'common.package'}}</th>
-            <th>{{t 'vouchers.issuedBy'}}</th>
-            <th>{{t 'vouchers.usedBy'}}</th>
-            <th>{{t 'vouchers.redeemedAt'}}</th>
-            <th>{{t 'vouchers.accessUntil'}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each voucherActivity}}
-            <tr>
-              <td data-label="{{t 'vouchers.code'}}">
-                <strong class="voucher-last4">•••• {{code_last4}}</strong>
-                <small>{{batch_reference}}</small>
-              </td>
-              <td data-label="{{t 'vouchers.status'}}">
-                <span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span>
-              </td>
-              <td data-label="{{t 'vouchers.source'}}">
-                {{#if cashier_name}}
-                  <strong>{{t 'vouchers.sourceCashier'}}</strong>
-                  <small>{{cashier_name}}</small>
-                {{else}}
-                  <strong>{{t 'vouchers.sourceBatch'}}</strong>
-                  <small>{{batch_reference}}</small>
-                {{/if}}
-              </td>
-              <td data-label="{{t 'common.site'}} / {{t 'common.package'}}">
-                <strong>{{site_name}}</strong>
-                <small>{{package_name_snapshot}} · {{formatTzs package_price_tzs_snapshot}} TZS</small>
-              </td>
-              <td data-label="{{t 'vouchers.issuedBy'}}">
-                {{#if cashier_name}}
-                  <strong>{{cashier_name}}</strong>
-                  <small>{{cashier_username}}</small>
-                {{else}}
-                  <span class="muted-value">{{t 'vouchers.adminBatch'}}</span>
-                {{/if}}
-              </td>
-              <td data-label="{{t 'vouchers.usedBy'}}">
-                {{#if redeemed_mac}}
-                  <strong>{{redeemed_mac}}</strong>
-                  {{#if known_phone}}
-                    <small>{{known_phone}}{{#if known_customer_name}} · {{known_customer_name}}{{/if}}</small>
-                  {{else}}
-                    <small>{{t 'vouchers.noKnownPhone'}}</small>
-                  {{/if}}
-                {{else}}
-                  <span class="muted-value">—</span>
-                {{/if}}
-              </td>
-              <td data-label="{{t 'vouchers.redeemedAt'}}">
-                {{#if redeemed_at}}
-                  {{formatDate redeemed_at}}
-                {{else}}
-                  <span class="muted-value">—</span>
-                {{/if}}
-              </td>
-              <td data-label="{{t 'vouchers.accessUntil'}}">
-                {{#if access_expires_at}}
-                  <strong>{{formatDate access_expires_at}}</strong>
-                  <small>{{subscription_status}}</small>
-                {{else}}
-                  <span class="muted-value">—</span>
-                {{/if}}
-              </td>
-            </tr>
-          {{else}}
-            <tr>
-              <td colspan="8" class="empty">{{t 'vouchers.noActivity'}}</td>
-            </tr>
-          {{/each}}
-        </tbody>
-      </table>
-    </div>
-
-    {{> admin-pagination voucherActivityPagination}}
   </section>
 
-  {{#if sites}}
-    {{#if packages}}
-      <section class="panel form-panel voucher-create-panel">
+  <nav class="voucher-tabs" aria-label="{{t 'vouchers.tabsLabel'}}">
+    <a
+      class="{{#if tabOverview}}active{{/if}}"
+      href="/admin/vouchers?org={{selectedOrg.id}}&tab=overview"
+      {{#if tabOverview}}aria-current="page"{{/if}}
+    >
+      {{t 'vouchers.tabOverview'}}
+    </a>
+
+    <a
+      class="{{#if tabVouchers}}active{{/if}}"
+      href="/admin/vouchers?org={{selectedOrg.id}}&tab=vouchers"
+      {{#if tabVouchers}}aria-current="page"{{/if}}
+    >
+      {{t 'vouchers.tabAll'}}
+      <span>{{voucherStats.total}}</span>
+    </a>
+
+    <a
+      class="{{#if tabCashier}}active{{/if}}"
+      href="/admin/vouchers?org={{selectedOrg.id}}&tab=cashier"
+      {{#if tabCashier}}aria-current="page"{{/if}}
+    >
+      {{t 'vouchers.tabCashier'}}
+      <span>{{voucherStats.cashier_sold}}</span>
+    </a>
+
+    <a
+      class="{{#if tabBatches}}active{{/if}}"
+      href="/admin/vouchers?org={{selectedOrg.id}}&tab=batches"
+      {{#if tabBatches}}aria-current="page"{{/if}}
+    >
+      {{t 'vouchers.tabBatches'}}
+      <span>{{batchPagination.total}}</span>
+    </a>
+  </nav>
+
+  {{#if tabOverview}}
+    <section class="stats-grid voucher-overview-primary-stats">
+      <article class="stat-card">
+        <span>{{t 'vouchers.total'}}</span>
+        <strong>{{voucherStats.total}}</strong>
+        <small>{{t 'vouchers.totalHint'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.used'}}</span>
+        <strong>{{voucherStats.redeemed}}</strong>
+        <small>{{voucherStats.redemption_rate}}% {{t 'vouchers.redemptionRate'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.available'}}</span>
+        <strong>{{voucherStats.unused}}</strong>
+        <small>{{t 'vouchers.readyToUse'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.invalid'}}</span>
+        <strong>{{voucherStats.invalid}}</strong>
+        <small>{{voucherStats.cancelled}} {{t 'vouchers.cancelledShort'}} · {{voucherStats.expired}} {{t 'vouchers.expiredShort'}}</small>
+      </article>
+    </section>
+
+    <section class="voucher-overview-grid">
+      <article class="panel voucher-overview-panel">
         <div class="panel-head">
           <div>
-            <h3>{{t 'vouchers.createBatch'}}</h3>
-            <p>{{t 'vouchers.createHint'}}</p>
+            <h3>{{t 'vouchers.recentActivity'}}</h3>
+            <p>{{t 'vouchers.recentActivityHint'}}</p>
+          </div>
+          <a href="/admin/vouchers?org={{selectedOrg.id}}&tab=vouchers">{{t 'vouchers.viewAll'}}</a>
+        </div>
+
+        <div class="voucher-recent-list">
+          {{#each voucherActivity}}
+            <a class="voucher-recent-row" href="/admin/vouchers?org={{../selectedOrg.id}}&tab=vouchers&voucherSearch={{code_last4}}">
+              <span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span>
+              <div>
+                <strong>•••• {{code_last4}}</strong>
+                <small>{{package_name_snapshot}} · {{site_name}}</small>
+              </div>
+              <div class="voucher-recent-meta">
+                {{#if redeemed_at}}
+                  <strong>{{formatDate redeemed_at}}</strong>
+                  <small>{{#if redeemed_mac}}{{redeemed_mac}}{{/if}}</small>
+                {{else}}
+                  <strong>{{formatDate created_at}}</strong>
+                  <small>{{#if cashier_name}}{{cashier_name}}{{else}}{{t 'vouchers.sourceBatch'}}{{/if}}</small>
+                {{/if}}
+              </div>
+            </a>
+          {{else}}
+            <div class="empty-state">
+              <p>{{t 'vouchers.noActivity'}}</p>
+            </div>
+          {{/each}}
+        </div>
+      </article>
+
+      <article class="panel voucher-overview-panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'vouchers.cashierToday'}}</h3>
+            <p>{{t 'vouchers.cashierTodayHint'}}</p>
+          </div>
+          <a href="/admin/vouchers?org={{selectedOrg.id}}&tab=cashier">{{t 'vouchers.viewCashierSales'}}</a>
+        </div>
+
+        <div class="voucher-cashier-today-summary">
+          <div>
+            <span>{{t 'vouchers.soldToday'}}</span>
+            <strong>{{cashierSummary.totals.sold_today}}</strong>
+          </div>
+          <div>
+            <span>{{t 'vouchers.expectedCashToday'}}</span>
+            <strong>{{formatTzs cashierSummary.totals.expected_cash_today}} TZS</strong>
           </div>
         </div>
 
+        <div class="voucher-cashier-mini-list">
+          {{#each cashierSummary.cashiers}}
+            <div>
+              <span>
+                <strong>{{full_name}}</strong>
+                <small>{{site_name}}</small>
+              </span>
+              <span>
+                <strong>{{sold_today}} {{t 'vouchers.soldShort'}}</strong>
+                <small>{{formatTzs expected_cash_today}} TZS</small>
+              </span>
+            </div>
+          {{else}}
+            <div class="empty-state">
+              <p>{{t 'vouchers.noCashiersForSales'}}</p>
+            </div>
+          {{/each}}
+        </div>
+      </article>
+    </section>
+  {{/if}}
+
+  {{#if tabVouchers}}
+    <section class="panel table-panel voucher-workspace-panel">
+      <div class="panel-head voucher-list-head">
+        <div>
+          <h3>{{t 'vouchers.allVouchersTitle'}}</h3>
+          <p>{{t 'vouchers.allVouchersHint'}}</p>
+        </div>
+      </div>
+
+      <form method="GET" action="/admin/vouchers" class="voucher-list-filters">
+        <input type="hidden" name="org" value="{{selectedOrg.id}}">
+        <input type="hidden" name="tab" value="vouchers">
+
+        <label class="voucher-search-field">
+          <span>{{t 'common.search'}}</span>
+          <input
+            type="search"
+            name="voucherSearch"
+            value="{{voucherFilters.search}}"
+            placeholder="{{t 'vouchers.searchPlaceholder'}}"
+          >
+        </label>
+
+        <label>
+          <span>{{t 'vouchers.status'}}</span>
+          <select name="voucherStatus">
+            <option value="">{{t 'common.allStatuses'}}</option>
+            <option value="unused" {{#if voucherFilters.statusUnused}}selected{{/if}}>{{t 'status.unused'}}</option>
+            <option value="redeemed" {{#if voucherFilters.statusRedeemed}}selected{{/if}}>{{t 'status.redeemed'}}</option>
+            <option value="expired" {{#if voucherFilters.statusExpired}}selected{{/if}}>{{t 'status.expired'}}</option>
+            <option value="cancelled" {{#if voucherFilters.statusCancelled}}selected{{/if}}>{{t 'status.cancelled'}}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>{{t 'vouchers.source'}}</span>
+          <select name="voucherSource">
+            <option value="">{{t 'common.all'}}</option>
+            <option value="admin" {{#if voucherFilters.sourceAdmin}}selected{{/if}}>{{t 'vouchers.sourceBatch'}}</option>
+            <option value="cashier" {{#if voucherFilters.sourceCashier}}selected{{/if}}>{{t 'vouchers.sourceCashier'}}</option>
+          </select>
+        </label>
+
+        <div class="filter-actions">
+          <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+          <a class="secondary-button" href="/admin/vouchers?org={{selectedOrg.id}}&tab=vouchers">{{t 'common.clear'}}</a>
+        </div>
+      </form>
+
+      <div class="table-wrap">
+        <table class="responsive-table voucher-simple-table">
+          <thead>
+            <tr>
+              <th>{{t 'vouchers.code'}}</th>
+              <th>{{t 'vouchers.status'}}</th>
+              <th>{{t 'common.package'}}</th>
+              <th>{{t 'vouchers.customerDevice'}}</th>
+              <th>{{t 'vouchers.activity'}}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each voucherActivity}}
+              <tr>
+                <td data-label="{{t 'vouchers.code'}}">
+                  <strong class="voucher-last4">•••• {{code_last4}}</strong>
+                  <small>{{#if cashier_name}}{{t 'vouchers.sourceCashier'}}{{else}}{{t 'vouchers.sourceBatch'}}{{/if}}</small>
+                </td>
+
+                <td data-label="{{t 'vouchers.status'}}">
+                  <span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span>
+                </td>
+
+                <td data-label="{{t 'common.package'}}">
+                  <strong>{{package_name_snapshot}}</strong>
+                  <small>{{formatTzs package_price_tzs_snapshot}} TZS · {{site_name}}</small>
+                </td>
+
+                <td data-label="{{t 'vouchers.customerDevice'}}">
+                  {{#if redeemed_mac}}
+                    <strong>{{redeemed_mac}}</strong>
+                    {{#if known_phone}}
+                      <small>{{known_phone}}{{#if known_customer_name}} · {{known_customer_name}}{{/if}}</small>
+                    {{else}}
+                      <small>{{t 'vouchers.noKnownPhoneShort'}}</small>
+                    {{/if}}
+                  {{else}}
+                    <span class="muted-value">—</span>
+                  {{/if}}
+                </td>
+
+                <td data-label="{{t 'vouchers.activity'}}">
+                  {{#if redeemed_at}}
+                    <strong>{{t 'vouchers.usedLabel'}} {{formatDate redeemed_at}}</strong>
+                    {{#if access_expires_at}}<small>{{t 'vouchers.endsLabel'}} {{formatDate access_expires_at}}</small>{{/if}}
+                  {{else}}
+                    <strong>{{t 'vouchers.createdLabel'}} {{formatDate created_at}}</strong>
+                    {{#if cashier_name}}<small>{{cashier_name}}</small>{{/if}}
+                  {{/if}}
+                </td>
+
+                <td class="voucher-row-action">
+                  <button type="button" class="voucher-details-button" data-voucher-detail-open="{{id}}">
+                    {{t 'vouchers.details'}}
+                  </button>
+                </td>
+              </tr>
+            {{else}}
+              <tr><td colspan="6" class="empty">{{t 'vouchers.noActivity'}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{> admin-pagination voucherActivityPagination}}
+    </section>
+  {{/if}}
+
+  {{#if tabCashier}}
+    <section class="stats-grid voucher-cashier-stats">
+      <article class="stat-card">
+        <span>{{t 'vouchers.soldToday'}}</span>
+        <strong>{{cashierSummary.totals.sold_today}}</strong>
+        <small>{{t 'vouchers.cashierIssuedToday'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.expectedCashToday'}}</span>
+        <strong>{{formatTzs cashierSummary.totals.expected_cash_today}} TZS</strong>
+        <small>{{t 'vouchers.cashToReconcile'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.usedFromTodaySales'}}</span>
+        <strong>{{cashierSummary.totals.redeemed_today}}</strong>
+        <small>{{t 'vouchers.redeemedFromTodaySalesHint'}}</small>
+      </article>
+
+      <article class="stat-card">
+        <span>{{t 'vouchers.waitingToday'}}</span>
+        <strong>{{cashierSummary.totals.waiting_today}}</strong>
+        <small>{{t 'vouchers.waitingTodayHint'}}</small>
+      </article>
+    </section>
+
+    <section class="panel table-panel voucher-cashier-reconcile-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'vouchers.cashierReconciliation'}}</h3>
+          <p>{{t 'vouchers.cashierReconciliationHint'}}</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="responsive-table">
+          <thead>
+            <tr>
+              <th>{{t 'vouchers.cashier'}}</th>
+              <th>{{t 'common.site'}}</th>
+              <th>{{t 'vouchers.soldToday'}}</th>
+              <th>{{t 'vouchers.expectedCashToday'}}</th>
+              <th>{{t 'vouchers.redeemed'}}</th>
+              <th>{{t 'vouchers.waiting'}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each cashierSummary.cashiers}}
+              <tr>
+                <td data-label="{{t 'vouchers.cashier'}}">
+                  <strong>{{full_name}}</strong>
+                  <small>{{username}}</small>
+                </td>
+                <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+                <td data-label="{{t 'vouchers.soldToday'}}"><strong>{{sold_today}}</strong></td>
+                <td data-label="{{t 'vouchers.expectedCashToday'}}"><strong>{{formatTzs expected_cash_today}} TZS</strong></td>
+                <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_today}}</td>
+                <td data-label="{{t 'vouchers.waiting'}}">{{waiting_today}}</td>
+              </tr>
+            {{else}}
+              <tr><td colspan="6" class="empty">{{t 'vouchers.noCashiersForSales'}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel table-panel voucher-workspace-panel">
+      <div class="panel-head voucher-list-head">
+        <div>
+          <h3>{{t 'vouchers.cashierSalesHistory'}}</h3>
+          <p>{{t 'vouchers.cashierSalesHistoryHint'}}</p>
+        </div>
+      </div>
+
+      <form method="GET" action="/admin/vouchers" class="voucher-list-filters voucher-cashier-filters">
+        <input type="hidden" name="org" value="{{selectedOrg.id}}">
+        <input type="hidden" name="tab" value="cashier">
+
+        <label class="voucher-search-field">
+          <span>{{t 'common.search'}}</span>
+          <input
+            type="search"
+            name="voucherSearch"
+            value="{{voucherFilters.search}}"
+            placeholder="{{t 'vouchers.cashierSearchPlaceholder'}}"
+          >
+        </label>
+
+        <label>
+          <span>{{t 'vouchers.status'}}</span>
+          <select name="voucherStatus">
+            <option value="">{{t 'common.allStatuses'}}</option>
+            <option value="unused" {{#if voucherFilters.statusUnused}}selected{{/if}}>{{t 'status.unused'}}</option>
+            <option value="redeemed" {{#if voucherFilters.statusRedeemed}}selected{{/if}}>{{t 'status.redeemed'}}</option>
+            <option value="cancelled" {{#if voucherFilters.statusCancelled}}selected{{/if}}>{{t 'status.cancelled'}}</option>
+          </select>
+        </label>
+
+        <div class="filter-actions">
+          <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+          <a class="secondary-button" href="/admin/vouchers?org={{selectedOrg.id}}&tab=cashier">{{t 'common.clear'}}</a>
+        </div>
+      </form>
+
+      <div class="table-wrap">
+        <table class="responsive-table voucher-simple-table">
+          <thead>
+            <tr>
+              <th>{{t 'vouchers.code'}}</th>
+              <th>{{t 'vouchers.cashier'}}</th>
+              <th>{{t 'common.package'}}</th>
+              <th>{{t 'common.price'}}</th>
+              <th>{{t 'vouchers.status'}}</th>
+              <th>{{t 'vouchers.saleActivity'}}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each voucherActivity}}
+              <tr>
+                <td data-label="{{t 'vouchers.code'}}"><strong class="voucher-last4">•••• {{code_last4}}</strong></td>
+                <td data-label="{{t 'vouchers.cashier'}}">
+                  <strong>{{cashier_name}}</strong>
+                  <small>{{cashier_username}}</small>
+                </td>
+                <td data-label="{{t 'common.package'}}">
+                  <strong>{{package_name_snapshot}}</strong>
+                  <small>{{site_name}}</small>
+                </td>
+                <td data-label="{{t 'common.price'}}"><strong>{{formatTzs sale_price_tzs}} TZS</strong></td>
+                <td data-label="{{t 'vouchers.status'}}">
+                  <span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span>
+                </td>
+                <td data-label="{{t 'vouchers.saleActivity'}}">
+                  <strong>{{formatDate issued_at}}</strong>
+                  {{#if redeemed_at}}<small>{{t 'vouchers.usedLabel'}} {{formatDate redeemed_at}}</small>{{/if}}
+                </td>
+                <td class="voucher-row-action">
+                  <button type="button" class="voucher-details-button" data-voucher-detail-open="{{id}}">
+                    {{t 'vouchers.details'}}
+                  </button>
+                </td>
+              </tr>
+            {{else}}
+              <tr><td colspan="7" class="empty">{{t 'vouchers.noCashierSales'}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{> admin-pagination voucherActivityPagination}}
+    </section>
+  {{/if}}
+
+  {{#if tabBatches}}
+    <section class="panel table-panel voucher-batches-panel voucher-workspace-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'vouchers.batches'}}</h3>
+          <p>{{t 'vouchers.batchesHint'}}</p>
+        </div>
+
+        {{#if canCreateBatch}}
+          <button type="button" class="primary-action-button" data-open-voucher-create>
+            + {{t 'vouchers.createBatchShort'}}
+          </button>
+        {{/if}}
+      </div>
+
+      <div class="table-wrap">
+        <table class="responsive-table">
+          <thead>
+            <tr>
+              <th>{{t 'vouchers.reference'}}</th>
+              <th>{{t 'common.site'}}</th>
+              <th>{{t 'common.package'}}</th>
+              <th>{{t 'vouchers.generated'}}</th>
+              <th>{{t 'vouchers.unused'}}</th>
+              <th>{{t 'vouchers.redeemed'}}</th>
+              <th>{{t 'vouchers.expired'}}</th>
+              <th>{{t 'vouchers.cancelled'}}</th>
+              <th>{{t 'vouchers.created'}}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each batches}}
+              <tr>
+                <td data-label="{{t 'vouchers.reference'}}"><strong>{{batch_reference}}</strong></td>
+                <td data-label="{{t 'common.site'}}">{{site_name}}</td>
+                <td data-label="{{t 'common.package'}}">
+                  <strong>{{package_name_snapshot}}</strong>
+                  <small>{{formatTzs package_price_tzs_snapshot}} TZS · {{formatDuration package_duration_seconds_snapshot}}</small>
+                </td>
+                <td data-label="{{t 'vouchers.generated'}}">{{generated_count}}</td>
+                <td data-label="{{t 'vouchers.unused'}}">{{unused_count}}</td>
+                <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_count}}</td>
+                <td data-label="{{t 'vouchers.expired'}}">{{expired_count}}</td>
+                <td data-label="{{t 'vouchers.cancelled'}}">{{cancelled_count}}</td>
+                <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
+                <td class="voucher-row-action">
+                  <a class="voucher-details-button" href="/admin/vouchers/batches/{{id}}?org={{../selectedOrg.id}}">
+                    {{t 'vouchers.viewCodes'}}
+                  </a>
+                </td>
+              </tr>
+            {{else}}
+              <tr><td colspan="10" class="empty">{{t 'vouchers.noBatches'}}</td></tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{> admin-pagination batchPagination}}
+    </section>
+
+    {{#unless canCreateBatch}}
+      <div class="notice">{{t 'vouchers.noSites'}}</div>
+    {{/unless}}
+  {{/if}}
+
+  {{#each voucherActivity}}
+    <div class="voucher-detail-overlay" data-voucher-detail-id="{{id}}" hidden>
+      <button type="button" class="voucher-detail-scrim" data-voucher-detail-close aria-label="{{t 'common.close'}}"></button>
+
+      <aside class="voucher-detail-drawer" aria-labelledby="voucher-detail-title-{{id}}">
+        <div class="voucher-detail-head">
+          <div>
+            <p class="eyebrow">{{t 'vouchers.voucherDetails'}}</p>
+            <h3 id="voucher-detail-title-{{id}}">•••• {{code_last4}}</h3>
+          </div>
+          <button type="button" class="voucher-detail-close" data-voucher-detail-close aria-label="{{t 'common.close'}}">×</button>
+        </div>
+
+        <div class="voucher-detail-code">
+          <span>{{t 'vouchers.fullCode'}}</span>
+          <strong>{{code}}</strong>
+          <button type="button" data-copy-voucher-code="{{code}}">{{t 'cashier.copyCode'}}</button>
+        </div>
+
+        <section class="voucher-detail-section">
+          <h4>{{t 'vouchers.voucherInfo'}}</h4>
+          <dl>
+            <div><dt>{{t 'vouchers.status'}}</dt><dd><span class="status-pill status-{{effective_status}}">{{statusLabel effective_status}}</span></dd></div>
+            <div><dt>{{t 'common.site'}}</dt><dd>{{site_name}}</dd></div>
+            <div><dt>{{t 'common.package'}}</dt><dd>{{package_name_snapshot}}</dd></div>
+            <div><dt>{{t 'common.price'}}</dt><dd>{{formatTzs package_price_tzs_snapshot}} TZS</dd></div>
+            <div><dt>{{t 'common.duration'}}</dt><dd>{{formatDuration package_duration_seconds_snapshot}}</dd></div>
+            <div><dt>{{t 'vouchers.batch'}}</dt><dd>{{batch_reference}}</dd></div>
+          </dl>
+        </section>
+
+        <section class="voucher-detail-section">
+          <h4>{{t 'vouchers.distribution'}}</h4>
+          <dl>
+            <div>
+              <dt>{{t 'vouchers.source'}}</dt>
+              <dd>{{#if cashier_name}}{{t 'vouchers.sourceCashier'}}{{else}}{{t 'vouchers.sourceBatch'}}{{/if}}</dd>
+            </div>
+            <div>
+              <dt>{{t 'vouchers.issuedBy'}}</dt>
+              <dd>{{#if cashier_name}}{{cashier_name}}{{else}}{{t 'vouchers.adminBatch'}}{{/if}}</dd>
+            </div>
+            <div>
+              <dt>{{t 'vouchers.issuedAt'}}</dt>
+              <dd>{{#if issued_at}}{{formatDate issued_at}}{{else}}{{formatDate created_at}}{{/if}}</dd>
+            </div>
+            {{#if sale_price_tzs}}
+              <div><dt>{{t 'vouchers.salePrice'}}</dt><dd>{{formatTzs sale_price_tzs}} TZS</dd></div>
+            {{/if}}
+          </dl>
+        </section>
+
+        <section class="voucher-detail-section">
+          <h4>{{t 'vouchers.redemption'}}</h4>
+          <dl>
+            <div><dt>{{t 'vouchers.device'}}</dt><dd>{{#if redeemed_mac}}{{redeemed_mac}}{{else}}—{{/if}}</dd></div>
+            <div><dt>{{t 'vouchers.phone'}}</dt><dd>{{#if known_phone}}{{known_phone}}{{else}}—{{/if}}</dd></div>
+            <div><dt>{{t 'common.customer'}}</dt><dd>{{#if known_customer_name}}{{known_customer_name}}{{else}}—{{/if}}</dd></div>
+            <div><dt>{{t 'vouchers.redeemedAt'}}</dt><dd>{{#if redeemed_at}}{{formatDate redeemed_at}}{{else}}—{{/if}}</dd></div>
+            <div><dt>{{t 'vouchers.accessStarts'}}</dt><dd>{{#if access_starts_at}}{{formatDate access_starts_at}}{{else}}—{{/if}}</dd></div>
+            <div><dt>{{t 'vouchers.accessUntil'}}</dt><dd>{{#if access_expires_at}}{{formatDate access_expires_at}}{{else}}—{{/if}}</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </div>
+  {{/each}}
+
+  <div
+    class="admin-modal-backdrop voucher-create-modal"
+    id="voucher-create-modal"
+    data-open-on-load="{{#if openCreateModal}}true{{else}}false{{/if}}"
+    hidden
+  >
+    <section class="admin-modal admin-modal-small" role="dialog" aria-modal="true" aria-labelledby="voucher-create-title">
+      <div class="admin-modal-head">
+        <div>
+          <h3 id="voucher-create-title">{{t 'vouchers.createBatch'}}</h3>
+          <p>{{t 'vouchers.createHint'}}</p>
+        </div>
+        <button type="button" class="admin-modal-close" data-close-voucher-create aria-label="{{t 'common.close'}}">×</button>
+      </div>
+
+      {{#if error}}
+        <div class="notice notice-error">{{error}}</div>
+      {{/if}}
+
+      {{#if canCreateBatch}}
         <form method="POST" action="/admin/vouchers/batches" class="admin-form" id="voucher-batch-form">
           <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
 
-          <div class="form-grid">
-            <label>
-              <span>{{t 'common.site'}}</span>
-              <select name="siteId" id="voucher-site" required>
-                {{#each sites}}
-                  <option value="{{id}}">{{name}}</option>
-                {{/each}}
-              </select>
-            </label>
+          <label>
+            <span>{{t 'common.site'}}</span>
+            <select name="siteId" id="voucher-site" required>
+              {{#each sites}}
+                <option value="{{id}}">{{name}}</option>
+              {{/each}}
+            </select>
+          </label>
 
-            <label>
-              <span>{{t 'common.package'}}</span>
-              <select name="packageId" id="voucher-package" required>
-                {{#each packages}}
-                  <option
-                    value="{{id}}"
-                    data-site-id="{{site_id}}"
-                    data-site-name="{{site_name}}"
-                  >
-                    {{site_name}} — {{name}} — {{formatTzs price_tzs}} TZS / {{formatDuration duration_seconds}}
-                  </option>
-                {{/each}}
-              </select>
-            </label>
+          <label>
+            <span>{{t 'common.package'}}</span>
+            <select name="packageId" id="voucher-package" required>
+              {{#each packages}}
+                <option value="{{id}}" data-site-id="{{site_id}}">
+                  {{name}} — {{formatTzs price_tzs}} TZS / {{formatDuration duration_seconds}}
+                </option>
+              {{/each}}
+            </select>
+          </label>
 
-            <label>
-              <span>{{t 'vouchers.quantity'}}</span>
-              <input
-                name="quantity"
-                type="number"
-                min="1"
-                max="{{maxBatchQuantity}}"
-                step="1"
-                value="10"
-                required
-              >
-              <small class="muted-copy">{{t 'vouchers.maxQuantity'}}: {{maxBatchQuantity}}</small>
-            </label>
+          <label>
+            <span>{{t 'vouchers.quantity'}}</span>
+            <input name="quantity" type="number" min="1" max="{{maxBatchQuantity}}" step="1" value="10" required>
+            <small class="muted-copy">{{t 'vouchers.maxQuantity'}}: {{maxBatchQuantity}}</small>
+          </label>
 
-            <label>
-              <span>{{t 'vouchers.expiry'}}</span>
-              <input name="redeemableUntil" type="date">
-              <small class="muted-copy">{{t 'vouchers.expiryHint'}}</small>
-            </label>
-          </div>
+          <label>
+            <span>{{t 'vouchers.expiry'}}</span>
+            <input name="redeemableUntil" type="date">
+            <small class="muted-copy">{{t 'vouchers.expiryHint'}}</small>
+          </label>
 
-          <div class="form-actions">
-            <button type="submit">{{t 'vouchers.generate'}}</button>
+          <div class="admin-modal-actions">
+            <button type="button" class="secondary-button" data-close-voucher-create>{{t 'common.cancel'}}</button>
+            <button type="submit" class="primary-action-button">{{t 'vouchers.generate'}}</button>
           </div>
         </form>
-      </section>
-    {{else}}
-      <div class="notice">{{t 'vouchers.noSites'}}</div>
-    {{/if}}
-  {{else}}
-    <div class="notice">{{t 'vouchers.noSites'}}</div>
-  {{/if}}
-
-  <section class="panel table-panel voucher-batches-panel">
-    <div class="panel-head">
-      <div>
-        <h3>{{t 'vouchers.batches'}}</h3>
-        <p>{{t 'vouchers.batchesHint'}}</p>
-      </div>
-    </div>
-
-    <div class="table-wrap">
-      <table class="responsive-table">
-        <thead>
-          <tr>
-            <th>{{t 'vouchers.reference'}}</th>
-            <th>{{t 'common.site'}}</th>
-            <th>{{t 'common.package'}}</th>
-            <th>{{t 'vouchers.generated'}}</th>
-            <th>{{t 'vouchers.unused'}}</th>
-            <th>{{t 'vouchers.redeemed'}}</th>
-            <th>{{t 'vouchers.expired'}}</th>
-            <th>{{t 'vouchers.cancelled'}}</th>
-            <th>{{t 'vouchers.created'}}</th>
-            <th>{{t 'common.actions'}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each batches}}
-            <tr>
-              <td data-label="{{t 'vouchers.reference'}}"><strong>{{batch_reference}}</strong></td>
-              <td data-label="{{t 'common.site'}}">{{site_name}}</td>
-              <td data-label="{{t 'common.package'}}">
-                <strong>{{package_name_snapshot}}</strong>
-                <small>{{formatTzs package_price_tzs_snapshot}} TZS · {{formatDuration package_duration_seconds_snapshot}}</small>
-              </td>
-              <td data-label="{{t 'vouchers.generated'}}">{{generated_count}}</td>
-              <td data-label="{{t 'vouchers.unused'}}">{{unused_count}}</td>
-              <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_count}}</td>
-              <td data-label="{{t 'vouchers.expired'}}">{{expired_count}}</td>
-              <td data-label="{{t 'vouchers.cancelled'}}">{{cancelled_count}}</td>
-              <td data-label="{{t 'vouchers.created'}}">{{formatDate created_at}}</td>
-              <td data-label="{{t 'common.actions'}}">
-                <a class="voucher-view-link" href="/admin/vouchers/batches/{{id}}?org={{../selectedOrg.id}}">
-                  {{t 'vouchers.viewCodes'}}
-                </a>
-              </td>
-            </tr>
-          {{else}}
-            <tr><td colspan="10" class="empty">{{t 'vouchers.noBatches'}}</td></tr>
-          {{/each}}
-        </tbody>
-      </table>
-    </div>
-
-    {{> admin-pagination pagination}}
-  </section>
+      {{else}}
+        <div class="notice">{{t 'vouchers.noSites'}}</div>
+      {{/if}}
+    </section>
+  </div>
 {{/if}}
 
 <script>
   (() => {
+    const createModal = document.getElementById('voucher-create-modal');
+    const openCreateButtons = document.querySelectorAll('[data-open-voucher-create]');
+    const closeCreateButtons = document.querySelectorAll('[data-close-voucher-create]');
+
+    const openCreateModal = () => {
+      if (!createModal) return;
+      createModal.hidden = false;
+      document.body.classList.add('voucher-admin-modal-open');
+    };
+
+    const closeCreateModal = () => {
+      if (!createModal) return;
+      createModal.hidden = true;
+      document.body.classList.remove('voucher-admin-modal-open');
+    };
+
+    openCreateButtons.forEach((button) => {
+      button.addEventListener('click', openCreateModal);
+    });
+
+    closeCreateButtons.forEach((button) => {
+      button.addEventListener('click', closeCreateModal);
+    });
+
+    createModal?.addEventListener('click', (event) => {
+      if (event.target === createModal) {
+        closeCreateModal();
+      }
+    });
+
+    if (createModal?.dataset.openOnLoad === 'true') {
+      openCreateModal();
+    }
+
     const siteSelect = document.getElementById('voucher-site');
     const packageSelect = document.getElementById('voucher-package');
 
-    if (!siteSelect || !packageSelect) return;
+    if (siteSelect && packageSelect) {
+      const options = Array.from(packageSelect.options);
 
-    const options = Array.from(packageSelect.options);
+      const syncPackages = () => {
+        const siteId = String(siteSelect.value);
+        let firstVisible = null;
 
-    const syncPackages = () => {
-      const siteId = String(siteSelect.value);
-      let firstVisible = null;
+        options.forEach((option) => {
+          const matches = String(option.dataset.siteId || '') === siteId;
+          option.hidden = !matches;
+          option.disabled = !matches;
 
-      options.forEach((option) => {
-        const matches = String(option.dataset.siteId || '') === siteId;
-        option.hidden = !matches;
-        option.disabled = !matches;
+          if (matches && !firstVisible) {
+            firstVisible = option;
+          }
+        });
 
-        if (matches && !firstVisible) {
-          firstVisible = option;
+        if (
+          !packageSelect.selectedOptions.length ||
+          packageSelect.selectedOptions[0].disabled
+        ) {
+          packageSelect.value = firstVisible?.value || '';
         }
-      });
+      };
 
-      if (
-        !packageSelect.selectedOptions.length ||
-        packageSelect.selectedOptions[0].disabled
-      ) {
-        packageSelect.value = firstVisible?.value || '';
-      }
+      siteSelect.addEventListener('change', syncPackages);
+      syncPackages();
+    }
+
+    const closeVoucherDetail = (overlay) => {
+      if (!overlay) return;
+      overlay.hidden = true;
+      document.body.classList.remove('voucher-admin-modal-open');
     };
 
-    siteSelect.addEventListener('change', syncPackages);
-    syncPackages();
+    document.querySelectorAll('[data-voucher-detail-open]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const overlay = document.querySelector(
+          '[data-voucher-detail-id="' + button.dataset.voucherDetailOpen + '"]'
+        );
+
+        if (!overlay) return;
+
+        overlay.hidden = false;
+        document.body.classList.add('voucher-admin-modal-open');
+      });
+    });
+
+    document.querySelectorAll('[data-voucher-detail-close]').forEach((button) => {
+      button.addEventListener('click', () => {
+        closeVoucherDetail(button.closest('.voucher-detail-overlay'));
+      });
+    });
+
+    document.querySelectorAll('[data-copy-voucher-code]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const code = button.dataset.copyVoucherCode;
+
+        try {
+          await navigator.clipboard.writeText(code);
+          const original = button.textContent;
+          button.textContent = '✓';
+          window.setTimeout(() => {
+            button.textContent = original;
+          }, 1000);
+        } catch (error) {
+          window.prompt('{{t 'cashier.copyCode'}}', code);
+        }
+      });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+
+      const openDetail = Array.from(
+        document.querySelectorAll('.voucher-detail-overlay')
+      ).find((overlay) => !overlay.hidden);
+
+      if (openDetail) {
+        closeVoucherDetail(openDetail);
+        return;
+      }
+
+      if (createModal && !createModal.hidden) {
+        closeCreateModal();
+      }
+    });
   })();
 </script>
