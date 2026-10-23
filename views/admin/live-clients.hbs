@@ -84,6 +84,43 @@
                 <td data-label="{{t 'live.access'}}">
                   {{#if has_internet}}
                     <span class="status-pill live-access-internet">{{t 'live.internet'}}</span>
+
+                    {{#if package_active}}
+                      <div class="live-access-plan">
+                        <strong>
+                          {{#if access_source_voucher}}
+                            {{t 'live.sourceVoucher'}}
+                          {{else}}
+                            {{#if access_source_complimentary}}
+                              {{t 'live.sourceComplimentary'}}
+                            {{else}}
+                              {{t 'live.sourcePaid'}}
+                            {{/if}}
+                          {{/if}}
+                          {{#if package_name}} · {{package_name}}{{/if}}
+                        </strong>
+
+                        {{#if access_source_voucher}}
+                          {{#if voucher_last4}}
+                            <small>{{t 'live.voucherCode'}} •••• {{voucher_last4}}</small>
+                          {{/if}}
+                        {{else}}
+                          {{#if access_source_paid}}
+                            {{#if payment_reference}}
+                              <small>{{t 'live.paymentRef'}} {{payment_reference}}</small>
+                            {{/if}}
+                          {{/if}}
+                        {{/if}}
+
+                        {{#if subscription_expires_at}}
+                          <small>{{t 'live.expires'}} {{formatDate subscription_expires_at}}</small>
+                        {{/if}}
+                      </div>
+                    {{else}}
+                      <div class="live-access-plan live-access-plan-warning">
+                        <small>{{t 'live.unknownSource'}}</small>
+                      </div>
+                    {{/if}}
                   {{else}}
                     <span class="status-pill live-access-portal">{{t 'live.portalOnly'}}</span>
                   {{/if}}
@@ -190,6 +227,13 @@
       uptime: '{{#if isSwahili}}Muda uliounganishwa{{else}}Uptime{{/if}}',
       internet: '{{#if isSwahili}}Internet{{else}}Internet{{/if}}',
       portal: '{{#if isSwahili}}Portal pekee{{else}}Portal only{{/if}}',
+      paid: '{{#if isSwahili}}Malipo{{else}}Paid{{/if}}',
+      voucher: '{{#if isSwahili}}Vocha{{else}}Voucher{{/if}}',
+      complimentary: '{{#if isSwahili}}Internet bure{{else}}Free access{{/if}}',
+      expires: '{{#if isSwahili}}Inaisha{{else}}Expires{{/if}}',
+      voucherCode: '{{#if isSwahili}}Vocha{{else}}Voucher{{/if}}',
+      paymentRef: '{{#if isSwahili}}Malipo{{else}}Payment{{/if}}',
+      unknownSource: '{{#if isSwahili}}Hakuna subscription hai ya Solidus{{else}}No active Solidus subscription{{/if}}',
       noInternet: '{{#if isSwahili}}Hakuna internet{{else}}No Internet{{/if}}',
       active: '{{#if isSwahili}}Inatumia data{{else}}Active traffic{{/if}}',
       idle: '{{#if isSwahili}}Haitumii data{{else}}Idle{{/if}}',
@@ -279,10 +323,88 @@
       return 'measuring';
     };
 
-    const accessHtml = (client) =>
-      client.access === 'internet'
-        ? '<span class="status-pill live-access-internet">' + labels.internet + '</span>'
-        : '<span class="status-pill live-access-portal">' + labels.portal + '</span>';
+    const formatLiveExpiry = (value) => {
+      if (!value) return '';
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return '';
+      }
+
+      return new Intl.DateTimeFormat(
+        '{{#if isSwahili}}sw-TZ{{else}}en-GB{{/if}}',
+        {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        }
+      ).format(date);
+    };
+
+    const accessHtml = (client) => {
+      if (client.access !== 'internet') {
+        return '<span class="status-pill live-access-portal">' + labels.portal + '</span>';
+      }
+
+      let html =
+        '<span class="status-pill live-access-internet">' +
+        labels.internet +
+        '</span>';
+
+      if (!client.package_active) {
+        return html +
+          '<div class="live-access-plan live-access-plan-warning">' +
+            '<small>' + escapeHtml(labels.unknownSource) + '</small>' +
+          '</div>';
+      }
+
+      const sourceLabel =
+        client.access_source === 'voucher'
+          ? labels.voucher
+          : client.access_source === 'complimentary'
+            ? labels.complimentary
+            : labels.paid;
+
+      html +=
+        '<div class="live-access-plan">' +
+          '<strong>' +
+            escapeHtml(sourceLabel) +
+            (client.package_name ? ' · ' + escapeHtml(client.package_name) : '') +
+          '</strong>';
+
+      if (client.access_source === 'voucher' && client.voucher_last4) {
+        html +=
+          '<small>' +
+            escapeHtml(labels.voucherCode) +
+            ' •••• ' +
+            escapeHtml(client.voucher_last4) +
+          '</small>';
+      }
+
+      if (client.access_source === 'paid' && client.payment_reference) {
+        html +=
+          '<small>' +
+            escapeHtml(labels.paymentRef) +
+            ' ' +
+            escapeHtml(client.payment_reference) +
+          '</small>';
+      }
+
+      const expiry = formatLiveExpiry(client.subscription_expires_at);
+
+      if (expiry) {
+        html +=
+          '<small>' +
+            escapeHtml(labels.expires) +
+            ' ' +
+            escapeHtml(expiry) +
+          '</small>';
+      }
+
+      return html + '</div>';
+    };
 
     const activityHtml = (state) => {
       if (state === 'no-internet') {
