@@ -449,6 +449,551 @@ const loadLiveClientSnapshot = async ({
 
 
 
+const isOmadaDeviceOnline = (device) => {
+  const value =
+    device.connected ??
+    device.online ??
+    device.isConnected ??
+    device.status ??
+    device.state ??
+    null;
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+
+  const normalized = String(value || '').trim().toLowerCase();
+
+  if (!normalized) return null;
+
+  if (
+    ['online', 'connected', 'up', 'active'].includes(normalized)
+  ) {
+    return true;
+  }
+
+  if (
+    ['offline', 'disconnected', 'down', 'inactive'].includes(normalized)
+  ) {
+    return false;
+  }
+
+  return null;
+};
+
+const loadDashboardBusinessData = async (organizationId) => {
+  const [
+    statsResult,
+    walletResult,
+    salesTrendResult,
+    packagePerformanceResult,
+    recentActivityResult
+  ] = await Promise.all([
+    pool.query(
+      `
+        SELECT
+          (
+            SELECT COUNT(*)
+            FROM sites
+            WHERE organization_id = $1
+              AND active = TRUE
+          )::INTEGER AS sites,
+          (
+            SELECT COUNT(*)
+            FROM network_devices nd
+            JOIN sites s ON s.id = nd.site_id
+            WHERE s.organization_id = $1
+              AND nd.active = TRUE
+          )::INTEGER AS devices,
+          (
+            SELECT COUNT(DISTINCT device_id)
+            FROM subscriptions sub
+            JOIN sites s ON s.id = sub.site_id
+            WHERE s.organization_id = $1
+          )::INTEGER AS known_devices,
+          (
+            SELECT COUNT(*)
+            FROM subscriptions sub
+            JOIN sites s ON s.id = sub.site_id
+            WHERE s.organization_id = $1
+              AND sub.status = 'active'
+              AND sub.starts_at <= NOW()
+              AND sub.expires_at > NOW()
+          )::INTEGER AS active_subscriptions,
+          (
+            SELECT COUNT(*)
+            FROM subscriptions sub
+            JOIN sites s ON s.id = sub.site_id
+            WHERE s.organization_id = $1
+              AND sub.status = 'active'
+              AND sub.starts_at <= NOW()
+              AND sub.expires_at > NOW()
+              AND sub.access_source = 'paid'
+          )::INTEGER AS active_paid,
+          (
+            SELECT COUNT(*)
+            FROM subscriptions sub
+            JOIN sites s ON s.id = sub.site_id
+            WHERE s.organization_id = $1
+              AND sub.status = 'active'
+              AND sub.starts_at <= NOW()
+              AND sub.expires_at > NOW()
+              AND sub.access_source = 'voucher'
+          )::INTEGER AS active_voucher,
+          (
+            SELECT COUNT(*)
+            FROM subscriptions sub
+            JOIN sites s ON s.id = sub.site_id
+            WHERE s.organization_id = $1
+              AND sub.status = 'active'
+              AND sub.starts_at <= NOW()
+              AND sub.expires_at > NOW()
+              AND sub.access_source = 'complimentary'
+          )::INTEGER AS active_complimentary,
+          (
+            SELECT COUNT(*)
+            FROM payment_transactions
+            WHERE organization_id = $1
+              AND status = 'paid'
+              AND paid_at::date = CURRENT_DATE
+          )::INTEGER AS payments_today,
+          (
+            SELECT COALESCE(SUM(amount_tzs), 0)
+            FROM payment_transactions
+            WHERE organization_id = $1
+              AND status = 'paid'
+              AND paid_at::date = CURRENT_DATE
+          )::BIGINT AS gateway_sales_today,
+          (
+            SELECT COUNT(*)
+            FROM voucher_sales
+            WHERE organization_id = $1
+              AND sale_status = 'issued'
+              AND issued_at::date = CURRENT_DATE
+          )::INTEGER AS cashier_sales_today,
+          (
+            SELECT COALESCE(SUM(sale_price_tzs), 0)
+            FROM voucher_sales
+            WHERE organization_id = $1
+              AND sale_status = 'issued'
+              AND issued_at::date = CURRENT_DATE
+          )::BIGINT AS cashier_cash_today,
+          (
+            SELECT COALESCE(SUM(amount_tzs), 0)
+            FROM payment_transactions
+            WHERE organization_id = $1
+              AND status = 'paid'
+          )::NUMERIC(18,2) AS gateway_collected_total,
+          (
+            SELECT COALESCE(SUM(sale_price_tzs), 0)
+            FROM voucher_sales
+            WHERE organization_id = $1
+              AND sale_status = 'issued'
+          )::NUMERIC(18,2) AS cashier_collected_total,
+          (
+            SELECT COUNT(*)
+            FROM payment_transactions
+            WHERE organization_id = $1
+              AND status = 'paid'
+              AND (
+                gateway_fee_tzs IS NULL
+                OR net_amount_tzs IS NULL
+              )
+          )::INTEGER AS unreconciled_payments
+      `,
+      [organizationId]
+    ),
+    pool.query(
+      `
+        SELECT
+          (
+            COALESCE((
+              SELECT SUM(
+                CASE
+                  WHEN entry_type = 'adjustment' AND amount_tzs > 0 THEN 0
+                  ELSE amount_tzs
+                END
+              )
+              FROM wallet_entries
+              WHERE organization_id = $1
+            ), 0)
+            -
+            COALESCE((
+              SELECT SUM(total_amount_tzs)
+              FROM payout_transactions
+              WHERE organization_id = $1
+                AND status IN ('pending', 'processing')
+            ), 0)
+          )::NUMERIC(18,2) AS available_balance
+      `,
+      [organizationId]
+    ),
+    pool.query(
+      `
+        WITH days AS (
+          SELECT generate_series(
+            CURRENT_DATE - INTERVAL '6 days',
+            CURRENT_DATE,
+            INTERVAL '1 day'
+          )::date AS day
+        ),
+        sales AS (
+          SELECT
+            paid_at::date AS day,
+            SUM(amount_tzs)::BIGINT AS amount
+          FROM payment_transactions
+          WHERE organization_id = $1
+            AND status = 'paid'
+            AND paid_at >= CURRENT_DATE - INTERVAL '6 days'
+          GROUP BY paid_at::date
+
+          UNION ALL
+
+          SELECT
+            issued_at::date AS day,
+            SUM(sale_price_tzs)::BIGINT AS amount
+          FROM voucher_sales
+          WHERE organization_id = $1
+            AND sale_status = 'issued'
+            AND issued_at >= CURRENT_DATE - INTERVAL '6 days'
+          GROUP BY issued_at::date
+        )
+        SELECT
+          days.day,
+          COALESCE(SUM(sales.amount), 0)::BIGINT AS amount
+        FROM days
+        LEFT JOIN sales ON sales.day = days.day
+        GROUP BY days.day
+        ORDER BY days.day
+      `,
+      [organizationId]
+    ),
+    pool.query(
+      `
+        WITH package_sales AS (
+          SELECT
+            COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+            COUNT(*)::INTEGER AS sales_count,
+            SUM(pt.amount_tzs)::BIGINT AS revenue
+          FROM payment_transactions pt
+          JOIN packages p ON p.id = pt.package_id
+          WHERE pt.organization_id = $1
+            AND pt.status = 'paid'
+            AND pt.paid_at >= NOW() - INTERVAL '30 days'
+          GROUP BY COALESCE(pt.package_name_snapshot, p.name)
+
+          UNION ALL
+
+          SELECT
+            vs.package_name_snapshot AS package_name,
+            COUNT(*)::INTEGER AS sales_count,
+            SUM(vs.sale_price_tzs)::BIGINT AS revenue
+          FROM voucher_sales vs
+          WHERE vs.organization_id = $1
+            AND vs.sale_status = 'issued'
+            AND vs.issued_at >= NOW() - INTERVAL '30 days'
+          GROUP BY vs.package_name_snapshot
+        )
+        SELECT
+          package_name,
+          SUM(sales_count)::INTEGER AS sales_count,
+          SUM(revenue)::BIGINT AS revenue
+        FROM package_sales
+        GROUP BY package_name
+        ORDER BY revenue DESC, sales_count DESC, package_name
+        LIMIT 5
+      `,
+      [organizationId]
+    ),
+    pool.query(
+      `
+        SELECT *
+        FROM (
+          SELECT
+            'payment'::text AS source,
+            pt.id,
+            COALESCE(pt.customer_name, pt.phone, 'Customer') AS title,
+            COALESCE(pt.package_name_snapshot, p.name) AS package_name,
+            pt.amount_tzs::BIGINT AS amount_tzs,
+            pt.paid_at AS happened_at,
+            COALESCE(pt.site_name_snapshot, s.name) AS site_name
+          FROM payment_transactions pt
+          JOIN packages p ON p.id = pt.package_id
+          JOIN sites s ON s.id = p.site_id
+          WHERE pt.organization_id = $1
+            AND pt.status = 'paid'
+
+          UNION ALL
+
+          SELECT
+            'cashier'::text AS source,
+            vs.id,
+            COALESCE(u.full_name, u.username, 'Cashier') AS title,
+            vs.package_name_snapshot AS package_name,
+            vs.sale_price_tzs::BIGINT AS amount_tzs,
+            vs.issued_at AS happened_at,
+            s.name AS site_name
+          FROM voucher_sales vs
+          JOIN sites s ON s.id = vs.site_id
+          LEFT JOIN platform_users u ON u.id = vs.cashier_user_id
+          WHERE vs.organization_id = $1
+            AND vs.sale_status = 'issued'
+        ) activity
+        ORDER BY happened_at DESC NULLS LAST
+        LIMIT 8
+      `,
+      [organizationId]
+    )
+  ]);
+
+  const stats = statsResult.rows[0] || {};
+  const gatewaySalesToday = Number(stats.gateway_sales_today || 0);
+  const cashierCashToday = Number(stats.cashier_cash_today || 0);
+  const paymentsToday = Number(stats.payments_today || 0);
+  const cashierSalesToday = Number(stats.cashier_sales_today || 0);
+
+  return {
+    stats: {
+      ...stats,
+      gateway_sales_today: gatewaySalesToday,
+      cashier_cash_today: cashierCashToday,
+      total_sales_today: gatewaySalesToday + cashierCashToday,
+      sales_count_today: paymentsToday + cashierSalesToday,
+      available_balance: Number(
+        walletResult.rows[0]?.available_balance || 0
+      )
+    },
+    salesTrend: salesTrendResult.rows.map((row) => ({
+      day: row.day,
+      amount: Number(row.amount || 0)
+    })),
+    packagePerformance: packagePerformanceResult.rows.map((row) => ({
+      ...row,
+      sales_count: Number(row.sales_count || 0),
+      revenue: Number(row.revenue || 0)
+    })),
+    recentActivity: recentActivityResult.rows
+  };
+};
+
+const loadDashboardNetworkData = async (organizationId) => {
+  const sites = (
+    await pool.query(
+      `
+        SELECT
+          id,
+          name,
+          external_portal_site_id
+        FROM sites
+        WHERE organization_id = $1
+          AND active = TRUE
+          AND external_portal_site_id IS NOT NULL
+        ORDER BY name
+      `,
+      [organizationId]
+    )
+  ).rows;
+
+  if (!sites.length) {
+    return {
+      controllerReachable: false,
+      sitesConnected: 0,
+      apCount: 0,
+      onlineApCount: 0,
+      onlineApKnown: false,
+      clients: [],
+      connectedClients: 0,
+      internetClients: 0,
+      portalClients: 0,
+      access: {
+        paid: 0,
+        voucher: 0,
+        complimentary: 0,
+        unknown: 0
+      },
+      bands: {
+        band24: 0,
+        band5: 0,
+        band6: 0,
+        unknown: 0
+      },
+      signal: {
+        good: 0,
+        fair: 0,
+        poor: 0,
+        unknown: 0
+      },
+      traffic: {
+        downloadBytes: 0,
+        uploadBytes: 0,
+        totalBytes: 0
+      },
+      topClients: []
+    };
+  }
+
+  const siteSnapshots = await Promise.all(
+    sites.map(async (site) => {
+      try {
+        const [snapshot, devices] = await Promise.all([
+          loadLiveClientSnapshot({
+            selectedSite: site,
+            page: 1
+          }),
+          omada.listDevices({
+            siteId: site.external_portal_site_id
+          })
+        ]);
+
+        return {
+          ok: true,
+          site,
+          clients: snapshot.clients,
+          devices
+        };
+      } catch (error) {
+        console.error('DASHBOARD OMADA SITE ERROR:', {
+          siteId: site.id,
+          siteName: site.name,
+          message: error.message
+        });
+
+        return {
+          ok: false,
+          site,
+          clients: [],
+          devices: []
+        };
+      }
+    })
+  );
+
+  const reachableSites = siteSnapshots.filter((snapshot) => snapshot.ok);
+  const clients = reachableSites.flatMap((snapshot) =>
+    snapshot.clients.map((client) => ({
+      ...client,
+      site_id: snapshot.site.id,
+      site_name: snapshot.site.name
+    }))
+  );
+  const devices = reachableSites.flatMap((snapshot) => snapshot.devices);
+
+  const bandCounts = {
+    band24: 0,
+    band5: 0,
+    band6: 0,
+    unknown: 0
+  };
+  const signalCounts = {
+    good: 0,
+    fair: 0,
+    poor: 0,
+    unknown: 0
+  };
+  const accessCounts = {
+    paid: 0,
+    voucher: 0,
+    complimentary: 0,
+    unknown: 0
+  };
+
+  let downloadBytes = 0;
+  let uploadBytes = 0;
+
+  clients.forEach((client) => {
+    if (client.band === '2.4') bandCounts.band24 += 1;
+    else if (client.band === '5') bandCounts.band5 += 1;
+    else if (client.band === '6') bandCounts.band6 += 1;
+    else bandCounts.unknown += 1;
+
+    const signal = Number(client.signal_dbm);
+
+    if (!Number.isFinite(signal)) {
+      signalCounts.unknown += 1;
+    } else if (signal >= -67) {
+      signalCounts.good += 1;
+    } else if (signal >= -75) {
+      signalCounts.fair += 1;
+    } else {
+      signalCounts.poor += 1;
+    }
+
+    if (client.has_internet) {
+      if (client.access_source === 'paid') accessCounts.paid += 1;
+      else if (client.access_source === 'voucher') accessCounts.voucher += 1;
+      else if (client.access_source === 'complimentary') {
+        accessCounts.complimentary += 1;
+      } else {
+        accessCounts.unknown += 1;
+      }
+    }
+
+    downloadBytes += Number(client.download_bytes || 0);
+    uploadBytes += Number(client.upload_bytes || 0);
+  });
+
+  const deviceOnlineStates = devices
+    .map(isOmadaDeviceOnline)
+    .filter((value) => value !== null);
+
+  const topClients = [...clients]
+    .map((client) => ({
+      name: client.name,
+      mac: client.mac,
+      site_name: client.site_name,
+      band: client.band,
+      signal_dbm: client.signal_dbm,
+      access_source: client.access_source,
+      package_name: client.package_name,
+      has_internet: client.has_internet,
+      total_bytes:
+        Number(client.download_bytes || 0) +
+        Number(client.upload_bytes || 0)
+    }))
+    .sort((a, b) => b.total_bytes - a.total_bytes)
+    .slice(0, 5);
+
+  return {
+    controllerReachable: reachableSites.length > 0,
+    sitesConnected: reachableSites.length,
+    apCount: devices.length,
+    onlineApCount: deviceOnlineStates.filter(Boolean).length,
+    onlineApKnown: deviceOnlineStates.length > 0,
+    connectedClients: clients.length,
+    internetClients: clients.filter((client) => client.has_internet).length,
+    portalClients: clients.filter((client) => !client.has_internet).length,
+    clients,
+    access: accessCounts,
+    bands: bandCounts,
+    signal: signalCounts,
+    traffic: {
+      downloadBytes,
+      uploadBytes,
+      totalBytes: downloadBytes + uploadBytes
+    },
+    topClients
+  };
+};
+
+const loadDashboardData = async (organizationId) => {
+  const [business, network] = await Promise.all([
+    loadDashboardBusinessData(organizationId),
+    loadDashboardNetworkData(organizationId)
+  ]);
+
+  return {
+    business,
+    network,
+    updatedAt: new Date().toISOString()
+  };
+};
+
 const slugify = (value) =>
   String(value || '')
     .trim()
