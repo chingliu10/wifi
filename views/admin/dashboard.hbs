@@ -369,11 +369,24 @@
           </div>
         </div>
 
+        <div class="dashboard-sales-legend">
+          <span><i class="gateway"></i>{{t 'dashboard.mobileMoney'}}</span>
+          <span><i class="voucher"></i>{{t 'dashboard.cashVouchers'}}</span>
+        </div>
+
         <div class="dashboard-sales-chart" id="dashboard-sales-chart">
           {{#each dashboard.business.salesTrend}}
-            <div class="dashboard-sales-day" data-sales-day data-amount="{{amount}}" data-day="{{day}}">
+            <div
+              class="dashboard-sales-day"
+              data-sales-day
+              data-amount="{{amount}}"
+              data-payment-gateway="{{payment_gateway}}"
+              data-voucher-sales="{{voucher_sales}}"
+              data-day="{{day}}"
+            >
               <div class="dashboard-sales-bar-wrap">
-                <i></i>
+                <i class="gateway" data-gateway-bar></i>
+                <i class="voucher" data-voucher-bar></i>
               </div>
               <strong data-sales-amount>{{formatTzs amount}}</strong>
               <small data-sales-label>—</small>
@@ -644,19 +657,38 @@
       const days = Array.from(document.querySelectorAll('[data-sales-day]'));
       const max = Math.max(
         1,
-        ...days.map((day) => Number(day.dataset.amount || 0))
+        ...days.flatMap((day) => [
+          Number(day.dataset.paymentGateway || 0),
+          Number(day.dataset.voucherSales || 0)
+        ])
       );
 
       days.forEach((day) => {
         const amount = Number(day.dataset.amount || 0);
-        const bar = day.querySelector('i');
+        const paymentGateway = Number(day.dataset.paymentGateway || 0);
+        const voucherSales = Number(day.dataset.voucherSales || 0);
+        const gatewayBar = day.querySelector('[data-gateway-bar]');
+        const voucherBar = day.querySelector('[data-voucher-bar]');
         const label = day.querySelector('[data-sales-label]');
         const amountLabel = day.querySelector('[data-sales-amount]');
         const date = new Date(day.dataset.day);
 
-        if (bar) {
-          bar.style.height =
-            (amount > 0 ? Math.max(8, (amount / max) * 100) : 2) + '%';
+        if (gatewayBar) {
+          gatewayBar.style.height =
+            (paymentGateway > 0
+              ? Math.max(8, (paymentGateway / max) * 100)
+              : 2) + '%';
+          gatewayBar.title =
+            labels.payment + ': ' + formatTzs(paymentGateway);
+        }
+
+        if (voucherBar) {
+          voucherBar.style.height =
+            (voucherSales > 0
+              ? Math.max(8, (voucherSales / max) * 100)
+              : 2) + '%';
+          voucherBar.title =
+            labels.cashier + ': ' + formatTzs(voucherSales);
         }
 
         if (amountLabel) {
@@ -664,6 +696,7 @@
             notation: amount >= 1000000 ? 'compact' : 'standard',
             maximumFractionDigits: 1
           }).format(amount);
+          amountLabel.title = formatTzs(amount);
         }
 
         if (label && !Number.isNaN(date.getTime())) {
@@ -761,10 +794,17 @@
       container.innerHTML = rows.map((row) =>
         '<div class="dashboard-sales-day" data-sales-day data-amount="' +
           escapeHtml(row.amount) +
+          '" data-payment-gateway="' +
+          escapeHtml(row.payment_gateway) +
+          '" data-voucher-sales="' +
+          escapeHtml(row.voucher_sales) +
           '" data-day="' +
           escapeHtml(row.day) +
           '">' +
-          '<div class="dashboard-sales-bar-wrap"><i></i></div>' +
+          '<div class="dashboard-sales-bar-wrap">' +
+            '<i class="gateway" data-gateway-bar></i>' +
+            '<i class="voucher" data-voucher-bar></i>' +
+          '</div>' +
           '<strong data-sales-amount></strong>' +
           '<small data-sales-label></small>' +
         '</div>'
