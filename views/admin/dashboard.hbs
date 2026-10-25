@@ -341,7 +341,7 @@
                 <small>{{mac}} · {{site_name}}</small>
               </span>
               <span class="status-pill {{#if has_internet}}live-access-internet{{else}}live-access-portal{{/if}}">
-                {{#if has_internet}}{{../dashboard.business.stats.active_subscriptions}}{{else}}Portal{{/if}}
+                {{#if has_internet}}{{t 'dashboard.internet'}}{{else}}{{t 'dashboard.portalOnly'}}{{/if}}
               </span>
             </div>
 
@@ -419,7 +419,7 @@
         <div class="dashboard-package-list" id="dashboard-package-list">
           {{#each dashboard.business.packagePerformance}}
             <div>
-              <span><strong>{{package_name}}</strong><small>{{sales_count}} {{../t 'dashboard.salesCount'}}</small></span>
+              <span><strong>{{package_name}}</strong><small>{{sales_count}} {{t 'dashboard.salesCount'}}</small></span>
               <strong>{{formatTzs revenue}} TZS</strong>
             </div>
           {{else}}
