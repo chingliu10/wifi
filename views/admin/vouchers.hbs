@@ -303,29 +303,80 @@
   {{/if}}
 
   {{#if tabCashier}}
+    <section class="panel voucher-sales-period-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'vouchers.salesPeriodTitle'}}</h3>
+          <p>{{t 'vouchers.salesPeriodHint'}}</p>
+        </div>
+      </div>
+
+      <form method="GET" action="/admin/vouchers" class="voucher-sales-period-form" id="voucher-sales-period-form">
+        <input type="hidden" name="org" value="{{selectedOrg.id}}">
+        <input type="hidden" name="tab" value="cashier">
+
+        <label>
+          <span>{{t 'vouchers.period'}}</span>
+          <select name="voucherRange" id="voucher-range-select">
+            <option value="today" {{#if voucherSalesRange.isToday}}selected{{/if}}>{{t 'vouchers.periodToday'}}</option>
+            <option value="last7" {{#if voucherSalesRange.isLast7}}selected{{/if}}>{{t 'vouchers.periodLast7'}}</option>
+            <option value="last30" {{#if voucherSalesRange.isLast30}}selected{{/if}}>{{t 'vouchers.periodLast30'}}</option>
+            <option value="this_month" {{#if voucherSalesRange.isThisMonth}}selected{{/if}}>{{t 'vouchers.periodThisMonth'}}</option>
+            <option value="last_month" {{#if voucherSalesRange.isLastMonth}}selected{{/if}}>{{t 'vouchers.periodLastMonth'}}</option>
+            <option value="all" {{#if voucherSalesRange.isAll}}selected{{/if}}>{{t 'vouchers.periodAll'}}</option>
+            <option value="custom" {{#if voucherSalesRange.isCustom}}selected{{/if}}>{{t 'vouchers.periodCustom'}}</option>
+          </select>
+        </label>
+
+        <label class="voucher-custom-date">
+          <span>{{t 'vouchers.fromDate'}}</span>
+          <input type="date" name="voucherFrom" value="{{voucherSalesRange.startDate}}">
+        </label>
+
+        <label class="voucher-custom-date">
+          <span>{{t 'vouchers.toDate'}}</span>
+          <input type="date" name="voucherTo" value="{{voucherSalesRange.endDate}}">
+        </label>
+
+        <button type="submit" class="primary-action-button">{{t 'vouchers.applyPeriod'}}</button>
+      </form>
+
+      <p class="voucher-sales-period-summary">
+        {{t 'vouchers.showingPeriod'}}
+        {{#if voucherSalesRange.startDate}}
+          <strong>{{voucherSalesRange.startDate}}</strong>
+        {{else}}
+          <strong>{{t 'vouchers.periodAll'}}</strong>
+        {{/if}}
+        {{#if voucherSalesRange.endDate}}
+          → <strong>{{voucherSalesRange.endDate}}</strong>
+        {{/if}}
+      </p>
+    </section>
+
     <section class="stats-grid voucher-cashier-stats">
       <article class="stat-card">
-        <span>{{t 'vouchers.soldToday'}}</span>
-        <strong>{{cashierSummary.totals.sold_today}}</strong>
-        <small>{{t 'vouchers.cashierIssuedToday'}}</small>
+        <span>{{t 'vouchers.vouchersSoldPeriod'}}</span>
+        <strong>{{cashierSummary.totals.sold_period}}</strong>
+        <small>{{t 'vouchers.vouchersSoldPeriodHint'}}</small>
       </article>
 
       <article class="stat-card">
-        <span>{{t 'vouchers.expectedCashToday'}}</span>
-        <strong>{{formatTzs cashierSummary.totals.expected_cash_today}} TZS</strong>
-        <small>{{t 'vouchers.cashToReconcile'}}</small>
+        <span>{{t 'vouchers.cashCollectedPeriod'}}</span>
+        <strong>{{formatTzs cashierSummary.totals.collected_period}} TZS</strong>
+        <small>{{t 'vouchers.cashCollectedPeriodHint'}}</small>
       </article>
 
       <article class="stat-card">
-        <span>{{t 'vouchers.usedFromTodaySales'}}</span>
-        <strong>{{cashierSummary.totals.redeemed_today}}</strong>
-        <small>{{t 'vouchers.redeemedFromTodaySalesHint'}}</small>
+        <span>{{t 'vouchers.redeemedPeriod'}}</span>
+        <strong>{{cashierSummary.totals.redeemed_period}}</strong>
+        <small>{{t 'vouchers.redeemedPeriodHint'}}</small>
       </article>
 
       <article class="stat-card">
-        <span>{{t 'vouchers.waitingToday'}}</span>
-        <strong>{{cashierSummary.totals.waiting_today}}</strong>
-        <small>{{t 'vouchers.waitingTodayHint'}}</small>
+        <span>{{t 'vouchers.waitingPeriod'}}</span>
+        <strong>{{cashierSummary.totals.waiting_period}}</strong>
+        <small>{{t 'vouchers.waitingPeriodHint'}}</small>
       </article>
     </section>
 
@@ -343,8 +394,8 @@
             <tr>
               <th>{{t 'vouchers.cashier'}}</th>
               <th>{{t 'common.site'}}</th>
-              <th>{{t 'vouchers.soldToday'}}</th>
-              <th>{{t 'vouchers.expectedCashToday'}}</th>
+              <th>{{t 'vouchers.vouchersSoldPeriod'}}</th>
+              <th>{{t 'vouchers.cashCollectedPeriod'}}</th>
               <th>{{t 'vouchers.redeemed'}}</th>
               <th>{{t 'vouchers.waiting'}}</th>
             </tr>
@@ -357,10 +408,10 @@
                   <small>{{username}}</small>
                 </td>
                 <td data-label="{{t 'common.site'}}">{{site_name}}</td>
-                <td data-label="{{t 'vouchers.soldToday'}}"><strong>{{sold_today}}</strong></td>
-                <td data-label="{{t 'vouchers.expectedCashToday'}}"><strong>{{formatTzs expected_cash_today}} TZS</strong></td>
-                <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_today}}</td>
-                <td data-label="{{t 'vouchers.waiting'}}">{{waiting_today}}</td>
+                <td data-label="{{t 'vouchers.vouchersSoldPeriod'}}"><strong>{{sold_period}}</strong></td>
+                <td data-label="{{t 'vouchers.cashCollectedPeriod'}}"><strong>{{formatTzs collected_period}} TZS</strong></td>
+                <td data-label="{{t 'vouchers.redeemed'}}">{{redeemed_period}}</td>
+                <td data-label="{{t 'vouchers.waiting'}}">{{waiting_period}}</td>
               </tr>
             {{else}}
               <tr><td colspan="6" class="empty">{{t 'vouchers.noCashiersForSales'}}</td></tr>
@@ -381,6 +432,11 @@
       <form method="GET" action="/admin/vouchers" class="voucher-list-filters voucher-cashier-filters">
         <input type="hidden" name="org" value="{{selectedOrg.id}}">
         <input type="hidden" name="tab" value="cashier">
+        <input type="hidden" name="voucherRange" value="{{voucherSalesRange.range}}">
+        {{#if voucherSalesRange.isCustom}}
+          <input type="hidden" name="voucherFrom" value="{{voucherSalesRange.startDate}}">
+          <input type="hidden" name="voucherTo" value="{{voucherSalesRange.endDate}}">
+        {{/if}}
 
         <label class="voucher-search-field">
           <span>{{t 'common.search'}}</span>
@@ -661,6 +717,27 @@
 
 <script>
   (() => {
+    const voucherRangeSelect = document.getElementById('voucher-range-select');
+    const voucherPeriodForm = document.getElementById('voucher-sales-period-form');
+
+    const syncVoucherCustomDates = () => {
+      if (!voucherPeriodForm || !voucherRangeSelect) return;
+
+      const custom = voucherRangeSelect.value === 'custom';
+
+      voucherPeriodForm
+        .querySelectorAll('.voucher-custom-date')
+        .forEach((field) => {
+          field.hidden = !custom;
+          field.querySelectorAll('input').forEach((input) => {
+            input.disabled = !custom;
+          });
+        });
+    };
+
+    voucherRangeSelect?.addEventListener('change', syncVoucherCustomDates);
+    syncVoucherCustomDates();
+
     const createModal = document.getElementById('voucher-create-modal');
     const openCreateButtons = document.querySelectorAll('[data-open-voucher-create]');
     const closeCreateButtons = document.querySelectorAll('[data-close-voucher-create]');
