@@ -1309,6 +1309,11 @@ const renderVoucherAdmin = async ({
   const voucherStatus = String(req.query.voucherStatus || '');
   const voucherSource = String(req.query.voucherSource || '');
   const voucherSearch = String(req.query.voucherSearch || '');
+  const voucherSalesRange = resolveVoucherSalesRange({
+    range: req.query.voucherRange,
+    from: req.query.voucherFrom,
+    to: req.query.voucherTo
+  });
 
   const activitySource =
     activeTab === 'cashier'
@@ -1349,11 +1354,21 @@ const renderVoucherAdmin = async ({
       status: activityStatus,
       source: activitySource,
       search: activitySearch,
+      startDate:
+        activeTab === 'cashier'
+          ? voucherSalesRange.startDate
+          : null,
+      endDate:
+        activeTab === 'cashier'
+          ? voucherSalesRange.endDate
+          : null,
       page: activeTab === 'overview' ? 1 : activityPage,
       pageSize: activityPageSize
     }),
     getCashierVoucherSalesSummary({
-      organizationId: selectedOrg.id
+      organizationId: selectedOrg.id,
+      startDate: voucherSalesRange.startDate,
+      endDate: voucherSalesRange.endDate
     })
   ]);
 
@@ -1380,7 +1395,19 @@ const renderVoucherAdmin = async ({
         activeTab === 'cashier'
           ? ''
           : voucherOverview.filters.source,
-      voucherSearch: voucherOverview.filters.search
+      voucherSearch: voucherOverview.filters.search,
+      voucherRange:
+        activeTab === 'cashier'
+          ? voucherSalesRange.range
+          : '',
+      voucherFrom:
+        activeTab === 'cashier' && voucherSalesRange.range === 'custom'
+          ? voucherSalesRange.startDate
+          : '',
+      voucherTo:
+        activeTab === 'cashier' && voucherSalesRange.range === 'custom'
+          ? voucherSalesRange.endDate
+          : ''
     }
   });
 
@@ -1403,6 +1430,16 @@ const renderVoucherAdmin = async ({
     voucherActivity: voucherOverview.vouchers,
     voucherActivityPagination: activityPagination,
     cashierSummary,
+    voucherSalesRange: {
+      ...voucherSalesRange,
+      isToday: voucherSalesRange.range === 'today',
+      isLast7: voucherSalesRange.range === 'last7',
+      isLast30: voucherSalesRange.range === 'last30',
+      isThisMonth: voucherSalesRange.range === 'this_month',
+      isLastMonth: voucherSalesRange.range === 'last_month',
+      isCustom: voucherSalesRange.range === 'custom',
+      isAll: voucherSalesRange.range === 'all'
+    },
     voucherFilters: {
       ...voucherOverview.filters,
       statusUnused: voucherOverview.filters.status === 'unused',
