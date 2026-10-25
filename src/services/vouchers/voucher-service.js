@@ -376,6 +376,8 @@ const getVoucherOverview = async ({
   status = '',
   source = '',
   search = '',
+  startDate = null,
+  endDate = null,
   page = 1,
   pageSize = 25
 }) => {
@@ -517,14 +519,30 @@ const getVoucherOverview = async ({
             OR COALESCE(cashier_name, '') ILIKE '%' || $4 || '%'
             OR COALESCE(cashier_username, '') ILIKE '%' || $4 || '%'
           )
+          AND (
+            $5::date IS NULL
+            OR (
+              COALESCE(issued_at, created_at)
+                AT TIME ZONE 'Africa/Dar_es_Salaam'
+            )::date >= $5::date
+          )
+          AND (
+            $6::date IS NULL
+            OR (
+              COALESCE(issued_at, created_at)
+                AT TIME ZONE 'Africa/Dar_es_Salaam'
+            )::date <= $6::date
+          )
         ORDER BY COALESCE(issued_at, created_at) DESC, id DESC
-        LIMIT $5 OFFSET $6
+        LIMIT $7 OFFSET $8
       `,
       [
         organizationId,
         safeStatus,
         safeSource,
         safeSearch,
+        startDate,
+        endDate,
         safePageSize,
         offset
       ]
@@ -562,7 +580,9 @@ const getVoucherOverview = async ({
     filters: {
       status: safeStatus,
       source: safeSource,
-      search: safeSearch
+      search: safeSearch,
+      startDate,
+      endDate
     }
   };
 };
