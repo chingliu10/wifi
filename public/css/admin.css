@@ -2500,3 +2500,108 @@ body.voucher-admin-modal-open{overflow:hidden}
     min-width:0
   }
 }
+
+
+/* Sales comparison chart */
+.dashboard-sales-legend{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:0 0 10px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:700
+}
+.dashboard-sales-legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px
+}
+.dashboard-sales-legend i{
+  width:9px;
+  height:9px;
+  border-radius:3px
+}
+.dashboard-sales-legend i.gateway,
+.dashboard-sales-bar-wrap i.gateway{
+  background:var(--accent)
+}
+.dashboard-sales-legend i.voucher,
+.dashboard-sales-bar-wrap i.voucher{
+  background:#7f56d9
+}
+.dashboard-sales-bar-wrap{
+  gap:6px
+}
+.dashboard-sales-bar-wrap i{
+  width:32%;
+  max-width:24px
+}
+
+/* Voucher cash period reporting */
+.voucher-sales-period-panel{
+  margin-bottom:14px
+}
+.voucher-sales-period-form{
+  display:grid;
+  grid-template-columns:minmax(180px,1fr) repeat(2,minmax(150px,.7fr)) auto;
+  gap:10px;
+  align-items:end
+}
+.voucher-sales-period-form label{
+  display:grid;
+  gap:5px
+}
+.voucher-sales-period-form label>span{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em
+}
+.voucher-sales-period-form select,
+.voucher-sales-period-form input{
+  width:100%;
+  min-height:39px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  color:var(--text)
+}
+.voucher-sales-period-form .primary-action-button{
+  min-height:39px
+}
+.voucher-sales-period-summary{
+  margin:12px 0 0;
+  color:var(--muted);
+  font-size:9px
+}
+.voucher-sales-period-summary strong{
+  color:var(--text)
+}
+.voucher-custom-date[hidden]{
+  display:none
+}
+
+@media(max-width:900px){
+  .voucher-sales-period-form{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+
+@media(max-width:760px){
+  .voucher-sales-period-form{
+    grid-template-columns:1fr
+  }
+  .voucher-sales-period-form .primary-action-button{
+    width:100%
+  }
+  .dashboard-sales-legend{
+    position:sticky;
+    left:0;
+    width:max-content;
+    padding-right:12px;
+    background:#fff
+  }
+}
