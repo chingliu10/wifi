@@ -170,6 +170,55 @@ const firstFiniteNumber = (...values) => {
   return null;
 };
 
+const normalizeClientBand = (client) => {
+  const explicit = String(
+    client.band ??
+    client.radioBand ??
+    client.frequencyBand ??
+    client.bandName ??
+    client.wifiBand ??
+    ''
+  ).trim().toLowerCase();
+
+  if (explicit) {
+    if (explicit.includes('2.4') || explicit === '2' || explicit === '2g') {
+      return '2.4';
+    }
+
+    if (explicit.includes('6') || explicit === '6g') {
+      return '6';
+    }
+
+    if (explicit.includes('5') || explicit === '5g') {
+      return '5';
+    }
+  }
+
+  const frequency = firstFiniteNumber(
+    client.frequency,
+    client.freq,
+    client.channelFrequency,
+    client.radioFrequency
+  );
+
+  if (frequency !== null) {
+    if (frequency < 3000) return '2.4';
+    if (frequency < 5950) return '5';
+    return '6';
+  }
+
+  const channel = firstFiniteNumber(
+    client.channel,
+    client.radioChannel
+  );
+
+  if (channel !== null && channel >= 1 && channel <= 14) {
+    return '2.4';
+  }
+
+  return 'unknown';
+};
+
 const normalizeLiveClient = (client) => {
   const signalValue =
     client.rssi ??
@@ -256,7 +305,12 @@ const normalizeLiveClient = (client) => {
     download_bytes: downloadBytes,
     upload_bytes: uploadBytes,
     download_activity: downloadActivity,
-    upload_activity: uploadActivity
+    upload_activity: uploadActivity,
+    signal_dbm:
+      signalValue === null || signalValue === undefined
+        ? null
+        : Number.parseFloat(String(signalValue)),
+    band: normalizeClientBand(client)
   };
 };
 
