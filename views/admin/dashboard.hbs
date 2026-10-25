@@ -1,15 +1,462 @@
-<section class="page-head">
+<section class="dashboard-hero">
   <div>
     <h2>{{#if selectedOrg}}{{selectedOrg.name}}{{else}}{{t 'dashboard.noClient'}}{{/if}}</h2>
-    <p>{{t 'dashboard.overview'}}</p>
+    <p>{{t 'dashboard.liveSubtitle'}}</p>
   </div>
-  {{#if isSuperAdmin}}
-    <a class="primary-link" href="/admin/clients/new">{{t 'account.addClient'}}</a>
+
+  {{#if selectedOrg}}
+    <div class="dashboard-live-controls">
+      <span class="dashboard-live-badge {{#if dashboard.network.controllerReachable}}is-live{{else}}is-offline{{/if}}" id="dashboard-live-badge">
+        <span aria-hidden="true"></span>
+        <strong id="dashboard-live-text">
+          {{#if dashboard.network.controllerReachable}}{{t 'dashboard.live'}}{{else}}{{t 'dashboard.networkUnavailable'}}{{/if}}
+        </strong>
+      </span>
+
+      <span class="dashboard-updated">
+        {{t 'dashboard.updated'}}
+        <strong id="dashboard-updated-time">—</strong>
+      </span>
+
+      <button type="button" class="secondary-button dashboard-refresh-button" id="dashboard-refresh">
+        {{t 'dashboard.refresh'}}
+      </button>
+    </div>
   {{/if}}
 </section>
 
-{{#if isSuperAdmin}}
-  {{#if selectedOrg}}
+{{#if selectedOrg}}
+  <nav class="dashboard-tabs" aria-label="{{t 'nav.navigation'}}">
+    <button type="button" class="active" data-dashboard-tab="overview">
+      {{t 'dashboard.tabOverview'}}
+    </button>
+    <button type="button" data-dashboard-tab="network">
+      {{t 'dashboard.tabNetwork'}}
+    </button>
+    <button type="button" data-dashboard-tab="clients">
+      {{t 'dashboard.tabClients'}}
+    </button>
+    <button type="button" data-dashboard-tab="sales">
+      {{t 'dashboard.tabSales'}}
+    </button>
+  </nav>
+
+  <section class="dashboard-kpi-grid">
+    <article class="dashboard-kpi-card">
+      <span>{{t 'dashboard.totalSalesToday'}}</span>
+      <strong id="dashboard-sales-today">{{formatTzs dashboard.business.stats.total_sales_today}} TZS</strong>
+      <small>{{t 'dashboard.totalSalesHint'}}</small>
+    </article>
+
+    <article class="dashboard-kpi-card">
+      <span>{{t 'dashboard.onlineNow'}}</span>
+      <strong id="dashboard-online-now">{{dashboard.network.connectedClients}}</strong>
+      <small>{{t 'dashboard.onlineNowHint'}}</small>
+    </article>
+
+    <article class="dashboard-kpi-card">
+      <span>{{t 'dashboard.clientTraffic'}}</span>
+      <strong id="dashboard-client-traffic" data-bytes="{{dashboard.network.traffic.totalBytes}}">—</strong>
+      <small>{{t 'dashboard.clientTrafficHint'}}</small>
+    </article>
+
+    <article class="dashboard-kpi-card">
+      <span>{{t 'dashboard.walletBalance'}}</span>
+      <strong id="dashboard-wallet-balance">{{formatTzs dashboard.business.stats.available_balance}} TZS</strong>
+      <small>{{t 'dashboard.walletBalanceHint'}}</small>
+    </article>
+  </section>
+
+  <section class="dashboard-tab-panel active" data-dashboard-panel="overview">
+    <div class="dashboard-two-column">
+      <article class="panel dashboard-network-card">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.networkStatus'}}</h3>
+            <p>{{t 'dashboard.networkStatusHint'}}</p>
+          </div>
+
+          <span class="dashboard-network-state {{#if dashboard.network.controllerReachable}}is-online{{else}}is-offline{{/if}}" id="dashboard-network-state">
+            <span aria-hidden="true"></span>
+            <strong id="dashboard-network-state-text">
+              {{#if dashboard.network.controllerReachable}}{{t 'dashboard.networkOnline'}}{{else}}{{t 'dashboard.networkUnavailable'}}{{/if}}
+            </strong>
+          </span>
+        </div>
+
+        <div class="dashboard-network-summary">
+          <div>
+            <span>{{t 'dashboard.connected'}}</span>
+            <strong id="overview-connected">{{dashboard.network.connectedClients}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.internet'}}</span>
+            <strong id="overview-internet">{{dashboard.network.internetClients}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.sitesConnected'}}</span>
+            <strong id="overview-sites">{{dashboard.network.sitesConnected}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.apReported'}}</span>
+            <strong id="overview-aps">{{dashboard.network.apCount}}</strong>
+          </div>
+        </div>
+
+        <div class="dashboard-band-mini">
+          <div>
+            <span>{{t 'dashboard.band24'}}</span>
+            <div class="dashboard-meter"><i id="overview-band24-meter"></i></div>
+            <strong id="overview-band24">{{dashboard.network.bands.band24}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.band5'}}</span>
+            <div class="dashboard-meter"><i id="overview-band5-meter"></i></div>
+            <strong id="overview-band5">{{dashboard.network.bands.band5}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.band6'}}</span>
+            <div class="dashboard-meter"><i id="overview-band6-meter"></i></div>
+            <strong id="overview-band6">{{dashboard.network.bands.band6}}</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.accessNow'}}</h3>
+            <p>{{t 'dashboard.accessNowHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-access-grid">
+          <div class="dashboard-access-row">
+            <span class="dashboard-access-dot access-paid"></span>
+            <span>{{t 'dashboard.paidAccess'}}</span>
+            <strong id="access-paid">{{dashboard.network.access.paid}}</strong>
+          </div>
+          <div class="dashboard-access-row">
+            <span class="dashboard-access-dot access-voucher"></span>
+            <span>{{t 'dashboard.voucherAccess'}}</span>
+            <strong id="access-voucher">{{dashboard.network.access.voucher}}</strong>
+          </div>
+          <div class="dashboard-access-row">
+            <span class="dashboard-access-dot access-free"></span>
+            <span>{{t 'dashboard.freeAccess'}}</span>
+            <strong id="access-free">{{dashboard.network.access.complimentary}}</strong>
+          </div>
+          <div class="dashboard-access-row">
+            <span class="dashboard-access-dot access-portal"></span>
+            <span>{{t 'dashboard.portalOnly'}}</span>
+            <strong id="access-portal">{{dashboard.network.portalClients}}</strong>
+          </div>
+          <div class="dashboard-access-row">
+            <span class="dashboard-access-dot access-unknown"></span>
+            <span>{{t 'dashboard.unknownAccess'}}</span>
+            <strong id="access-unknown">{{dashboard.network.access.unknown}}</strong>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="dashboard-two-column dashboard-overview-lower">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.salesToday'}}</h3>
+            <p>{{t 'dashboard.salesTodayHint'}}</p>
+          </div>
+          <a href="/admin/payments?org={{selectedOrg.id}}">{{t 'dashboard.viewAll'}}</a>
+        </div>
+
+        <div class="dashboard-sales-source-list">
+          <div>
+            <span>{{t 'dashboard.mobileMoney'}}</span>
+            <strong id="overview-mobile-money">{{formatTzs dashboard.business.stats.gateway_sales_today}} TZS</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.cashVouchers'}}</span>
+            <strong id="overview-cash-vouchers">{{formatTzs dashboard.business.stats.cashier_cash_today}} TZS</strong>
+          </div>
+          <div class="total">
+            <span>{{t 'dashboard.total'}}</span>
+            <strong id="overview-sales-total">{{formatTzs dashboard.business.stats.total_sales_today}} TZS</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.topClients'}}</h3>
+            <p>{{t 'dashboard.topClientsHint'}}</p>
+          </div>
+          <a href="/admin/live-clients?org={{selectedOrg.id}}">{{t 'dashboard.viewLiveClients'}}</a>
+        </div>
+
+        <div class="dashboard-top-client-list" id="overview-top-clients">
+          {{#each dashboard.network.topClients}}
+            <div class="dashboard-top-client">
+              <span>
+                <strong>{{name}}</strong>
+                <small>{{mac}}</small>
+              </span>
+              <span>
+                <strong data-format-bytes="{{total_bytes}}">—</strong>
+                <small>{{signal_dbm}} dBm</small>
+              </span>
+            </div>
+          {{else}}
+            <div class="empty-state"><p>{{t 'dashboard.noLiveClients'}}</p></div>
+          {{/each}}
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="dashboard-tab-panel" data-dashboard-panel="network" hidden>
+    <div class="dashboard-three-column">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.bandDistribution'}}</h3>
+            <p>{{t 'dashboard.bandDistributionHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-distribution-list">
+          <div>
+            <div><span>{{t 'dashboard.band24'}}</span><strong id="network-band24-count">{{dashboard.network.bands.band24}}</strong></div>
+            <div class="dashboard-distribution-track"><i id="network-band24-bar"></i></div>
+          </div>
+          <div>
+            <div><span>{{t 'dashboard.band5'}}</span><strong id="network-band5-count">{{dashboard.network.bands.band5}}</strong></div>
+            <div class="dashboard-distribution-track"><i id="network-band5-bar"></i></div>
+          </div>
+          <div>
+            <div><span>{{t 'dashboard.band6'}}</span><strong id="network-band6-count">{{dashboard.network.bands.band6}}</strong></div>
+            <div class="dashboard-distribution-track"><i id="network-band6-bar"></i></div>
+          </div>
+          <div>
+            <div><span>{{t 'dashboard.unknown'}}</span><strong id="network-band-unknown-count">{{dashboard.network.bands.unknown}}</strong></div>
+            <div class="dashboard-distribution-track"><i id="network-band-unknown-bar"></i></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.signalQuality'}}</h3>
+            <p>{{t 'dashboard.signalQualityHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-signal-grid">
+          <div class="signal-good"><span>{{t 'dashboard.good'}}</span><strong id="signal-good">{{dashboard.network.signal.good}}</strong></div>
+          <div class="signal-fair"><span>{{t 'dashboard.fair'}}</span><strong id="signal-fair">{{dashboard.network.signal.fair}}</strong></div>
+          <div class="signal-poor"><span>{{t 'dashboard.poor'}}</span><strong id="signal-poor">{{dashboard.network.signal.poor}}</strong></div>
+          <div class="signal-unknown"><span>{{t 'dashboard.unknown'}}</span><strong id="signal-unknown">{{dashboard.network.signal.unknown}}</strong></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.trafficSplit'}}</h3>
+            <p>{{t 'dashboard.clientTrafficHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-traffic-summary">
+          <div>
+            <span>{{t 'dashboard.download'}}</span>
+            <strong id="traffic-download" data-bytes="{{dashboard.network.traffic.downloadBytes}}">—</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.upload'}}</span>
+            <strong id="traffic-upload" data-bytes="{{dashboard.network.traffic.uploadBytes}}">—</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.total'}}</span>
+            <strong id="traffic-total" data-bytes="{{dashboard.network.traffic.totalBytes}}">—</strong>
+          </div>
+        </div>
+
+        <div class="dashboard-ap-summary">
+          <div>
+            <span>{{t 'dashboard.apReported'}}</span>
+            <strong id="network-ap-count">{{dashboard.network.apCount}}</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.apOnline'}}</span>
+            <strong id="network-ap-online">
+              {{#if dashboard.network.onlineApKnown}}{{dashboard.network.onlineApCount}}{{else}}—{{/if}}
+            </strong>
+            {{#unless dashboard.network.onlineApKnown}}
+              <small>{{t 'dashboard.apStatusUnknown'}}</small>
+            {{/unless}}
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="dashboard-tab-panel" data-dashboard-panel="clients" hidden>
+    <section class="dashboard-client-summary-grid">
+      <article>
+        <span>{{t 'dashboard.connected'}}</span>
+        <strong id="clients-connected">{{dashboard.network.connectedClients}}</strong>
+      </article>
+      <article>
+        <span>{{t 'dashboard.internet'}}</span>
+        <strong id="clients-internet">{{dashboard.network.internetClients}}</strong>
+      </article>
+      <article>
+        <span>{{t 'dashboard.portalOnly'}}</span>
+        <strong id="clients-portal">{{dashboard.network.portalClients}}</strong>
+      </article>
+      <article>
+        <span>{{t 'dashboard.voucherAccess'}}</span>
+        <strong id="clients-voucher">{{dashboard.network.access.voucher}}</strong>
+      </article>
+    </section>
+
+    <section class="panel dashboard-clients-panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'dashboard.clientsOverview'}}</h3>
+          <p>{{t 'dashboard.clientsOverviewHint'}}</p>
+        </div>
+        <a href="/admin/live-clients?org={{selectedOrg.id}}">{{t 'dashboard.viewLiveClients'}}</a>
+      </div>
+
+      <div class="dashboard-client-cards" id="dashboard-client-cards">
+        {{#each dashboard.network.topClients}}
+          <article class="dashboard-client-card">
+            <div class="dashboard-client-card-head">
+              <span>
+                <strong>{{name}}</strong>
+                <small>{{mac}} · {{site_name}}</small>
+              </span>
+              <span class="status-pill {{#if has_internet}}live-access-internet{{else}}live-access-portal{{/if}}">
+                {{#if has_internet}}{{../dashboard.business.stats.active_subscriptions}}{{else}}Portal{{/if}}
+              </span>
+            </div>
+
+            <dl>
+              <div><dt>{{t 'dashboard.accessSource'}}</dt><dd data-access-source="{{access_source}}">—</dd></div>
+              <div><dt>{{t 'dashboard.package'}}</dt><dd>{{#if package_name}}{{package_name}}{{else}}—{{/if}}</dd></div>
+              <div><dt>{{t 'dashboard.signal'}}</dt><dd>{{#if signal_dbm}}{{signal_dbm}} dBm{{else}}—{{/if}}</dd></div>
+              <div><dt>{{t 'dashboard.traffic'}}</dt><dd data-format-bytes="{{total_bytes}}">—</dd></div>
+            </dl>
+          </article>
+        {{else}}
+          <div class="empty-state"><p>{{t 'dashboard.noLiveClients'}}</p></div>
+        {{/each}}
+      </div>
+    </section>
+  </section>
+
+  <section class="dashboard-tab-panel" data-dashboard-panel="sales" hidden>
+    <div class="dashboard-sales-layout">
+      <article class="panel dashboard-sales-chart-panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.salesTrend'}}</h3>
+            <p>{{t 'dashboard.salesTrendHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-sales-chart" id="dashboard-sales-chart">
+          {{#each dashboard.business.salesTrend}}
+            <div class="dashboard-sales-day" data-sales-day data-amount="{{amount}}" data-day="{{day}}">
+              <div class="dashboard-sales-bar-wrap">
+                <i></i>
+              </div>
+              <strong data-sales-amount>{{formatTzs amount}}</strong>
+              <small data-sales-label>—</small>
+            </div>
+          {{/each}}
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.salesSources'}}</h3>
+            <p>{{t 'dashboard.salesTodayHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-sales-source-list">
+          <div>
+            <span>{{t 'dashboard.mobileMoney'}}</span>
+            <strong id="sales-mobile-money">{{formatTzs dashboard.business.stats.gateway_sales_today}} TZS</strong>
+          </div>
+          <div>
+            <span>{{t 'dashboard.cashVouchers'}}</span>
+            <strong id="sales-cash-vouchers">{{formatTzs dashboard.business.stats.cashier_cash_today}} TZS</strong>
+          </div>
+          <div class="total">
+            <span>{{t 'dashboard.total'}}</span>
+            <strong id="sales-total">{{formatTzs dashboard.business.stats.total_sales_today}} TZS</strong>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="dashboard-two-column">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.packagePerformance'}}</h3>
+            <p>{{t 'dashboard.packagePerformanceHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-package-list" id="dashboard-package-list">
+          {{#each dashboard.business.packagePerformance}}
+            <div>
+              <span><strong>{{package_name}}</strong><small>{{sales_count}} {{../t 'dashboard.salesCount'}}</small></span>
+              <strong>{{formatTzs revenue}} TZS</strong>
+            </div>
+          {{else}}
+            <div class="empty-state"><p>{{t 'dashboard.noSalesActivity'}}</p></div>
+          {{/each}}
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{t 'dashboard.recentSales'}}</h3>
+            <p>{{t 'dashboard.recentSalesHint'}}</p>
+          </div>
+        </div>
+
+        <div class="dashboard-activity-list" id="dashboard-sales-activity">
+          {{#each dashboard.business.recentActivity}}
+            <div>
+              <span>
+                <strong>{{title}}</strong>
+                <small>{{package_name}} · {{site_name}}</small>
+              </span>
+              <span>
+                <strong>{{formatTzs amount_tzs}} TZS</strong>
+                <small data-activity-source="{{source}}">—</small>
+              </span>
+            </div>
+          {{else}}
+            <div class="empty-state"><p>{{t 'dashboard.noSalesActivity'}}</p></div>
+          {{/each}}
+        </div>
+      </article>
+    </div>
+  </section>
+
+  {{#if isSuperAdmin}}
     {{#if voucherFeatureUpdated}}
       <div class="notice {{#if selectedOrg.vouchers_enabled}}notice-success{{else}}notice{{/if}}">
         {{#if selectedOrg.vouchers_enabled}}
@@ -19,158 +466,461 @@
         {{/if}}
       </div>
     {{/if}}
-
-    <section class="panel voucher-feature-panel">
-      <div class="panel-head">
-        <div>
-          <h3>{{t 'vouchers.featureTitle'}}</h3>
-          <p>{{t 'vouchers.featureHint'}}</p>
-        </div>
-
-        {{#if selectedOrg.vouchers_enabled}}
-          <span class="status-pill status-paid">{{t 'vouchers.featureEnabled'}}</span>
-        {{else}}
-          <span class="status-pill status-expired">{{t 'vouchers.featureDisabled'}}</span>
-        {{/if}}
-      </div>
-
-      <form
-        method="POST"
-        action="/admin/organizations/{{selectedOrg.id}}/features/vouchers"
-        class="voucher-feature-form"
-      >
-        {{#if selectedOrg.vouchers_enabled}}
-          <input type="hidden" name="enabled" value="false">
-          <button type="submit" class="secondary-button">
-            {{t 'vouchers.disableFeature'}}
-          </button>
-        {{else}}
-          <input type="hidden" name="enabled" value="true">
-          <button type="submit" class="primary-action-button">
-            {{t 'vouchers.enableFeature'}}
-          </button>
-        {{/if}}
-      </form>
-    </section>
   {{/if}}
-{{/if}}
-
-{{#if selectedOrg}}
-  <section class="stats-grid">
-    <article class="stat-card">
-      <span>{{t 'dashboard.grossToday'}}</span>
-      <strong>{{formatTzs stats.revenue_today}} TZS</strong>
-      <small>{{stats.payments_today}} {{t 'dashboard.successfulPayments'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'dashboard.activeNow'}}</span>
-      <strong>{{stats.active_sessions}}</strong>
-      <small>{{t 'dashboard.activeSubscriptions'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'dashboard.customers'}}</span>
-      <strong>{{stats.customers}}</strong>
-      <small>{{t 'dashboard.payingDevices'}}</small>
-    </article>
-
-    <article class="stat-card">
-      <span>{{t 'dashboard.availableBalance'}}</span>
-      <strong>{{formatTzs stats.available_balance}} TZS</strong>
-      <small>{{t 'dashboard.balanceHint'}}</small>
-    </article>
-  </section>
-
-  <section class="dashboard-grid">
-    <article class="panel">
-      <div class="panel-head">
-        <div>
-          <h3>{{t 'dashboard.setupProgress'}}</h3>
-          <p>{{t 'dashboard.setupHint'}}</p>
-        </div>
-      </div>
-
-      <div class="checklist">
-        {{#each checklist}}
-          <div class="check-item {{#if done}}done{{/if}}">
-            <span class="check-dot">{{#if done}}✓{{else}}○{{/if}}</span>
-            <span>{{label}}</span>
-          </div>
-        {{/each}}
-      </div>
-    </article>
-
-    <article class="panel">
-      <div class="panel-head">
-        <div>
-          <h3>{{t 'dashboard.infrastructure'}}</h3>
-          <p>{{t 'dashboard.currentFootprint'}}</p>
-        </div>
-      </div>
-
-      <div class="mini-stats">
-        <div><span>{{t 'dashboard.sites'}}</span><strong>{{stats.sites}}</strong></div>
-        <div><span>{{t 'dashboard.routers'}}</span><strong>{{stats.devices}}</strong></div>
-        <div><span>{{t 'dashboard.grossCollected'}}</span><strong>{{formatTzs stats.collected_total}} TZS</strong></div>
-      </div>
-    </article>
-  </section>
-
-  {{#if stats.unreconciled_payments}}
-    <div class="notice">
-      {{stats.unreconciled_payments}} {{t 'dashboard.unreconciled'}}
-    </div>
-  {{/if}}
-
-  <section class="panel table-panel">
-    <div class="panel-head">
-      <div>
-        <h3>{{t 'dashboard.recentPayments'}}</h3>
-        <p>{{t 'dashboard.latestActivity'}}</p>
-      </div>
-      <a href="/admin/payments?org={{selectedOrg.id}}">{{t 'dashboard.viewAll'}}</a>
-    </div>
-
-    <div class="table-wrap">
-      <table class="responsive-table">
-        <thead>
-          <tr>
-            <th>{{t 'common.customer'}}</th>
-            <th>{{t 'common.site'}}</th>
-            <th>{{t 'common.package'}}</th>
-            <th>{{t 'dashboard.gross'}}</th>
-            <th>{{t 'dashboard.net'}}</th>
-            <th>{{t 'common.status'}}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each recentPayments}}
-            <tr>
-              <td data-label="{{t 'common.customer'}}"><strong>{{customer_name}}</strong><small>{{phone}}</small></td>
-              <td data-label="{{t 'common.site'}}">{{site_name}}</td>
-              <td data-label="{{t 'common.package'}}">{{package_name}}</td>
-              <td data-label="{{t 'dashboard.gross'}}">{{formatTzs amount_tzs}} TZS</td>
-              <td data-label="{{t 'dashboard.net'}}">
-                {{#if net_amount_tzs}}
-                  {{formatTzs net_amount_tzs}} TZS
-                {{else}}
-                  <span class="muted-value">—</span>
-                {{/if}}
-              </td>
-              <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{statusLabel status}}</span></td>
-            </tr>
-          {{else}}
-            <tr><td colspan="6" class="empty">{{t 'dashboard.noPayments'}}</td></tr>
-          {{/each}}
-        </tbody>
-      </table>
-    </div>
-  </section>
 {{else}}
   <section class="empty-state">
     <h2>{{t 'dashboard.createFirstClient'}}</h2>
     <p>{{t 'dashboard.createFirstClientHint'}}</p>
     <a class="primary-link" href="/admin/clients/new">{{t 'account.addClient'}}</a>
   </section>
+{{/if}}
+
+{{#if selectedOrg}}
+<script>
+  (() => {
+    const orgId = '{{selectedOrg.id}}';
+    const endpoint = '/admin/dashboard/data?org=' + encodeURIComponent(orgId);
+    const refreshButton = document.getElementById('dashboard-refresh');
+    const liveBadge = document.getElementById('dashboard-live-badge');
+    const liveText = document.getElementById('dashboard-live-text');
+    const updatedTime = document.getElementById('dashboard-updated-time');
+
+    const labels = {
+      live: '{{t 'dashboard.live'}}',
+      unavailable: '{{t 'dashboard.networkUnavailable'}}',
+      networkOnline: '{{t 'dashboard.networkOnline'}}',
+      paid: '{{t 'dashboard.paidAccess'}}',
+      voucher: '{{t 'dashboard.voucherAccess'}}',
+      free: '{{t 'dashboard.freeAccess'}}',
+      unknown: '{{t 'dashboard.unknownAccess'}}',
+      payment: '{{t 'dashboard.payment'}}',
+      cashier: '{{t 'dashboard.cashier'}}',
+      sales: '{{t 'dashboard.salesCount'}}',
+      noClients: '{{t 'dashboard.noLiveClients'}}',
+      noSales: '{{t 'dashboard.noSalesActivity'}}'
+    };
+
+    const formatTzs = (value) =>
+      new Intl.NumberFormat('en-US', {
+        maximumFractionDigits: 2
+      }).format(Number(value || 0)) + ' TZS';
+
+    const formatBytes = (value) => {
+      const bytes = Number(value || 0);
+
+      if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const power = Math.min(
+        Math.floor(Math.log(bytes) / Math.log(1024)),
+        units.length - 1
+      );
+      const amount = bytes / Math.pow(1024, power);
+
+      return (
+        new Intl.NumberFormat('en-US', {
+          maximumFractionDigits: amount >= 100 ? 0 : amount >= 10 ? 1 : 2
+        }).format(amount) +
+        ' ' +
+        units[power]
+      );
+    };
+
+    const formatTime = (value) => {
+      const date = new Date(value || Date.now());
+
+      return new Intl.DateTimeFormat(
+        '{{#if isSwahili}}sw-TZ{{else}}en-GB{{/if}}',
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }
+      ).format(date);
+    };
+
+    const escapeHtml = (value) =>
+      String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
+    const setText = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    };
+
+    const setMeter = (id, value, total) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+
+      const percent =
+        Number(total || 0) > 0
+          ? Math.max(4, (Number(value || 0) / Number(total)) * 100)
+          : 0;
+
+      element.style.width = percent + '%';
+    };
+
+    const accessLabel = (source, hasInternet = true) => {
+      if (!hasInternet) return '{{t 'dashboard.portalOnly'}}';
+      if (source === 'paid') return labels.paid;
+      if (source === 'voucher') return labels.voucher;
+      if (source === 'complimentary') return labels.free;
+      return labels.unknown;
+    };
+
+    const hydrateStaticValues = () => {
+      document.querySelectorAll('[data-bytes]').forEach((element) => {
+        element.textContent = formatBytes(element.dataset.bytes);
+      });
+
+      document.querySelectorAll('[data-format-bytes]').forEach((element) => {
+        element.textContent = formatBytes(element.dataset.formatBytes);
+      });
+
+      document.querySelectorAll('[data-access-source]').forEach((element) => {
+        element.textContent = accessLabel(element.dataset.accessSource);
+      });
+
+      document.querySelectorAll('[data-activity-source]').forEach((element) => {
+        element.textContent =
+          element.dataset.activitySource === 'cashier'
+            ? labels.cashier
+            : labels.payment;
+      });
+
+      renderSalesChart();
+      updateBandMetersFromDom();
+    };
+
+    const updateBandMetersFromDom = () => {
+      const band24 = Number(document.getElementById('overview-band24')?.textContent || 0);
+      const band5 = Number(document.getElementById('overview-band5')?.textContent || 0);
+      const band6 = Number(document.getElementById('overview-band6')?.textContent || 0);
+      const total = band24 + band5 + band6;
+
+      setMeter('overview-band24-meter', band24, total);
+      setMeter('overview-band5-meter', band5, total);
+      setMeter('overview-band6-meter', band6, total);
+    };
+
+    const renderSalesChart = () => {
+      const days = Array.from(document.querySelectorAll('[data-sales-day]'));
+      const max = Math.max(
+        1,
+        ...days.map((day) => Number(day.dataset.amount || 0))
+      );
+
+      days.forEach((day) => {
+        const amount = Number(day.dataset.amount || 0);
+        const bar = day.querySelector('i');
+        const label = day.querySelector('[data-sales-label]');
+        const amountLabel = day.querySelector('[data-sales-amount]');
+        const date = new Date(day.dataset.day);
+
+        if (bar) {
+          bar.style.height =
+            (amount > 0 ? Math.max(8, (amount / max) * 100) : 2) + '%';
+        }
+
+        if (amountLabel) {
+          amountLabel.textContent = new Intl.NumberFormat('en-US', {
+            notation: amount >= 1000000 ? 'compact' : 'standard',
+            maximumFractionDigits: 1
+          }).format(amount);
+        }
+
+        if (label && !Number.isNaN(date.getTime())) {
+          label.textContent = new Intl.DateTimeFormat(
+            '{{#if isSwahili}}sw-TZ{{else}}en-GB{{/if}}',
+            { weekday: 'short' }
+          ).format(date);
+        }
+      });
+    };
+
+    const renderTopClients = (clients) => {
+      const overview = document.getElementById('overview-top-clients');
+      const cards = document.getElementById('dashboard-client-cards');
+
+      if (overview) {
+        overview.innerHTML = clients.length
+          ? clients.map((client) =>
+              '<div class="dashboard-top-client">' +
+                '<span><strong>' + escapeHtml(client.name || '—') + '</strong>' +
+                '<small>' + escapeHtml(client.mac || '—') + '</small></span>' +
+                '<span><strong>' + escapeHtml(formatBytes(client.total_bytes)) + '</strong>' +
+                '<small>' + escapeHtml(
+                  client.signal_dbm === null || client.signal_dbm === undefined
+                    ? '—'
+                    : client.signal_dbm + ' dBm'
+                ) + '</small></span>' +
+              '</div>'
+            ).join('')
+          : '<div class="empty-state"><p>' + escapeHtml(labels.noClients) + '</p></div>';
+      }
+
+      if (cards) {
+        cards.innerHTML = clients.length
+          ? clients.map((client) =>
+              '<article class="dashboard-client-card">' +
+                '<div class="dashboard-client-card-head">' +
+                  '<span><strong>' + escapeHtml(client.name || '—') + '</strong>' +
+                  '<small>' + escapeHtml(client.mac || '—') + ' · ' + escapeHtml(client.site_name || '—') + '</small></span>' +
+                  '<span class="status-pill ' + (client.has_internet ? 'live-access-internet' : 'live-access-portal') + '">' +
+                    escapeHtml(client.has_internet ? '{{t 'dashboard.internet'}}' : '{{t 'dashboard.portalOnly'}}') +
+                  '</span>' +
+                '</div>' +
+                '<dl>' +
+                  '<div><dt>{{t 'dashboard.accessSource'}}</dt><dd>' + escapeHtml(accessLabel(client.access_source, client.has_internet)) + '</dd></div>' +
+                  '<div><dt>{{t 'dashboard.package'}}</dt><dd>' + escapeHtml(client.package_name || '—') + '</dd></div>' +
+                  '<div><dt>{{t 'dashboard.signal'}}</dt><dd>' + escapeHtml(
+                    client.signal_dbm === null || client.signal_dbm === undefined
+                      ? '—'
+                      : client.signal_dbm + ' dBm'
+                  ) + '</dd></div>' +
+                  '<div><dt>{{t 'dashboard.traffic'}}</dt><dd>' + escapeHtml(formatBytes(client.total_bytes)) + '</dd></div>' +
+                '</dl>' +
+              '</article>'
+            ).join('')
+          : '<div class="empty-state"><p>' + escapeHtml(labels.noClients) + '</p></div>';
+      }
+    };
+
+    const renderPackagePerformance = (rows) => {
+      const container = document.getElementById('dashboard-package-list');
+      if (!container) return;
+
+      container.innerHTML = rows.length
+        ? rows.map((row) =>
+            '<div>' +
+              '<span><strong>' + escapeHtml(row.package_name || '—') + '</strong>' +
+              '<small>' + escapeHtml(row.sales_count + ' ' + labels.sales) + '</small></span>' +
+              '<strong>' + escapeHtml(formatTzs(row.revenue)) + '</strong>' +
+            '</div>'
+          ).join('')
+        : '<div class="empty-state"><p>' + escapeHtml(labels.noSales) + '</p></div>';
+    };
+
+    const renderRecentActivity = (rows) => {
+      const container = document.getElementById('dashboard-sales-activity');
+      if (!container) return;
+
+      container.innerHTML = rows.length
+        ? rows.map((row) =>
+            '<div>' +
+              '<span><strong>' + escapeHtml(row.title || '—') + '</strong>' +
+              '<small>' + escapeHtml((row.package_name || '—') + ' · ' + (row.site_name || '—')) + '</small></span>' +
+              '<span><strong>' + escapeHtml(formatTzs(row.amount_tzs)) + '</strong>' +
+              '<small>' + escapeHtml(row.source === 'cashier' ? labels.cashier : labels.payment) + '</small></span>' +
+            '</div>'
+          ).join('')
+        : '<div class="empty-state"><p>' + escapeHtml(labels.noSales) + '</p></div>';
+    };
+
+    const renderSalesTrend = (rows) => {
+      const container = document.getElementById('dashboard-sales-chart');
+      if (!container) return;
+
+      container.innerHTML = rows.map((row) =>
+        '<div class="dashboard-sales-day" data-sales-day data-amount="' +
+          escapeHtml(row.amount) +
+          '" data-day="' +
+          escapeHtml(row.day) +
+          '">' +
+          '<div class="dashboard-sales-bar-wrap"><i></i></div>' +
+          '<strong data-sales-amount></strong>' +
+          '<small data-sales-label></small>' +
+        '</div>'
+      ).join('');
+
+      renderSalesChart();
+    };
+
+    const applyDashboard = (data) => {
+      const business = data.business || {};
+      const stats = business.stats || {};
+      const network = data.network || {};
+      const bands = network.bands || {};
+      const access = network.access || {};
+      const signal = network.signal || {};
+      const traffic = network.traffic || {};
+
+      setText('dashboard-sales-today', formatTzs(stats.total_sales_today));
+      setText('dashboard-online-now', network.connectedClients || 0);
+      setText('dashboard-client-traffic', formatBytes(traffic.totalBytes));
+      setText('dashboard-wallet-balance', formatTzs(stats.available_balance));
+
+      setText('overview-connected', network.connectedClients || 0);
+      setText('overview-internet', network.internetClients || 0);
+      setText('overview-sites', network.sitesConnected || 0);
+      setText('overview-aps', network.apCount || 0);
+
+      setText('overview-band24', bands.band24 || 0);
+      setText('overview-band5', bands.band5 || 0);
+      setText('overview-band6', bands.band6 || 0);
+
+      const bandTotal =
+        Number(bands.band24 || 0) +
+        Number(bands.band5 || 0) +
+        Number(bands.band6 || 0);
+
+      setMeter('overview-band24-meter', bands.band24, bandTotal);
+      setMeter('overview-band5-meter', bands.band5, bandTotal);
+      setMeter('overview-band6-meter', bands.band6, bandTotal);
+
+      setText('access-paid', access.paid || 0);
+      setText('access-voucher', access.voucher || 0);
+      setText('access-free', access.complimentary || 0);
+      setText('access-portal', network.portalClients || 0);
+      setText('access-unknown', access.unknown || 0);
+
+      setText('overview-mobile-money', formatTzs(stats.gateway_sales_today));
+      setText('overview-cash-vouchers', formatTzs(stats.cashier_cash_today));
+      setText('overview-sales-total', formatTzs(stats.total_sales_today));
+
+      setText('network-band24-count', bands.band24 || 0);
+      setText('network-band5-count', bands.band5 || 0);
+      setText('network-band6-count', bands.band6 || 0);
+      setText('network-band-unknown-count', bands.unknown || 0);
+
+      const distributionTotal =
+        Number(network.connectedClients || 0) || 1;
+
+      setMeter('network-band24-bar', bands.band24, distributionTotal);
+      setMeter('network-band5-bar', bands.band5, distributionTotal);
+      setMeter('network-band6-bar', bands.band6, distributionTotal);
+      setMeter('network-band-unknown-bar', bands.unknown, distributionTotal);
+
+      setText('signal-good', signal.good || 0);
+      setText('signal-fair', signal.fair || 0);
+      setText('signal-poor', signal.poor || 0);
+      setText('signal-unknown', signal.unknown || 0);
+
+      setText('traffic-download', formatBytes(traffic.downloadBytes));
+      setText('traffic-upload', formatBytes(traffic.uploadBytes));
+      setText('traffic-total', formatBytes(traffic.totalBytes));
+      setText('network-ap-count', network.apCount || 0);
+      setText(
+        'network-ap-online',
+        network.onlineApKnown ? network.onlineApCount || 0 : '—'
+      );
+
+      setText('clients-connected', network.connectedClients || 0);
+      setText('clients-internet', network.internetClients || 0);
+      setText('clients-portal', network.portalClients || 0);
+      setText('clients-voucher', access.voucher || 0);
+
+      setText('sales-mobile-money', formatTzs(stats.gateway_sales_today));
+      setText('sales-cash-vouchers', formatTzs(stats.cashier_cash_today));
+      setText('sales-total', formatTzs(stats.total_sales_today));
+
+      const reachable = Boolean(network.controllerReachable);
+
+      if (liveBadge) {
+        liveBadge.classList.toggle('is-live', reachable);
+        liveBadge.classList.toggle('is-offline', !reachable);
+      }
+
+      if (liveText) {
+        liveText.textContent = reachable ? labels.live : labels.unavailable;
+      }
+
+      const networkState = document.getElementById('dashboard-network-state');
+      const networkStateText = document.getElementById('dashboard-network-state-text');
+
+      if (networkState) {
+        networkState.classList.toggle('is-online', reachable);
+        networkState.classList.toggle('is-offline', !reachable);
+      }
+
+      if (networkStateText) {
+        networkStateText.textContent =
+          reachable ? labels.networkOnline : labels.unavailable;
+      }
+
+      if (updatedTime) {
+        updatedTime.textContent = formatTime(data.updatedAt);
+      }
+
+      renderTopClients(network.topClients || []);
+      renderSalesTrend(business.salesTrend || []);
+      renderPackagePerformance(business.packagePerformance || []);
+      renderRecentActivity(business.recentActivity || []);
+    };
+
+    const refreshDashboard = async () => {
+      if (refreshButton?.disabled) return;
+
+      if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.classList.add('is-refreshing');
+      }
+
+      try {
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Dashboard refresh failed');
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Dashboard refresh failed');
+        }
+
+        applyDashboard(data);
+      } catch (error) {
+        if (liveBadge) {
+          liveBadge.classList.remove('is-live');
+          liveBadge.classList.add('is-offline');
+        }
+
+        if (liveText) {
+          liveText.textContent = labels.unavailable;
+        }
+      } finally {
+        if (refreshButton) {
+          refreshButton.disabled = false;
+          refreshButton.classList.remove('is-refreshing');
+        }
+      }
+    };
+
+    document.querySelectorAll('[data-dashboard-tab]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.dashboardTab;
+
+        document.querySelectorAll('[data-dashboard-tab]').forEach((tab) => {
+          tab.classList.toggle('active', tab === button);
+        });
+
+        document.querySelectorAll('[data-dashboard-panel]').forEach((panel) => {
+          const active = panel.dataset.dashboardPanel === target;
+          panel.hidden = !active;
+          panel.classList.toggle('active', active);
+        });
+      });
+    });
+
+    refreshButton?.addEventListener('click', refreshDashboard);
+
+    hydrateStaticValues();
+
+    if (updatedTime) {
+      updatedTime.textContent = formatTime('{{dashboard.updatedAt}}');
+    }
+
+    setInterval(refreshDashboard, 30000);
+  })();
+</script>
 {{/if}}
