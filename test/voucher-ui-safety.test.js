@@ -179,3 +179,29 @@ test('dashboard is a live business-network workspace and setup progress is remov
   assert.doesNotMatch(dashboard, /dashboard\.setupHint/);
   assert.doesNotMatch(dashboard, /checklist/);
 });
+
+test('dashboard compares payment gateway and voucher sales while voucher reports support periods', () => {
+  const adminRoutes = read('src/routes/admin.js');
+  const dashboard = read('views/admin/dashboard.hbs');
+  const vouchers = read('views/admin/vouchers.hbs');
+  const voucherService = read('src/services/vouchers/voucher-service.js');
+
+  assert.match(adminRoutes, /payment_gateway/);
+  assert.match(adminRoutes, /voucher_sales/);
+  assert.match(adminRoutes, /resolveVoucherSalesRange/);
+  assert.match(adminRoutes, /last_month/);
+  assert.match(adminRoutes, /last30/);
+
+  assert.match(dashboard, /data-payment-gateway/);
+  assert.match(dashboard, /data-voucher-sales/);
+  assert.match(dashboard, /data-gateway-bar/);
+  assert.match(dashboard, /data-voucher-bar/);
+
+  assert.match(vouchers, /name="voucherRange"/);
+  assert.match(vouchers, /vouchers\.periodLast7/);
+  assert.match(vouchers, /vouchers\.periodLastMonth/);
+  assert.match(vouchers, /cashierSummary\.totals\.collected_period/);
+
+  assert.match(voucherService, /collected_period/);
+  assert.match(voucherService, /Africa\/Dar_es_Salaam/);
+});
