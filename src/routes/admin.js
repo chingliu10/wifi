@@ -1205,6 +1205,89 @@ const csvCell = (value) => {
   return '"' + text.replace(/"/g, '""') + '"';
 };
 
+const isIsoDate = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+
+const getDarEsSalaamToday = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Dar_es_Salaam',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const shiftIsoDate = (isoDate, days) => {
+  const date = new Date(isoDate + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+};
+
+const resolveVoucherSalesRange = ({
+  range,
+  from,
+  to
+}) => {
+  const today = getDarEsSalaamToday();
+  const safeRange = [
+    'today',
+    'last7',
+    'last30',
+    'this_month',
+    'last_month',
+    'custom',
+    'all'
+  ].includes(String(range || '').toLowerCase())
+    ? String(range).toLowerCase()
+    : 'today';
+
+  let startDate = today;
+  let endDate = today;
+
+  if (safeRange === 'last7') {
+    startDate = shiftIsoDate(today, -6);
+  } else if (safeRange === 'last30') {
+    startDate = shiftIsoDate(today, -29);
+  } else if (safeRange === 'this_month') {
+    startDate = today.slice(0, 8) + '01';
+  } else if (safeRange === 'last_month') {
+    const [year, month] = today.split('-').map(Number);
+    const start = new Date(Date.UTC(year, month - 2, 1));
+    const end = new Date(Date.UTC(year, month - 1, 0));
+
+    startDate = start.toISOString().slice(0, 10);
+    endDate = end.toISOString().slice(0, 10);
+  } else if (safeRange === 'custom') {
+    if (isIsoDate(from) && isIsoDate(to) && from <= to) {
+      startDate = from;
+      endDate = to;
+    } else {
+      return {
+        range: 'today',
+        startDate: today,
+        endDate: today
+      };
+    }
+  } else if (safeRange === 'all') {
+    startDate = null;
+    endDate = null;
+  }
+
+  return {
+    range: safeRange,
+    startDate,
+    endDate
+  };
+};
+
 const renderVoucherAdmin = async ({
   req,
   res,
