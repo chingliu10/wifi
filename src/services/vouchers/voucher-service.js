@@ -697,6 +697,27 @@ const getCashierVoucherSalesSummary = async ({
           s.name AS site_name,
           COUNT(vs.id) FILTER (
             WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+          )::INTEGER AS sold_today,
+          COALESCE(
+            SUM(vs.sale_price_tzs) FILTER (
+              WHERE vs.sale_status = 'issued'
+                AND vs.issued_at::date = CURRENT_DATE
+            ),
+            0
+          )::BIGINT AS expected_cash_today,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+              AND v.status = 'redeemed'
+          )::INTEGER AS redeemed_today,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND vs.issued_at::date = CURRENT_DATE
+              AND v.status = 'unused'
+          )::INTEGER AS waiting_today,
+          COUNT(vs.id) FILTER (
+            WHERE vs.sale_status = 'issued'
               AND (
                 $2::date IS NULL
                 OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
