@@ -1901,6 +1901,33 @@ router.post('/cashiers/:id/toggle', requireOwnerOrSuperAdmin, async (req, res) =
   }
 });
 
+router.get('/dashboard/data', async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(404).json({
+        success: false,
+        error: 'Client not found'
+      });
+    }
+
+    const dashboard = await loadDashboardData(selectedOrg.id);
+
+    return res.json({
+      success: true,
+      ...dashboard
+    });
+  } catch (error) {
+    console.error('ADMIN DASHBOARD DATA ERROR:', error);
+
+    return res.status(502).json({
+      success: false,
+      error: 'Unable to refresh dashboard right now.'
+    });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
@@ -1910,208 +1937,23 @@ router.get('/', async (req, res) => {
         titleKey: 'dashboard.title',
         organizations,
         selectedOrg: null,
-        stats: {},
-        recentPayments: [],
-        checklist: []
+        dashboard: null
       });
     }
 
-    const [
-      statsResult,
-      recentPaymentsResult,
-      setupResult,
-      walletResult
-    ] = await Promise.all([
-      pool.query(
-        `
-          SELECT
-            (
-              SELECT COUNT(*)
-              FROM sites
-              WHERE organization_id = $1
-                AND active = TRUE
-            )::INTEGER AS sites,
-            (
-              SELECT COUNT(*)
-              FROM network_devices nd
-              JOIN sites s ON s.id = nd.site_id
-              WHERE s.organization_id = $1
-                AND nd.active = TRUE
-            )::INTEGER AS devices,
-            (
-              SELECT COUNT(DISTINCT pt.device_id)
-              FROM payment_transactions pt
-              WHERE pt.organization_id = $1
-                AND pt.status = 'paid'
-            )::INTEGER AS customers,
-            (
-              SELECT COUNT(*)
-              FROM subscriptions sub
-              JOIN sites s ON s.id = sub.site_id
-              WHERE s.organization_id = $1
-                AND sub.status = 'active'
-                AND sub.expires_at > NOW()
-            )::INTEGER AS active_sessions,
-            (
-              SELECT COUNT(*)
-              FROM payment_transactions
-              WHERE organization_id = $1
-                AND status = 'paid'
-                AND paid_at::date = CURRENT_DATE
-            )::INTEGER AS payments_today,
-            (
-              SELECT COALESCE(SUM(amount_tzs), 0)
-              FROM payment_transactions
-              WHERE organization_id = $1
-                AND status = 'paid'
-                AND paid_at::date = CURRENT_DATE
-            )::BIGINT AS revenue_today,
-            (
-              SELECT COALESCE(SUM(amount_tzs), 0)
-              FROM payment_transactions
-              WHERE organization_id = $1
-                AND status = 'paid'
-            )::NUMERIC(18,2) AS collected_total,
-            (
-              SELECT COUNT(*)
-              FROM payment_transactions
-              WHERE organization_id = $1
-                AND status = 'paid'
-                AND (
-                  gateway_fee_tzs IS NULL
-                  OR net_amount_tzs IS NULL
-                )
-            )::INTEGER AS unreconciled_payments
-        `,
-        [selectedOrg.id]
-      ),
-      pool.query(
-        `
-          SELECT
-            pt.reference,
-            pt.customer_name,
-            pt.phone,
-            pt.amount_tzs,
-            pt.gateway_fee_tzs,
-            pt.net_amount_tzs,
-            pt.status,
-            pt.paid_at,
-            COALESCE(pt.package_name_snapshot, p.name) AS package_name,
-            COALESCE(pt.site_name_snapshot, s.name) AS site_name
-          FROM payment_transactions pt
-          JOIN packages p ON p.id = pt.package_id
-          JOIN sites s ON s.id = p.site_id
-          WHERE pt.organization_id = $1
-          ORDER BY pt.created_at DESC
-          LIMIT 8
-        `,
-        [selectedOrg.id]
-      ),
-      pool.query(
-        `
-          SELECT
-            EXISTS(
-              SELECT 1
-              FROM sites
-              WHERE organization_id = $1
-            ) AS has_site,
-            EXISTS(
-              SELECT 1
-              FROM network_devices nd
-              JOIN sites s ON s.id = nd.site_id
-              WHERE s.organization_id = $1
-            ) AS has_device,
-            EXISTS(
-              SELECT 1
-              FROM packages p
-              JOIN sites s ON s.id = p.site_id
-              WHERE s.organization_id = $1
-                AND p.active = TRUE
-            ) AS has_package,
-            EXISTS(
-              SELECT 1
-              FROM payment_transactions
-              WHERE organization_id = $1
-                AND status = 'paid'
-            ) AS has_payment,
-            EXISTS(
-              SELECT 1
-              FROM sites
-              WHERE organization_id = $1
-                AND brand_name IS NOT NULL
-                AND support_phone IS NOT NULL
-            ) AS has_branding
-        `,
-        [selectedOrg.id]
-      ),
-      pool.query(
-        `
-          SELECT
-            (
-              COALESCE((
-                SELECT SUM(
-                  CASE
-                    WHEN entry_type = 'adjustment' AND amount_tzs > 0 THEN 0
-                    ELSE amount_tzs
-                  END
-                )
-                FROM wallet_entries
-                WHERE organization_id = $1
-              ), 0)
-              -
-              COALESCE((
-                SELECT SUM(total_amount_tzs)
-                FROM payout_transactions
-                WHERE organization_id = $1
-                  AND status IN ('pending', 'processing')
-              ), 0)
-            )::NUMERIC(18,2) AS available_balance,
-            COALESCE(
-              -SUM(amount_tzs) FILTER (WHERE entry_type = 'gateway_fee'),
-              0
-            )::NUMERIC(18,2) AS gateway_fees,
-            COALESCE(
-              -SUM(amount_tzs) FILTER (WHERE entry_type = 'platform_fee'),
-              0
-            )::NUMERIC(18,2) AS platform_fees,
-            COALESCE(
-              -SUM(amount_tzs) FILTER (WHERE entry_type = 'payout_debit'),
-              0
-            )::NUMERIC(18,2) AS paid_out
-          FROM wallet_entries
-          WHERE organization_id = $1
-        `,
-        [selectedOrg.id]
-      )
-    ]);
-
-    const setup = setupResult.rows[0];
+    const dashboard = await loadDashboardData(selectedOrg.id);
 
     return renderAdmin(req, res, 'admin/dashboard', {
       titleKey: 'dashboard.title',
       organizations,
       selectedOrg,
-      stats: {
-        ...statsResult.rows[0],
-        available_balance: walletResult.rows[0].available_balance,
-        gateway_fees: walletResult.rows[0].gateway_fees,
-        platform_fees: walletResult.rows[0].platform_fees,
-        paid_out: walletResult.rows[0].paid_out
-      },
-      recentPayments: recentPaymentsResult.rows,
+      dashboard,
       voucherFeatureUpdated:
         String(req.query.voucherFeature || '') === 'enabled'
           ? 'enabled'
           : String(req.query.voucherFeature || '') === 'disabled'
             ? 'disabled'
-            : null,
-      checklist: [
-        { label: req.t('checklist.site'), done: setup.has_site },
-        { label: req.t('checklist.device'), done: setup.has_device },
-        { label: req.t('checklist.package'), done: setup.has_package },
-        { label: req.t('checklist.branding'), done: setup.has_branding },
-        { label: req.t('checklist.payment'), done: setup.has_payment }
-      ]
+            : null
     });
   } catch (error) {
     console.error('ADMIN DASHBOARD ERROR:', error);
