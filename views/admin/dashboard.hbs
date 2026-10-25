@@ -466,6 +466,39 @@
         {{/if}}
       </div>
     {{/if}}
+
+    <section class="panel voucher-feature-panel dashboard-platform-control">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'vouchers.featureTitle'}}</h3>
+          <p>{{t 'vouchers.featureHint'}}</p>
+        </div>
+
+        {{#if selectedOrg.vouchers_enabled}}
+          <span class="status-pill status-paid">{{t 'vouchers.featureEnabled'}}</span>
+        {{else}}
+          <span class="status-pill status-expired">{{t 'vouchers.featureDisabled'}}</span>
+        {{/if}}
+      </div>
+
+      <form
+        method="POST"
+        action="/admin/organizations/{{selectedOrg.id}}/features/vouchers"
+        class="voucher-feature-form"
+      >
+        {{#if selectedOrg.vouchers_enabled}}
+          <input type="hidden" name="enabled" value="false">
+          <button type="submit" class="secondary-button">
+            {{t 'vouchers.disableFeature'}}
+          </button>
+        {{else}}
+          <input type="hidden" name="enabled" value="true">
+          <button type="submit" class="primary-action-button">
+            {{t 'vouchers.enableFeature'}}
+          </button>
+        {{/if}}
+      </form>
+    </section>
   {{/if}}
 {{else}}
   <section class="empty-state">
