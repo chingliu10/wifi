@@ -80,7 +80,8 @@ test('cashier Handlebars templates compile', () => {
     'views/admin/cashier.hbs',
     'views/admin/cashier-receipt.hbs',
     'views/admin/cashiers.hbs',
-    'views/admin/vouchers.hbs'
+    'views/admin/vouchers.hbs',
+    'views/admin/dashboard.hbs'
   ]) {
     assert.doesNotThrow(
       () => Handlebars.precompile(read(file)),
@@ -154,4 +155,27 @@ test('live clients expose the active Solidus package and access source', () => {
   assert.match(liveView, /live\.sourceComplimentary/);
   assert.match(liveView, /subscription_expires_at/);
   assert.match(liveView, /live\.unknownSource/);
+});
+
+test('dashboard is a live business-network workspace and setup progress is removed', () => {
+  const adminRoutes = read('src/routes/admin.js');
+  const dashboard = read('views/admin/dashboard.hbs');
+
+  assert.match(adminRoutes, /router\.get\('\/dashboard\/data'/);
+  assert.match(adminRoutes, /loadDashboardNetworkData/);
+  assert.match(adminRoutes, /loadDashboardBusinessData/);
+  assert.match(adminRoutes, /loadLiveClientSnapshot/);
+
+  assert.match(dashboard, /data-dashboard-tab="overview"/);
+  assert.match(dashboard, /data-dashboard-tab="network"/);
+  assert.match(dashboard, /data-dashboard-tab="clients"/);
+  assert.match(dashboard, /data-dashboard-tab="sales"/);
+  assert.match(dashboard, /setInterval\(refreshDashboard, 30000\)/);
+  assert.match(dashboard, /dashboard\.cashVouchers/);
+  assert.match(dashboard, /dashboard\.band24/);
+  assert.match(dashboard, /dashboard\.band5/);
+
+  assert.doesNotMatch(dashboard, /dashboard\.setupProgress/);
+  assert.doesNotMatch(dashboard, /dashboard\.setupHint/);
+  assert.doesNotMatch(dashboard, /checklist/);
 });
