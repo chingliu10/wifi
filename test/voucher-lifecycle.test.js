@@ -614,6 +614,35 @@ test(
     assert.equal(Number(cashierSummary.totals.redeemed_today), 1);
     assert.equal(Number(cashierRow.sold_today), 1);
 
+    const localToday = (
+      await pool.query(
+        "SELECT (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date::text AS today"
+      )
+    ).rows[0].today;
+
+    const periodSummary = await getCashierVoucherSalesSummary({
+      organizationId: org.id,
+      startDate: localToday,
+      endDate: localToday
+    });
+
+    assert.equal(Number(periodSummary.totals.sold_period), 1);
+    assert.equal(
+      Number(periodSummary.totals.collected_period),
+      Number(pkg.price_tzs)
+    );
+
+    const periodOverview = await getVoucherOverview({
+      organizationId: org.id,
+      source: 'cashier',
+      startDate: localToday,
+      endDate: localToday,
+      page: 1,
+      pageSize: 25
+    });
+
+    assert.equal(periodOverview.total, 2);
+
     const foreignReceipt = await getCashierVoucherSale({
       cashierUserId: cashier.id + 999999,
       saleId: created.sale.id
