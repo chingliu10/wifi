@@ -568,7 +568,9 @@ const getVoucherOverview = async ({
 };
 
 const getCashierVoucherSalesSummary = async ({
-  organizationId
+  organizationId,
+  startDate = null,
+  endDate = null
 }) => {
   const totalsResult = await pool.query(
     `
@@ -597,12 +599,72 @@ const getCashierVoucherSalesSummary = async ({
         COUNT(vs.id) FILTER (
           WHERE vs.sale_status = 'voided'
             AND vs.voided_at::date = CURRENT_DATE
-        )::INTEGER AS voided_today
+        )::INTEGER AS voided_today,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND (
+              $2::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+            )
+            AND (
+              $3::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+            )
+        )::INTEGER AS sold_period,
+        COALESCE(
+          SUM(vs.sale_price_tzs) FILTER (
+            WHERE vs.sale_status = 'issued'
+              AND (
+                $2::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+              )
+              AND (
+                $3::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+              )
+          ),
+          0
+        )::BIGINT AS collected_period,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND v.status = 'redeemed'
+            AND (
+              $2::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+            )
+            AND (
+              $3::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+            )
+        )::INTEGER AS redeemed_period,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'issued'
+            AND v.status = 'unused'
+            AND (
+              $2::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+            )
+            AND (
+              $3::date IS NULL
+              OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+            )
+        )::INTEGER AS waiting_period,
+        COUNT(vs.id) FILTER (
+          WHERE vs.sale_status = 'voided'
+            AND (
+              $2::date IS NULL
+              OR (vs.voided_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+            )
+            AND (
+              $3::date IS NULL
+              OR (vs.voided_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+            )
+        )::INTEGER AS voided_period
       FROM voucher_sales vs
       JOIN vouchers v ON v.id = vs.voucher_id
       WHERE vs.organization_id = $1
     `,
-    [organizationId]
+    [organizationId, startDate, endDate]
   );
 
   const cashiers = (
@@ -615,25 +677,53 @@ const getCashierVoucherSalesSummary = async ({
           s.name AS site_name,
           COUNT(vs.id) FILTER (
             WHERE vs.sale_status = 'issued'
-              AND vs.issued_at::date = CURRENT_DATE
-          )::INTEGER AS sold_today,
+              AND (
+                $2::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+              )
+              AND (
+                $3::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+              )
+          )::INTEGER AS sold_period,
           COALESCE(
             SUM(vs.sale_price_tzs) FILTER (
               WHERE vs.sale_status = 'issued'
-                AND vs.issued_at::date = CURRENT_DATE
+                AND (
+                  $2::date IS NULL
+                  OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+                )
+                AND (
+                  $3::date IS NULL
+                  OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+                )
             ),
             0
-          )::BIGINT AS expected_cash_today,
+          )::BIGINT AS collected_period,
           COUNT(vs.id) FILTER (
             WHERE vs.sale_status = 'issued'
-              AND vs.issued_at::date = CURRENT_DATE
               AND v.status = 'redeemed'
-          )::INTEGER AS redeemed_today,
+              AND (
+                $2::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+              )
+              AND (
+                $3::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+              )
+          )::INTEGER AS redeemed_period,
           COUNT(vs.id) FILTER (
             WHERE vs.sale_status = 'issued'
-              AND vs.issued_at::date = CURRENT_DATE
               AND v.status = 'unused'
-          )::INTEGER AS waiting_today
+              AND (
+                $2::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+              )
+              AND (
+                $3::date IS NULL
+                OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+              )
+          )::INTEGER AS waiting_period
         FROM platform_users u
         JOIN sites s ON s.id = u.site_id
         LEFT JOIN voucher_sales vs
@@ -647,14 +737,21 @@ const getCashierVoucherSalesSummary = async ({
           COALESCE(
             SUM(vs.sale_price_tzs) FILTER (
               WHERE vs.sale_status = 'issued'
-                AND vs.issued_at::date = CURRENT_DATE
+                AND (
+                  $2::date IS NULL
+                  OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $2::date
+                )
+                AND (
+                  $3::date IS NULL
+                  OR (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $3::date
+                )
             ),
             0
           ) DESC,
           u.full_name,
           u.id
       `,
-      [organizationId]
+      [organizationId, startDate, endDate]
     )
   ).rows;
 
@@ -664,7 +761,12 @@ const getCashierVoucherSalesSummary = async ({
       expected_cash_today: 0,
       redeemed_today: 0,
       waiting_today: 0,
-      voided_today: 0
+      voided_today: 0,
+      sold_period: 0,
+      collected_period: 0,
+      redeemed_period: 0,
+      waiting_period: 0,
+      voided_period: 0
     },
     cashiers
   };
