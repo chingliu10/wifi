@@ -636,40 +636,53 @@ const loadDashboardBusinessData = async (organizationId) => {
     ),
     pool.query(
       `
-        WITH days AS (
+        WITH local_today AS (
+          SELECT
+            (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day
+        ),
+        days AS (
           SELECT generate_series(
-            CURRENT_DATE - INTERVAL '6 days',
-            CURRENT_DATE,
+            (SELECT day FROM local_today) - INTERVAL '6 days',
+            (SELECT day FROM local_today),
             INTERVAL '1 day'
           )::date AS day
         ),
-        sales AS (
+        payment_sales AS (
           SELECT
-            paid_at::date AS day,
+            (paid_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
             SUM(amount_tzs)::BIGINT AS amount
           FROM payment_transactions
           WHERE organization_id = $1
             AND status = 'paid'
-            AND paid_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY paid_at::date
-
-          UNION ALL
-
+            AND (paid_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+              >= (SELECT day FROM local_today) - 6
+          GROUP BY
+            (paid_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+        ),
+        voucher_sales_by_day AS (
           SELECT
-            issued_at::date AS day,
+            (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
             SUM(sale_price_tzs)::BIGINT AS amount
           FROM voucher_sales
           WHERE organization_id = $1
             AND sale_status = 'issued'
-            AND issued_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY issued_at::date
+            AND (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+              >= (SELECT day FROM local_today) - 6
+          GROUP BY
+            (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
         )
         SELECT
           days.day,
-          COALESCE(SUM(sales.amount), 0)::BIGINT AS amount
+          COALESCE(payment_sales.amount, 0)::BIGINT AS payment_gateway,
+          COALESCE(voucher_sales_by_day.amount, 0)::BIGINT AS voucher_sales,
+          (
+            COALESCE(payment_sales.amount, 0) +
+            COALESCE(voucher_sales_by_day.amount, 0)
+          )::BIGINT AS amount
         FROM days
-        LEFT JOIN sales ON sales.day = days.day
-        GROUP BY days.day
+        LEFT JOIN payment_sales ON payment_sales.day = days.day
+        LEFT JOIN voucher_sales_by_day
+          ON voucher_sales_by_day.day = days.day
         ORDER BY days.day
       `,
       [organizationId]
@@ -771,7 +784,9 @@ const loadDashboardBusinessData = async (organizationId) => {
     },
     salesTrend: salesTrendResult.rows.map((row) => ({
       day: row.day,
-      amount: Number(row.amount || 0)
+      amount: Number(row.amount || 0),
+      payment_gateway: Number(row.payment_gateway || 0),
+      voucher_sales: Number(row.voucher_sales || 0)
     })),
     packagePerformance: packagePerformanceResult.rows.map((row) => ({
       ...row,
