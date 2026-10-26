@@ -51,6 +51,19 @@ const {
   createComplimentarySubscription
 } = require('../repositories/subscription-repository');
 const { getOrCreateDevice } = require('../services/device-service');
+const {
+  EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  ASSET_TYPES,
+  getAccountingOptions,
+  createExpense,
+  voidExpense,
+  listExpenses,
+  createAsset,
+  disposeAsset,
+  listAssets,
+  getAccountingReport
+} = require('../services/accounting-service');
 
 const router = express.Router();
 
@@ -1302,6 +1315,38 @@ const resolveVoucherSalesRange = ({
     endDate
   };
 };
+
+const resolveAccountingRange = ({
+  range,
+  from,
+  to
+}) =>
+  resolveVoucherSalesRange({
+    range: String(range || '').trim() || 'this_month',
+    from,
+    to
+  });
+
+const buildExpenseCategoryOptions = (req, selected = '') =>
+  Array.from(EXPENSE_CATEGORIES).map((value) => ({
+    value,
+    label: req.t('expenses.category.' + value),
+    selected: value === selected
+  }));
+
+const buildExpensePaymentMethodOptions = (req, selected = 'cash') =>
+  Array.from(PAYMENT_METHODS).map((value) => ({
+    value,
+    label: req.t('expenses.paymentMethod.' + value),
+    selected: value === selected
+  }));
+
+const buildAssetTypeOptions = (req, selected = '') =>
+  Array.from(ASSET_TYPES).map((value) => ({
+    value,
+    label: req.t('assets.type.' + value),
+    selected: value === selected
+  }));
 
 const renderVoucherAdmin = async ({
   req,
