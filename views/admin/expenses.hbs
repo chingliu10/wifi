@@ -1,0 +1,244 @@
+{{#if selectedOrg}}
+<section class="accounting-head">
+  <div>
+    <h2>{{t 'expenses.heading'}}</h2>
+    <p>{{t 'expenses.subtitle'}}</p>
+  </div>
+  <a class="secondary-button" href="/admin/reports?org={{selectedOrg.id}}&tab=expenses">{{t 'expenses.viewReport'}}</a>
+</section>
+
+{{#if created}}<div class="notice notice-success">{{t 'expenses.created'}}</div>{{/if}}
+{{#if voided}}<div class="notice">{{t 'expenses.voided'}}</div>{{/if}}
+
+<section class="accounting-entry-layout">
+  <article class="panel accounting-entry-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'expenses.addExpense'}}</h3>
+        <p>{{t 'expenses.addExpenseHint'}}</p>
+      </div>
+    </div>
+
+    <form method="POST" action="/admin/expenses" class="accounting-entry-form">
+      <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+      <label>
+        <span>{{t 'expenses.category'}}</span>
+        <select name="category" id="expense-category" required>
+          {{#each categoryOptions}}
+            <option value="{{value}}">{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'expenses.description'}}</span>
+        <input name="description" maxlength="180" required placeholder="{{t 'expenses.descriptionPlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'expenses.amount'}}</span>
+        <input name="amountTzs" type="number" min="1" step="1" inputmode="numeric" required>
+      </label>
+
+      <label>
+        <span>{{t 'expenses.date'}}</span>
+        <input name="expenseDate" type="date" value="{{defaultDate}}" required>
+      </label>
+
+      <label>
+        <span>{{t 'common.site'}}</span>
+        <select name="siteId">
+          <option value="">{{t 'expenses.businessWide'}}</option>
+          {{#each sites}}<option value="{{id}}">{{name}}</option>{{/each}}
+        </select>
+      </label>
+
+      <label class="expense-cashier-field" hidden>
+        <span>{{t 'expenses.cashier'}}</span>
+        <select name="cashierUserId" disabled>
+          <option value="">{{t 'expenses.noCashier'}}</option>
+          {{#each cashiers}}
+            <option value="{{id}}">{{full_name}} · {{site_name}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'expenses.paymentMethod'}}</span>
+        <select name="paymentMethod">
+          {{#each paymentMethodOptions}}
+            <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'expenses.vendor'}}</span>
+        <input name="vendor" maxlength="160" placeholder="{{t 'expenses.vendorPlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'expenses.reference'}}</span>
+        <input name="reference" maxlength="160" placeholder="{{t 'expenses.referencePlaceholder'}}">
+      </label>
+
+      <label class="accounting-form-wide">
+        <span>{{t 'expenses.notes'}}</span>
+        <textarea name="notes" rows="3" maxlength="2000" placeholder="{{t 'expenses.notesPlaceholder'}}"></textarea>
+      </label>
+
+      <div class="accounting-form-wide">
+        <button type="submit" class="primary-action-button">{{t 'expenses.saveExpense'}}</button>
+      </div>
+    </form>
+  </article>
+
+  <aside class="panel accounting-help-panel">
+    <h3>{{t 'expenses.rulesTitle'}}</h3>
+    <p>{{t 'expenses.rulesHint'}}</p>
+    <div class="accounting-rule-list">
+      <div><strong>{{t 'expenses.category.bandwidth'}}</strong><small>{{t 'expenses.ruleBandwidth'}}</small></div>
+      <div><strong>{{t 'expenses.category.voucher_commission'}}</strong><small>{{t 'expenses.ruleCommission'}}</small></div>
+      <div><strong>{{t 'expenses.assetReminder'}}</strong><small>{{t 'expenses.assetReminderHint'}}</small></div>
+      <div><strong>{{t 'expenses.gatewayFeeReminder'}}</strong><small>{{t 'expenses.gatewayFeeReminderHint'}}</small></div>
+    </div>
+  </aside>
+</section>
+
+<section class="panel table-panel accounting-list-panel">
+  <div class="panel-head">
+    <div>
+      <h3>{{t 'expenses.history'}}</h3>
+      <p>{{t 'expenses.historyHint'}}</p>
+    </div>
+  </div>
+
+  <form method="GET" action="/admin/expenses" class="accounting-filter-bar accounting-list-filters">
+    <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+    <label>
+      <span>{{t 'reports.period'}}</span>
+      <select name="range" id="expense-range">
+        <option value="today" {{#if filters.range.isToday}}selected{{/if}}>{{t 'reports.range.today'}}</option>
+        <option value="last7" {{#if filters.range.isLast7}}selected{{/if}}>{{t 'reports.range.last7'}}</option>
+        <option value="last30" {{#if filters.range.isLast30}}selected{{/if}}>{{t 'reports.range.last30'}}</option>
+        <option value="this_month" {{#if filters.range.isThisMonth}}selected{{/if}}>{{t 'reports.range.thisMonth'}}</option>
+        <option value="last_month" {{#if filters.range.isLastMonth}}selected{{/if}}>{{t 'reports.range.lastMonth'}}</option>
+        <option value="all" {{#if filters.range.isAll}}selected{{/if}}>{{t 'reports.range.all'}}</option>
+        <option value="custom" {{#if filters.range.isCustom}}selected{{/if}}>{{t 'reports.range.custom'}}</option>
+      </select>
+    </label>
+
+    <label>
+      <span>{{t 'common.site'}}</span>
+      <select name="siteId">
+        <option value="">{{t 'common.allSites'}}</option>
+        {{#each sites}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+    </label>
+
+    <label>
+      <span>{{t 'expenses.category'}}</span>
+      <select name="category">
+        <option value="">{{t 'common.all'}}</option>
+        {{#each categoryOptions}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+
+    <label class="expense-custom-date">
+      <span>{{t 'common.from'}}</span>
+      <input type="date" name="from" value="{{filters.range.startDate}}">
+    </label>
+
+    <label class="expense-custom-date">
+      <span>{{t 'common.to'}}</span>
+      <input type="date" name="to" value="{{filters.range.endDate}}">
+    </label>
+
+    <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+  </form>
+
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>{{t 'expenses.date'}}</th>
+          <th>{{t 'expenses.category'}}</th>
+          <th>{{t 'expenses.description'}}</th>
+          <th>{{t 'common.site'}}</th>
+          <th>{{t 'expenses.amount'}}</th>
+          <th>{{t 'common.status'}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each expenses}}
+          <tr>
+            <td data-label="{{t 'expenses.date'}}">{{expense_date}}</td>
+            <td data-label="{{t 'expenses.category'}}"><strong>{{category_label}}</strong></td>
+            <td data-label="{{t 'expenses.description'}}">
+              <strong>{{description}}</strong>
+              <small>{{#if vendor}}{{vendor}}{{/if}}{{#if reference}} · {{reference}}{{/if}}</small>
+              {{#if cashier_name}}<small>{{../t 'expenses.cashier'}}: {{cashier_name}}</small>{{/if}}
+            </td>
+            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{../t 'expenses.businessWide'}}{{/if}}</td>
+            <td data-label="{{t 'expenses.amount'}}"><strong>{{formatTzs amount_tzs}} TZS</strong><small>{{payment_method_label}}</small></td>
+            <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{status}}</span></td>
+            <td class="voucher-row-action">
+              {{#if is_active}}
+                <details class="accounting-row-menu">
+                  <summary>{{../t 'expenses.voidAction'}}</summary>
+                  <form method="POST" action="/admin/expenses/{{id}}/void">
+                    <input name="reason" maxlength="250" required placeholder="{{../t 'expenses.voidReason'}}">
+                    <button type="submit" class="secondary-button">{{../t 'expenses.confirmVoid'}}</button>
+                  </form>
+                </details>
+              {{/if}}
+            </td>
+          </tr>
+        {{else}}
+          <tr><td colspan="7" class="empty">{{t 'expenses.noneInPeriod'}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  {{> admin-pagination pagination}}
+</section>
+
+<script>
+(() => {
+  const category = document.getElementById('expense-category');
+  const cashierField = document.querySelector('.expense-cashier-field');
+  const cashierSelect = cashierField?.querySelector('select');
+
+  const syncCashier = () => {
+    const show = category?.value === 'voucher_commission';
+    if (cashierField) cashierField.hidden = !show;
+    if (cashierSelect) cashierSelect.disabled = !show;
+  };
+
+  category?.addEventListener('change', syncCashier);
+  syncCashier();
+
+  const range = document.getElementById('expense-range');
+  const custom = document.querySelectorAll('.expense-custom-date');
+
+  const syncDates = () => {
+    const show = range?.value === 'custom';
+    custom.forEach((field) => {
+      field.hidden = !show;
+      field.querySelectorAll('input').forEach((input) => input.disabled = !show);
+    });
+  };
+
+  range?.addEventListener('change', syncDates);
+  syncDates();
+})();
+</script>
+{{else}}
+<section class="empty-state"><h2>{{t 'dashboard.createFirstClient'}}</h2></section>
+{{/if}}
