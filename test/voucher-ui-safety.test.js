@@ -266,3 +266,38 @@ test('platform usernames remain globally unique under the existing shared login'
   assert.match(auth, /WHERE username = \$1/);
   assert.doesNotMatch(auth, /WHERE username = \$1[\s\S]{0,120}organization_id =/);
 });
+
+test('P&L uses semantic revenue sources and red negative states', () => {
+  const reports = read('views/admin/reports.hbs');
+  const routes = read('src/routes/admin.js');
+  const service = read('src/services/accounting-service.js');
+  const css = read('public/css/admin.css');
+
+  assert.match(service, /total_period_costs/);
+  assert.match(routes, /operating_profit_negative/);
+  assert.match(routes, /gross_profit_negative/);
+
+  assert.match(reports, /reports\.revenueSources/);
+  assert.match(reports, /reports\.capitalInvestmentHint/);
+  assert.match(reports, /accounting-profit-card/);
+  assert.match(reports, /pnl-bottom-line[\s\S]*is-negative/);
+  assert.match(reports, /report\.summary\.total_period_costs/);
+
+  assert.doesNotMatch(
+    reports,
+    /report-source-list[\s\S]{0,1200}reports\.capitalInvestment[\s\S]{0,1200}<\/div>\s*\{\{#if filters\.siteId\}\}/
+  );
+
+  assert.match(css, /accounting-profit-card\.is-negative/);
+  assert.match(css, /pnl-bottom-line\.is-negative/);
+  assert.match(css, /#b42318/);
+});
+
+test('P&L cost rows do not render negative zero', () => {
+  const reports = read('views/admin/reports.hbs');
+
+  assert.match(reports, /bandwidth_has_cost/);
+  assert.match(reports, /gateway_fees_has_cost/);
+  assert.match(reports, /voucher_commission_has_cost/);
+  assert.match(reports, /operating_expenses_has_cost/);
+});
