@@ -1327,6 +1327,17 @@ const resolveAccountingRange = ({
     to
   });
 
+const buildAccountingRangeView = (range) => ({
+  ...range,
+  isToday: range.range === 'today',
+  isLast7: range.range === 'last7',
+  isLast30: range.range === 'last30',
+  isThisMonth: range.range === 'this_month',
+  isLastMonth: range.range === 'last_month',
+  isAll: range.range === 'all',
+  isCustom: range.range === 'custom'
+});
+
 const buildExpenseCategoryOptions = (req, selected = '') =>
   Array.from(EXPENSE_CATEGORIES).map((value) => ({
     value,
