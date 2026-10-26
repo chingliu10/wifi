@@ -162,16 +162,16 @@
             <td data-label="{{t 'assets.purchaseDate'}}">{{purchase_date}}</td>
             <td data-label="{{t 'assets.name'}}"><strong>{{name}}</strong><small>{{#if vendor}}{{vendor}}{{/if}}{{#if reference}} · {{reference}}{{/if}}</small></td>
             <td data-label="{{t 'assets.type'}}">{{asset_type_label}}</td>
-            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{../t 'assets.businessWide'}}{{/if}}</td>
+            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{t 'assets.businessWide'}}{{/if}}</td>
             <td data-label="{{t 'assets.purchasePrice'}}"><strong>{{formatTzs purchase_price_tzs}} TZS</strong></td>
             <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{status}}</span></td>
             <td class="voucher-row-action">
               {{#if is_active}}
                 <details class="accounting-row-menu">
-                  <summary>{{../t 'assets.disposeAction'}}</summary>
+                  <summary>{{t 'assets.disposeAction'}}</summary>
                   <form method="POST" action="/admin/assets/{{id}}/dispose">
-                    <input name="note" maxlength="250" required placeholder="{{../t 'assets.disposeNote'}}">
-                    <button type="submit" class="secondary-button">{{../t 'assets.confirmDispose'}}</button>
+                    <input name="note" maxlength="250" required placeholder="{{t 'assets.disposeNote'}}">
+                    <button type="submit" class="secondary-button">{{t 'assets.confirmDispose'}}</button>
                   </form>
                 </details>
               {{/if}}
