@@ -79,16 +79,16 @@
       <small>{{t 'reports.gatewayPlusVoucher'}}</small>
     </article>
     <article>
-      <span>{{t 'reports.totalCosts'}}</span>
-      <strong>{{formatTzs report.summary.manual_expenses}} TZS</strong>
-      <small>{{t 'reports.manualCostsHint'}}</small>
+      <span>{{t 'reports.totalPeriodCosts'}}</span>
+      <strong>{{formatTzs report.summary.total_period_costs}} TZS</strong>
+      <small>{{t 'reports.totalPeriodCostsHint'}}</small>
     </article>
     <article>
       <span>{{t 'reports.gatewayFees'}}</span>
       <strong>{{formatTzs report.summary.gateway_fees}} TZS</strong>
       <small>{{t 'reports.gatewayFeesHint'}}</small>
     </article>
-    <article class="{{#if report.summary.operating_profit}}{{/if}}">
+    <article class="accounting-profit-card {{#if report.summary.operating_profit_negative}}is-negative{{else}}{{#if report.summary.operating_profit_positive}}is-positive{{else}}is-neutral{{/if}}{{/if}}">
       <span>{{t 'reports.operatingProfit'}}</span>
       <strong>{{formatTzs report.summary.operating_profit}} TZS</strong>
       <small>{{report.summary.profit_margin}}% {{t 'reports.margin'}}</small>
@@ -113,23 +113,23 @@
 
       <div class="pnl-section">
         <h4>{{t 'reports.costOfService'}}</h4>
-        <div><span>{{t 'expenses.category.bandwidth'}}</span><strong>-{{formatTzs report.summary.bandwidth_expense}} TZS</strong></div>
-        <div class="pnl-total"><span>{{t 'reports.grossProfit'}}</span><strong>{{formatTzs report.summary.gross_profit}} TZS</strong></div>
+        <div><span>{{t 'expenses.category.bandwidth'}}</span><strong>{{#if report.summary.bandwidth_has_cost}}-{{/if}}{{formatTzs report.summary.bandwidth_expense}} TZS</strong></div>
+        <div class="pnl-total {{#if report.summary.gross_profit_negative}}is-negative{{else}}{{#if report.summary.gross_profit_positive}}is-positive{{/if}}{{/if}}"><span>{{t 'reports.grossProfit'}}</span><strong>{{formatTzs report.summary.gross_profit}} TZS</strong></div>
       </div>
 
       <div class="pnl-section">
         <h4>{{t 'reports.sellingCosts'}}</h4>
-        <div><span>{{t 'reports.gatewayFees'}}</span><strong>-{{formatTzs report.summary.gateway_fees}} TZS</strong></div>
-        <div><span>{{t 'expenses.category.voucher_commission'}}</span><strong>-{{formatTzs report.summary.voucher_commission}} TZS</strong></div>
-        <div class="pnl-total"><span>{{t 'reports.totalSellingCosts'}}</span><strong>-{{formatTzs report.summary.selling_costs}} TZS</strong></div>
+        <div><span>{{t 'reports.gatewayFees'}}</span><strong>{{#if report.summary.gateway_fees_has_cost}}-{{/if}}{{formatTzs report.summary.gateway_fees}} TZS</strong></div>
+        <div><span>{{t 'expenses.category.voucher_commission'}}</span><strong>{{#if report.summary.voucher_commission_has_cost}}-{{/if}}{{formatTzs report.summary.voucher_commission}} TZS</strong></div>
+        <div class="pnl-total"><span>{{t 'reports.totalSellingCosts'}}</span><strong>{{#if report.summary.selling_costs_has_cost}}-{{/if}}{{formatTzs report.summary.selling_costs}} TZS</strong></div>
       </div>
 
       <div class="pnl-section">
         <h4>{{t 'reports.operatingExpenses'}}</h4>
-        <div><span>{{t 'reports.otherOperatingExpenses'}}</span><strong>-{{formatTzs report.summary.operating_expenses}} TZS</strong></div>
+        <div><span>{{t 'reports.otherOperatingExpenses'}}</span><strong>{{#if report.summary.operating_expenses_has_cost}}-{{/if}}{{formatTzs report.summary.operating_expenses}} TZS</strong></div>
       </div>
 
-      <div class="pnl-bottom-line">
+      <div class="pnl-bottom-line {{#if report.summary.operating_profit_negative}}is-negative{{else}}{{#if report.summary.operating_profit_positive}}is-positive{{else}}is-neutral{{/if}}{{/if}}">
         <span>{{t 'reports.operatingProfit'}}</span>
         <strong>{{formatTzs report.summary.operating_profit}} TZS</strong>
         <small>{{t 'reports.beforeDepreciationTax'}}</small>
@@ -139,15 +139,29 @@
     <article class="panel">
       <div class="panel-head">
         <div>
-          <h3>{{t 'reports.moneySources'}}</h3>
-          <p>{{t 'reports.moneySourcesHint'}}</p>
+          <h3>{{t 'reports.revenueSources'}}</h3>
+          <p>{{t 'reports.revenueSourcesHint'}}</p>
         </div>
       </div>
+
       <div class="report-source-list">
         <div><span>{{t 'reports.gatewaySales'}}</span><strong>{{formatTzs report.summary.gateway_gross}} TZS</strong></div>
-        <div><span>{{t 'reports.gatewayNet'}}</span><strong>{{formatTzs report.summary.gateway_net}} TZS</strong></div>
         <div><span>{{t 'reports.voucherCashSales'}}</span><strong>{{formatTzs report.summary.voucher_gross}} TZS</strong></div>
-        <div><span>{{t 'reports.capitalInvestment'}}</span><strong>{{formatTzs report.summary.capital_investment}} TZS</strong></div>
+        <div class="report-source-total"><span>{{t 'reports.totalRevenue'}}</span><strong>{{formatTzs report.summary.total_revenue}} TZS</strong></div>
+      </div>
+
+      <div class="report-finance-separator"></div>
+
+      <div class="report-finance-block">
+        <span>{{t 'reports.gatewayNet'}}</span>
+        <strong>{{formatTzs report.summary.gateway_net}} TZS</strong>
+        <small>{{t 'reports.gatewayNetHint'}}</small>
+      </div>
+
+      <div class="report-finance-block capital">
+        <span>{{t 'reports.capitalInvestment'}}</span>
+        <strong>{{formatTzs report.summary.capital_investment}} TZS</strong>
+        <small>{{t 'reports.capitalInvestmentHint'}}</small>
       </div>
 
       {{#if filters.siteId}}
