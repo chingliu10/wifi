@@ -710,6 +710,9 @@ const getAccountingReport = async ({
   const totalRevenue = gatewayGross + voucherGross;
   const grossProfit = totalRevenue - bandwidth;
   const sellingCosts = gatewayFees + voucherCommission;
+  const totalPeriodCosts =
+    Number(base.manual_expenses || 0) +
+    gatewayFees;
   const operatingProfit =
     totalRevenue -
     bandwidth -
@@ -744,6 +747,7 @@ const getAccountingReport = async ({
       operating_expenses: operatingExpenses,
       capital_investment: Number(base.capital_investment || 0),
       total_revenue: totalRevenue,
+      total_period_costs: totalPeriodCosts,
       gross_profit: grossProfit,
       selling_costs: sellingCosts,
       operating_profit: operatingProfit,
