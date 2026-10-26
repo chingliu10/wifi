@@ -3705,6 +3705,7 @@ router.get('/expenses', requireOwnerOrSuperAdmin, async (req, res) => {
       paymentMethodOptions: buildExpensePaymentMethodOptions(req),
       expenses: result.expenses.map((row) => ({
         ...row,
+        is_active: row.status === 'active',
         category_label: req.t('expenses.category.' + row.category),
         payment_method_label: req.t(
           'expenses.paymentMethod.' + row.payment_method
@@ -3855,6 +3856,7 @@ router.get('/assets', requireOwnerOrSuperAdmin, async (req, res) => {
       assetTypeOptions: buildAssetTypeOptions(req, assetType),
       assets: result.assets.map((row) => ({
         ...row,
+        is_active: row.status === 'active',
         asset_type_label: req.t('assets.type.' + row.asset_type)
       })),
       filters: {
