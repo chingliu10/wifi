@@ -1,0 +1,209 @@
+{{#if selectedOrg}}
+<section class="accounting-head">
+  <div>
+    <h2>{{t 'assets.heading'}}</h2>
+    <p>{{t 'assets.subtitle'}}</p>
+  </div>
+  <a class="secondary-button" href="/admin/reports?org={{selectedOrg.id}}&tab=assets">{{t 'assets.viewReport'}}</a>
+</section>
+
+{{#if created}}<div class="notice notice-success">{{t 'assets.created'}}</div>{{/if}}
+{{#if disposed}}<div class="notice">{{t 'assets.disposed'}}</div>{{/if}}
+
+<section class="accounting-entry-layout">
+  <article class="panel accounting-entry-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'assets.addAsset'}}</h3>
+        <p>{{t 'assets.addAssetHint'}}</p>
+      </div>
+    </div>
+
+    <form method="POST" action="/admin/assets" class="accounting-entry-form">
+      <input type="hidden" name="organizationId" value="{{selectedOrg.id}}">
+
+      <label>
+        <span>{{t 'assets.type'}}</span>
+        <select name="assetType" required>
+          {{#each assetTypeOptions}}
+            <option value="{{value}}">{{label}}</option>
+          {{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'assets.name'}}</span>
+        <input name="name" maxlength="180" required placeholder="{{t 'assets.namePlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'assets.purchasePrice'}}</span>
+        <input name="purchasePriceTzs" type="number" min="1" step="1" inputmode="numeric" required>
+      </label>
+
+      <label>
+        <span>{{t 'assets.purchaseDate'}}</span>
+        <input name="purchaseDate" type="date" value="{{defaultDate}}" required>
+      </label>
+
+      <label>
+        <span>{{t 'common.site'}}</span>
+        <select name="siteId">
+          <option value="">{{t 'assets.businessWide'}}</option>
+          {{#each sites}}<option value="{{id}}">{{name}}</option>{{/each}}
+        </select>
+      </label>
+
+      <label>
+        <span>{{t 'assets.vendor'}}</span>
+        <input name="vendor" maxlength="160" placeholder="{{t 'assets.vendorPlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'assets.reference'}}</span>
+        <input name="reference" maxlength="160" placeholder="{{t 'assets.referencePlaceholder'}}">
+      </label>
+
+      <label>
+        <span>{{t 'assets.usefulLife'}}</span>
+        <input name="usefulLifeMonths" type="number" min="1" step="1" inputmode="numeric" placeholder="{{t 'assets.usefulLifePlaceholder'}}">
+      </label>
+
+      <label class="accounting-form-wide">
+        <span>{{t 'assets.notes'}}</span>
+        <textarea name="notes" rows="3" maxlength="2000" placeholder="{{t 'assets.notesPlaceholder'}}"></textarea>
+      </label>
+
+      <div class="accounting-form-wide">
+        <button type="submit" class="primary-action-button">{{t 'assets.saveAsset'}}</button>
+      </div>
+    </form>
+  </article>
+
+  <aside class="panel accounting-help-panel">
+    <h3>{{t 'assets.rulesTitle'}}</h3>
+    <p>{{t 'assets.rulesHint'}}</p>
+    <div class="accounting-rule-list">
+      <div><strong>{{t 'assets.capitalAsset'}}</strong><small>{{t 'assets.capitalAssetHint'}}</small></div>
+      <div><strong>{{t 'assets.pnlRule'}}</strong><small>{{t 'assets.pnlRuleHint'}}</small></div>
+      <div><strong>{{t 'assets.depreciationRule'}}</strong><small>{{t 'assets.depreciationRuleHint'}}</small></div>
+    </div>
+  </aside>
+</section>
+
+<section class="panel table-panel accounting-list-panel">
+  <div class="panel-head">
+    <div><h3>{{t 'assets.register'}}</h3><p>{{t 'assets.registerHint'}}</p></div>
+  </div>
+
+  <form method="GET" action="/admin/assets" class="accounting-filter-bar accounting-list-filters">
+    <input type="hidden" name="org" value="{{selectedOrg.id}}">
+
+    <label>
+      <span>{{t 'reports.period'}}</span>
+      <select name="range" id="asset-range">
+        <option value="today" {{#if filters.range.isToday}}selected{{/if}}>{{t 'reports.range.today'}}</option>
+        <option value="last7" {{#if filters.range.isLast7}}selected{{/if}}>{{t 'reports.range.last7'}}</option>
+        <option value="last30" {{#if filters.range.isLast30}}selected{{/if}}>{{t 'reports.range.last30'}}</option>
+        <option value="this_month" {{#if filters.range.isThisMonth}}selected{{/if}}>{{t 'reports.range.thisMonth'}}</option>
+        <option value="last_month" {{#if filters.range.isLastMonth}}selected{{/if}}>{{t 'reports.range.lastMonth'}}</option>
+        <option value="all" {{#if filters.range.isAll}}selected{{/if}}>{{t 'reports.range.all'}}</option>
+        <option value="custom" {{#if filters.range.isCustom}}selected{{/if}}>{{t 'reports.range.custom'}}</option>
+      </select>
+    </label>
+
+    <label>
+      <span>{{t 'common.site'}}</span>
+      <select name="siteId">
+        <option value="">{{t 'common.allSites'}}</option>
+        {{#each sites}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+    </label>
+
+    <label>
+      <span>{{t 'assets.type'}}</span>
+      <select name="assetType">
+        <option value="">{{t 'common.all'}}</option>
+        {{#each assetTypeOptions}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+
+    <label class="asset-custom-date">
+      <span>{{t 'common.from'}}</span>
+      <input type="date" name="from" value="{{filters.range.startDate}}">
+    </label>
+
+    <label class="asset-custom-date">
+      <span>{{t 'common.to'}}</span>
+      <input type="date" name="to" value="{{filters.range.endDate}}">
+    </label>
+
+    <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+  </form>
+
+  <div class="table-wrap">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>{{t 'assets.purchaseDate'}}</th>
+          <th>{{t 'assets.name'}}</th>
+          <th>{{t 'assets.type'}}</th>
+          <th>{{t 'common.site'}}</th>
+          <th>{{t 'assets.purchasePrice'}}</th>
+          <th>{{t 'common.status'}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each assets}}
+          <tr>
+            <td data-label="{{t 'assets.purchaseDate'}}">{{purchase_date}}</td>
+            <td data-label="{{t 'assets.name'}}"><strong>{{name}}</strong><small>{{#if vendor}}{{vendor}}{{/if}}{{#if reference}} · {{reference}}{{/if}}</small></td>
+            <td data-label="{{t 'assets.type'}}">{{asset_type_label}}</td>
+            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{../t 'assets.businessWide'}}{{/if}}</td>
+            <td data-label="{{t 'assets.purchasePrice'}}"><strong>{{formatTzs purchase_price_tzs}} TZS</strong></td>
+            <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{status}}</span></td>
+            <td class="voucher-row-action">
+              {{#if is_active}}
+                <details class="accounting-row-menu">
+                  <summary>{{../t 'assets.disposeAction'}}</summary>
+                  <form method="POST" action="/admin/assets/{{id}}/dispose">
+                    <input name="note" maxlength="250" required placeholder="{{../t 'assets.disposeNote'}}">
+                    <button type="submit" class="secondary-button">{{../t 'assets.confirmDispose'}}</button>
+                  </form>
+                </details>
+              {{/if}}
+            </td>
+          </tr>
+        {{else}}
+          <tr><td colspan="7" class="empty">{{t 'assets.noneInPeriod'}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  {{> admin-pagination pagination}}
+</section>
+
+<script>
+(() => {
+  const range = document.getElementById('asset-range');
+  const custom = document.querySelectorAll('.asset-custom-date');
+
+  const syncDates = () => {
+    const show = range?.value === 'custom';
+    custom.forEach((field) => {
+      field.hidden = !show;
+      field.querySelectorAll('input').forEach((input) => input.disabled = !show);
+    });
+  };
+
+  range?.addEventListener('change', syncDates);
+  syncDates();
+})();
+</script>
+{{else}}
+<section class="empty-state"><h2>{{t 'dashboard.createFirstClient'}}</h2></section>
+{{/if}}
