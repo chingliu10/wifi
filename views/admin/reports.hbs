@@ -1,0 +1,318 @@
+{{#if selectedOrg}}
+<section class="accounting-head">
+  <div>
+    <h2>{{t 'reports.heading'}}</h2>
+    <p>{{t 'reports.subtitle'}}</p>
+  </div>
+</section>
+
+<form method="GET" action="/admin/reports" class="accounting-filter-bar">
+  <input type="hidden" name="org" value="{{selectedOrg.id}}">
+  <input type="hidden" name="tab" value="{{activeTab}}">
+
+  <label>
+    <span>{{t 'reports.period'}}</span>
+    <select name="range" id="report-range">
+      <option value="today" {{#if filters.range.isToday}}selected{{/if}}>{{t 'reports.range.today'}}</option>
+      <option value="last7" {{#if filters.range.isLast7}}selected{{/if}}>{{t 'reports.range.last7'}}</option>
+      <option value="last30" {{#if filters.range.isLast30}}selected{{/if}}>{{t 'reports.range.last30'}}</option>
+      <option value="this_month" {{#if filters.range.isThisMonth}}selected{{/if}}>{{t 'reports.range.thisMonth'}}</option>
+      <option value="last_month" {{#if filters.range.isLastMonth}}selected{{/if}}>{{t 'reports.range.lastMonth'}}</option>
+      <option value="all" {{#if filters.range.isAll}}selected{{/if}}>{{t 'reports.range.all'}}</option>
+      <option value="custom" {{#if filters.range.isCustom}}selected{{/if}}>{{t 'reports.range.custom'}}</option>
+    </select>
+  </label>
+
+  <label>
+    <span>{{t 'common.site'}}</span>
+    <select name="siteId">
+      <option value="">{{t 'common.allSites'}}</option>
+      {{#each sites}}
+        <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+      {{/each}}
+    </select>
+  </label>
+
+  <label class="accounting-custom-date">
+    <span>{{t 'common.from'}}</span>
+    <input type="date" name="from" value="{{filters.range.startDate}}">
+  </label>
+
+  <label class="accounting-custom-date">
+    <span>{{t 'common.to'}}</span>
+    <input type="date" name="to" value="{{filters.range.endDate}}">
+  </label>
+
+  <button type="submit" class="primary-action-button">{{t 'common.filter'}}</button>
+</form>
+
+<p class="accounting-period-label">
+  {{t 'reports.showing'}}
+  {{#if filters.range.startDate}}
+    <strong>{{filters.range.startDate}}</strong>
+    {{#if filters.range.endDate}} → <strong>{{filters.range.endDate}}</strong>{{/if}}
+  {{else}}
+    <strong>{{t 'reports.range.all'}}</strong>
+  {{/if}}
+</p>
+
+<nav class="accounting-tabs" aria-label="{{t 'reports.title'}}">
+  <a class="{{#if tabProfit}}active{{/if}}" href="/admin/reports?org={{selectedOrg.id}}&tab=profit&range={{filters.range.range}}{{#if filters.siteId}}&siteId={{filters.siteId}}{{/if}}">
+    {{t 'reports.tab.profit'}}
+  </a>
+  <a class="{{#if tabRevenue}}active{{/if}}" href="/admin/reports?org={{selectedOrg.id}}&tab=revenue&range={{filters.range.range}}{{#if filters.siteId}}&siteId={{filters.siteId}}{{/if}}">
+    {{t 'reports.tab.revenue'}}
+  </a>
+  <a class="{{#if tabExpenses}}active{{/if}}" href="/admin/reports?org={{selectedOrg.id}}&tab=expenses&range={{filters.range.range}}{{#if filters.siteId}}&siteId={{filters.siteId}}{{/if}}">
+    {{t 'reports.tab.expenses'}}
+  </a>
+  <a class="{{#if tabAssets}}active{{/if}}" href="/admin/reports?org={{selectedOrg.id}}&tab=assets&range={{filters.range.range}}{{#if filters.siteId}}&siteId={{filters.siteId}}{{/if}}">
+    {{t 'reports.tab.assets'}}
+  </a>
+</nav>
+
+{{#if tabProfit}}
+  <section class="accounting-kpi-grid">
+    <article>
+      <span>{{t 'reports.totalRevenue'}}</span>
+      <strong>{{formatTzs report.summary.total_revenue}} TZS</strong>
+      <small>{{t 'reports.gatewayPlusVoucher'}}</small>
+    </article>
+    <article>
+      <span>{{t 'reports.totalCosts'}}</span>
+      <strong>{{formatTzs report.summary.manual_expenses}} TZS</strong>
+      <small>{{t 'reports.manualCostsHint'}}</small>
+    </article>
+    <article>
+      <span>{{t 'reports.gatewayFees'}}</span>
+      <strong>{{formatTzs report.summary.gateway_fees}} TZS</strong>
+      <small>{{t 'reports.gatewayFeesHint'}}</small>
+    </article>
+    <article class="{{#if report.summary.operating_profit}}{{/if}}">
+      <span>{{t 'reports.operatingProfit'}}</span>
+      <strong>{{formatTzs report.summary.operating_profit}} TZS</strong>
+      <small>{{report.summary.profit_margin}}% {{t 'reports.margin'}}</small>
+    </article>
+  </section>
+
+  <section class="accounting-report-grid">
+    <article class="panel accounting-pnl">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'reports.pnlTitle'}}</h3>
+          <p>{{t 'reports.pnlHint'}}</p>
+        </div>
+      </div>
+
+      <div class="pnl-section">
+        <h4>{{t 'reports.revenue'}}</h4>
+        <div><span>{{t 'reports.gatewaySales'}}</span><strong>{{formatTzs report.summary.gateway_gross}} TZS</strong></div>
+        <div><span>{{t 'reports.voucherCashSales'}}</span><strong>{{formatTzs report.summary.voucher_gross}} TZS</strong></div>
+        <div class="pnl-total"><span>{{t 'reports.totalRevenue'}}</span><strong>{{formatTzs report.summary.total_revenue}} TZS</strong></div>
+      </div>
+
+      <div class="pnl-section">
+        <h4>{{t 'reports.costOfService'}}</h4>
+        <div><span>{{t 'expenses.category.bandwidth'}}</span><strong>-{{formatTzs report.summary.bandwidth_expense}} TZS</strong></div>
+        <div class="pnl-total"><span>{{t 'reports.grossProfit'}}</span><strong>{{formatTzs report.summary.gross_profit}} TZS</strong></div>
+      </div>
+
+      <div class="pnl-section">
+        <h4>{{t 'reports.sellingCosts'}}</h4>
+        <div><span>{{t 'reports.gatewayFees'}}</span><strong>-{{formatTzs report.summary.gateway_fees}} TZS</strong></div>
+        <div><span>{{t 'expenses.category.voucher_commission'}}</span><strong>-{{formatTzs report.summary.voucher_commission}} TZS</strong></div>
+        <div class="pnl-total"><span>{{t 'reports.totalSellingCosts'}}</span><strong>-{{formatTzs report.summary.selling_costs}} TZS</strong></div>
+      </div>
+
+      <div class="pnl-section">
+        <h4>{{t 'reports.operatingExpenses'}}</h4>
+        <div><span>{{t 'reports.otherOperatingExpenses'}}</span><strong>-{{formatTzs report.summary.operating_expenses}} TZS</strong></div>
+      </div>
+
+      <div class="pnl-bottom-line">
+        <span>{{t 'reports.operatingProfit'}}</span>
+        <strong>{{formatTzs report.summary.operating_profit}} TZS</strong>
+        <small>{{t 'reports.beforeDepreciationTax'}}</small>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>{{t 'reports.moneySources'}}</h3>
+          <p>{{t 'reports.moneySourcesHint'}}</p>
+        </div>
+      </div>
+      <div class="report-source-list">
+        <div><span>{{t 'reports.gatewaySales'}}</span><strong>{{formatTzs report.summary.gateway_gross}} TZS</strong></div>
+        <div><span>{{t 'reports.gatewayNet'}}</span><strong>{{formatTzs report.summary.gateway_net}} TZS</strong></div>
+        <div><span>{{t 'reports.voucherCashSales'}}</span><strong>{{formatTzs report.summary.voucher_gross}} TZS</strong></div>
+        <div><span>{{t 'reports.capitalInvestment'}}</span><strong>{{formatTzs report.summary.capital_investment}} TZS</strong></div>
+      </div>
+
+      {{#if filters.siteId}}
+        {{#if report.summary.unallocated_org_expenses}}
+          <div class="notice accounting-note">
+            {{t 'reports.unallocatedExcluded'}}:
+            <strong>{{formatTzs report.summary.unallocated_org_expenses}} TZS</strong>
+          </div>
+        {{/if}}
+      {{/if}}
+    </article>
+  </section>
+{{/if}}
+
+{{#if tabRevenue}}
+  <section class="accounting-kpi-grid">
+    <article><span>{{t 'reports.gatewaySales'}}</span><strong>{{formatTzs report.summary.gateway_gross}} TZS</strong><small>{{report.summary.gateway_transactions}} {{t 'reports.transactions'}}</small></article>
+    <article><span>{{t 'reports.voucherCashSales'}}</span><strong>{{formatTzs report.summary.voucher_gross}} TZS</strong><small>{{report.summary.voucher_sales}} {{t 'reports.sales'}}</small></article>
+    <article><span>{{t 'reports.totalRevenue'}}</span><strong>{{formatTzs report.summary.total_revenue}} TZS</strong><small>{{t 'reports.gatewayPlusVoucher'}}</small></article>
+    <article><span>{{t 'reports.gatewayFees'}}</span><strong>{{formatTzs report.summary.gateway_fees}} TZS</strong><small>{{t 'reports.gatewayFeesHint'}}</small></article>
+  </section>
+
+  <section class="panel accounting-chart-panel">
+    <div class="panel-head">
+      <div>
+        <h3>{{t 'reports.revenueVsExpense'}}</h3>
+        <p>{{t 'reports.revenueVsExpenseHint'}}</p>
+      </div>
+    </div>
+    <div class="report-legend">
+      <span><i class="gateway"></i>{{t 'reports.gatewaySales'}}</span>
+      <span><i class="voucher"></i>{{t 'reports.voucherCashSales'}}</span>
+      <span><i class="expense"></i>{{t 'reports.expenses'}}</span>
+    </div>
+    <div class="report-trend" id="report-trend">
+      {{#each report.trend}}
+        <div class="report-trend-day" data-report-day data-gateway="{{gateway}}" data-voucher="{{voucher}}" data-expenses="{{expenses}}" data-day="{{day}}">
+          <div class="report-trend-bars">
+            <i class="gateway" data-bar="gateway"></i>
+            <i class="voucher" data-bar="voucher"></i>
+            <i class="expense" data-bar="expenses"></i>
+          </div>
+          <small>—</small>
+        </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-head">
+      <div><h3>{{t 'reports.bySite'}}</h3><p>{{t 'reports.bySiteHint'}}</p></div>
+    </div>
+    <div class="table-wrap">
+      <table class="responsive-table">
+        <thead><tr><th>{{t 'common.site'}}</th><th>{{t 'reports.gatewaySales'}}</th><th>{{t 'reports.voucherCashSales'}}</th><th>{{t 'reports.totalRevenue'}}</th><th>{{t 'reports.recordedExpenses'}}</th></tr></thead>
+        <tbody>
+          {{#each report.sites}}
+            <tr>
+              <td data-label="{{t 'common.site'}}"><strong>{{name}}</strong></td>
+              <td data-label="{{t 'reports.gatewaySales'}}">{{formatTzs gateway}} TZS</td>
+              <td data-label="{{t 'reports.voucherCashSales'}}">{{formatTzs voucher}} TZS</td>
+              <td data-label="{{t 'reports.totalRevenue'}}"><strong>{{formatTzs revenue}} TZS</strong></td>
+              <td data-label="{{t 'reports.recordedExpenses'}}">{{formatTzs expenses}} TZS</td>
+            </tr>
+          {{else}}
+            <tr><td colspan="5" class="empty">{{t 'common.noResults'}}</td></tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{{/if}}
+
+{{#if tabExpenses}}
+  <section class="accounting-kpi-grid">
+    <article><span>{{t 'reports.recordedExpenses'}}</span><strong>{{formatTzs report.summary.manual_expenses}} TZS</strong><small>{{t 'reports.manualCostsHint'}}</small></article>
+    <article><span>{{t 'expenses.category.bandwidth'}}</span><strong>{{formatTzs report.summary.bandwidth_expense}} TZS</strong><small>{{t 'reports.costOfService'}}</small></article>
+    <article><span>{{t 'expenses.category.voucher_commission'}}</span><strong>{{formatTzs report.summary.voucher_commission}} TZS</strong><small>{{t 'reports.sellingCosts'}}</small></article>
+    <article><span>{{t 'reports.operatingExpenses'}}</span><strong>{{formatTzs report.summary.operating_expenses}} TZS</strong><small>{{t 'reports.otherOperatingExpenses'}}</small></article>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-head">
+      <div><h3>{{t 'reports.expenseBreakdown'}}</h3><p>{{t 'reports.expenseBreakdownHint'}}</p></div>
+      <a href="/admin/expenses?org={{selectedOrg.id}}">{{t 'reports.manageExpenses'}}</a>
+    </div>
+    <div class="table-wrap">
+      <table class="responsive-table">
+        <thead><tr><th>{{t 'expenses.category'}}</th><th>{{t 'reports.entries'}}</th><th>{{t 'reports.amount'}}</th></tr></thead>
+        <tbody>
+          {{#each report.expenseCategories}}
+            <tr><td data-label="{{t 'expenses.category'}}"><strong>{{label}}</strong></td><td data-label="{{t 'reports.entries'}}">{{entries}}</td><td data-label="{{t 'reports.amount'}}"><strong>{{formatTzs amount}} TZS</strong></td></tr>
+          {{else}}
+            <tr><td colspan="3" class="empty">{{t 'expenses.noneInPeriod'}}</td></tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{{/if}}
+
+{{#if tabAssets}}
+  <section class="accounting-kpi-grid">
+    <article><span>{{t 'reports.capitalInvestment'}}</span><strong>{{formatTzs report.summary.capital_investment}} TZS</strong><small>{{t 'reports.assetsNotExpense'}}</small></article>
+    <article><span>{{t 'reports.assetPurchases'}}</span><strong>{{report.summary.asset_purchases}}</strong><small>{{t 'reports.selectedPeriod'}}</small></article>
+  </section>
+  <section class="panel accounting-explainer">
+    <h3>{{t 'reports.assetsTitle'}}</h3>
+    <p>{{t 'reports.assetsHint'}}</p>
+    <a class="primary-link" href="/admin/assets?org={{selectedOrg.id}}">{{t 'reports.manageAssets'}}</a>
+  </section>
+{{/if}}
+
+<script>
+(() => {
+  const range = document.getElementById('report-range');
+  const customFields = document.querySelectorAll('.accounting-custom-date');
+
+  const syncCustom = () => {
+    const custom = range?.value === 'custom';
+    customFields.forEach((field) => {
+      field.hidden = !custom;
+      field.querySelectorAll('input').forEach((input) => {
+        input.disabled = !custom;
+      });
+    });
+  };
+
+  range?.addEventListener('change', syncCustom);
+  syncCustom();
+
+  const days = Array.from(document.querySelectorAll('[data-report-day]'));
+  const max = Math.max(
+    1,
+    ...days.flatMap((day) => [
+      Number(day.dataset.gateway || 0),
+      Number(day.dataset.voucher || 0),
+      Number(day.dataset.expenses || 0)
+    ])
+  );
+
+  days.forEach((day) => {
+    ['gateway', 'voucher', 'expenses'].forEach((key) => {
+      const bar = day.querySelector('[data-bar="' + key + '"]');
+      const value = Number(day.dataset[key] || 0);
+      if (bar) {
+        bar.style.height = (value > 0 ? Math.max(6, value / max * 100) : 2) + '%';
+      }
+    });
+
+    const label = day.querySelector('small');
+    const date = new Date(day.dataset.day);
+
+    if (label && !Number.isNaN(date.getTime())) {
+      label.textContent = new Intl.DateTimeFormat(
+        '{{#if isSwahili}}sw-TZ{{else}}en-GB{{/if}}',
+        { day: '2-digit', month: 'short' }
+      ).format(date);
+    }
+  });
+})();
+</script>
+{{else}}
+<section class="empty-state">
+  <h2>{{t 'dashboard.createFirstClient'}}</h2>
+  <p>{{t 'dashboard.createFirstClientHint'}}</p>
+</section>
+{{/if}}
