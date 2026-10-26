@@ -3570,6 +3570,373 @@ router.post('/packages/:id/delete', async (req, res) => {
   }
 });
 
+router.get('/reports', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return renderAdmin(req, res, 'admin/reports', {
+        titleKey: 'reports.title',
+        organizations,
+        selectedOrg: null
+      });
+    }
+
+    const { sites } = await getAccountingOptions(selectedOrg.id);
+    const requestedSiteId = Number(req.query.siteId) || null;
+    const siteId = sites.some((site) => Number(site.id) === requestedSiteId)
+      ? requestedSiteId
+      : null;
+    const range = resolveAccountingRange({
+      range: req.query.range,
+      from: req.query.from,
+      to: req.query.to
+    });
+    const requestedTab = String(req.query.tab || 'profit').toLowerCase();
+    const activeTab = ['profit', 'revenue', 'expenses', 'assets'].includes(requestedTab)
+      ? requestedTab
+      : 'profit';
+
+    const report = await getAccountingReport({
+      organizationId: selectedOrg.id,
+      siteId,
+      startDate: range.startDate,
+      endDate: range.endDate
+    });
+
+    const selectedSites = sites.map((site) => ({
+      ...site,
+      selected: Number(site.id) === Number(siteId)
+    }));
+
+    const expenseCategories = report.expenseCategories.map((row) => ({
+      ...row,
+      label: req.t('expenses.category.' + row.category)
+    }));
+
+    return renderAdmin(req, res, 'admin/reports', {
+      titleKey: 'reports.title',
+      organizations,
+      selectedOrg,
+      report: {
+        ...report,
+        expenseCategories
+      },
+      sites: selectedSites,
+      filters: {
+        siteId,
+        range: buildAccountingRangeView(range)
+      },
+      activeTab,
+      tabProfit: activeTab === 'profit',
+      tabRevenue: activeTab === 'revenue',
+      tabExpenses: activeTab === 'expenses',
+      tabAssets: activeTab === 'assets'
+    });
+  } catch (error) {
+    console.error('ADMIN REPORTS ERROR:', error);
+    return res.status(500).send('Unable to load reports.');
+  }
+});
+
+router.get('/expenses', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return renderAdmin(req, res, 'admin/expenses', {
+        titleKey: 'expenses.title',
+        organizations,
+        selectedOrg: null
+      });
+    }
+
+    const { sites, cashiers } = await getAccountingOptions(selectedOrg.id);
+    const requestedSiteId = Number(req.query.siteId) || null;
+    const siteId = sites.some((site) => Number(site.id) === requestedSiteId)
+      ? requestedSiteId
+      : null;
+    const category = EXPENSE_CATEGORIES.has(
+      String(req.query.category || '').toLowerCase()
+    )
+      ? String(req.query.category).toLowerCase()
+      : '';
+    const range = resolveAccountingRange({
+      range: req.query.range,
+      from: req.query.from,
+      to: req.query.to
+    });
+    const page = getPage(req.query.page);
+
+    const result = await listExpenses({
+      organizationId: selectedOrg.id,
+      siteId,
+      category,
+      startDate: range.startDate,
+      endDate: range.endDate,
+      page,
+      pageSize: ADMIN_PAGE_SIZE
+    });
+
+    const pagination = buildPagination({
+      page,
+      total: result.total,
+      basePath: '/admin/expenses',
+      query: {
+        org: selectedOrg.id,
+        siteId: siteId || '',
+        category,
+        range: range.range,
+        from: range.range === 'custom' ? range.startDate : '',
+        to: range.range === 'custom' ? range.endDate : ''
+      }
+    });
+
+    return renderAdmin(req, res, 'admin/expenses', {
+      titleKey: 'expenses.title',
+      organizations,
+      selectedOrg,
+      sites: sites.map((site) => ({
+        ...site,
+        selected: Number(site.id) === Number(siteId)
+      })),
+      cashiers,
+      categoryOptions: buildExpenseCategoryOptions(req, category),
+      paymentMethodOptions: buildExpensePaymentMethodOptions(req),
+      expenses: result.expenses.map((row) => ({
+        ...row,
+        category_label: req.t('expenses.category.' + row.category),
+        payment_method_label: req.t(
+          'expenses.paymentMethod.' + row.payment_method
+        )
+      })),
+      filters: {
+        category,
+        siteId,
+        range: buildAccountingRangeView(range)
+      },
+      defaultDate: getDarEsSalaamToday(),
+      pagination,
+      created: String(req.query.created || '') === '1',
+      voided: String(req.query.voided || '') === '1'
+    });
+  } catch (error) {
+    console.error('ADMIN EXPENSES ERROR:', error);
+    return res.status(500).send('Unable to load expenses.');
+  }
+});
+
+router.post('/expenses', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Select a client first.');
+    }
+
+    await createExpense({
+      organizationId: selectedOrg.id,
+      siteId: req.body.siteId,
+      category: req.body.category,
+      description: req.body.description,
+      amountTzs: req.body.amountTzs,
+      expenseDate: req.body.expenseDate,
+      vendor: req.body.vendor,
+      paymentMethod: req.body.paymentMethod,
+      reference: req.body.reference,
+      cashierUserId: req.body.cashierUserId,
+      notes: req.body.notes,
+      createdByUserId: req.authUser.id
+    });
+
+    return res.redirect(
+      '/admin/expenses?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&created=1'
+    );
+  } catch (error) {
+    console.error('ADMIN EXPENSE CREATE ERROR:', error);
+    return res.status(400).send(error.message || 'Unable to create expense.');
+  }
+});
+
+router.post('/expenses/:id/void', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const expenseId = Number(req.params.id);
+
+    if (!selectedOrg || !expenseId) {
+      return res.status(400).send('Invalid expense.');
+    }
+
+    const expense = await voidExpense({
+      organizationId: selectedOrg.id,
+      expenseId,
+      voidedByUserId: req.authUser.id,
+      reason: req.body.reason
+    });
+
+    if (!expense) {
+      return res.status(404).send('Expense not found or already voided.');
+    }
+
+    return res.redirect(
+      '/admin/expenses?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&voided=1'
+    );
+  } catch (error) {
+    console.error('ADMIN EXPENSE VOID ERROR:', error);
+    return res.status(400).send(error.message || 'Unable to void expense.');
+  }
+});
+
+router.get('/assets', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return renderAdmin(req, res, 'admin/assets', {
+        titleKey: 'assets.title',
+        organizations,
+        selectedOrg: null
+      });
+    }
+
+    const { sites } = await getAccountingOptions(selectedOrg.id);
+    const requestedSiteId = Number(req.query.siteId) || null;
+    const siteId = sites.some((site) => Number(site.id) === requestedSiteId)
+      ? requestedSiteId
+      : null;
+    const assetType = ASSET_TYPES.has(
+      String(req.query.assetType || '').toLowerCase()
+    )
+      ? String(req.query.assetType).toLowerCase()
+      : '';
+    const range = resolveAccountingRange({
+      range: req.query.range,
+      from: req.query.from,
+      to: req.query.to
+    });
+    const page = getPage(req.query.page);
+
+    const result = await listAssets({
+      organizationId: selectedOrg.id,
+      siteId,
+      assetType,
+      startDate: range.startDate,
+      endDate: range.endDate,
+      page,
+      pageSize: ADMIN_PAGE_SIZE
+    });
+
+    const pagination = buildPagination({
+      page,
+      total: result.total,
+      basePath: '/admin/assets',
+      query: {
+        org: selectedOrg.id,
+        siteId: siteId || '',
+        assetType,
+        range: range.range,
+        from: range.range === 'custom' ? range.startDate : '',
+        to: range.range === 'custom' ? range.endDate : ''
+      }
+    });
+
+    return renderAdmin(req, res, 'admin/assets', {
+      titleKey: 'assets.title',
+      organizations,
+      selectedOrg,
+      sites: sites.map((site) => ({
+        ...site,
+        selected: Number(site.id) === Number(siteId)
+      })),
+      assetTypeOptions: buildAssetTypeOptions(req, assetType),
+      assets: result.assets.map((row) => ({
+        ...row,
+        asset_type_label: req.t('assets.type.' + row.asset_type)
+      })),
+      filters: {
+        assetType,
+        siteId,
+        range: buildAccountingRangeView(range)
+      },
+      defaultDate: getDarEsSalaamToday(),
+      pagination,
+      created: String(req.query.created || '') === '1',
+      disposed: String(req.query.disposed || '') === '1'
+    });
+  } catch (error) {
+    console.error('ADMIN ASSETS ERROR:', error);
+    return res.status(500).send('Unable to load assets.');
+  }
+});
+
+router.post('/assets', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+
+    if (!selectedOrg) {
+      return res.status(400).send('Select a client first.');
+    }
+
+    await createAsset({
+      organizationId: selectedOrg.id,
+      siteId: req.body.siteId,
+      assetType: req.body.assetType,
+      name: req.body.name,
+      purchasePriceTzs: req.body.purchasePriceTzs,
+      purchaseDate: req.body.purchaseDate,
+      vendor: req.body.vendor,
+      reference: req.body.reference,
+      usefulLifeMonths: req.body.usefulLifeMonths,
+      notes: req.body.notes,
+      createdByUserId: req.authUser.id
+    });
+
+    return res.redirect(
+      '/admin/assets?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&created=1'
+    );
+  } catch (error) {
+    console.error('ADMIN ASSET CREATE ERROR:', error);
+    return res.status(400).send(error.message || 'Unable to create asset.');
+  }
+});
+
+router.post('/assets/:id/dispose', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    const assetId = Number(req.params.id);
+
+    if (!selectedOrg || !assetId) {
+      return res.status(400).send('Invalid asset.');
+    }
+
+    const asset = await disposeAsset({
+      organizationId: selectedOrg.id,
+      assetId,
+      disposedByUserId: req.authUser.id,
+      note: req.body.note
+    });
+
+    if (!asset) {
+      return res.status(404).send('Asset not found or already disposed.');
+    }
+
+    return res.redirect(
+      '/admin/assets?org=' +
+      encodeURIComponent(selectedOrg.id) +
+      '&disposed=1'
+    );
+  } catch (error) {
+    console.error('ADMIN ASSET DISPOSE ERROR:', error);
+    return res.status(400).send(error.message || 'Unable to dispose asset.');
+  }
+});
+
 router.get('/payments', async (req, res) => {
   try {
     const { organizations, selectedOrg } = await getSelectedOrganization(req);
