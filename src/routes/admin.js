@@ -3614,12 +3614,28 @@ router.get('/reports', requireOwnerOrSuperAdmin, async (req, res) => {
       label: req.t('expenses.category.' + row.category)
     }));
 
+    const reportSummary = {
+      ...report.summary,
+      operating_profit_negative: Number(report.summary.operating_profit || 0) < 0,
+      operating_profit_positive: Number(report.summary.operating_profit || 0) > 0,
+      gross_profit_negative: Number(report.summary.gross_profit || 0) < 0,
+      gross_profit_positive: Number(report.summary.gross_profit || 0) > 0,
+      bandwidth_has_cost: Number(report.summary.bandwidth_expense || 0) > 0,
+      gateway_fees_has_cost: Number(report.summary.gateway_fees || 0) > 0,
+      voucher_commission_has_cost:
+        Number(report.summary.voucher_commission || 0) > 0,
+      operating_expenses_has_cost:
+        Number(report.summary.operating_expenses || 0) > 0,
+      selling_costs_has_cost: Number(report.summary.selling_costs || 0) > 0
+    };
+
     return renderAdmin(req, res, 'admin/reports', {
       titleKey: 'reports.title',
       organizations,
       selectedOrg,
       report: {
         ...report,
+        summary: reportSummary,
         expenseCategories
       },
       sites: selectedSites,
