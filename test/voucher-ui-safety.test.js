@@ -283,9 +283,14 @@ test('P&L uses semantic revenue sources and red negative states', () => {
   assert.match(reports, /pnl-bottom-line[\s\S]*is-negative/);
   assert.match(reports, /report\.summary\.total_period_costs/);
 
+  const sourceListStart = reports.indexOf('<div class="report-source-list">');
+  const sourceListEnd = reports.indexOf('</div>', sourceListStart);
+
+  assert.ok(sourceListStart >= 0);
+  assert.ok(sourceListEnd > sourceListStart);
   assert.doesNotMatch(
-    reports,
-    /report-source-list[\s\S]{0,1200}reports\.capitalInvestment[\s\S]{0,1200}<\/div>\s*\{\{#if filters\.siteId\}\}/
+    reports.slice(sourceListStart, sourceListEnd),
+    /reports\.capitalInvestment/
   );
 
   assert.match(css, /accounting-profit-card\.is-negative/);
