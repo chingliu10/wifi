@@ -3108,3 +3108,110 @@ body.voucher-admin-modal-open{overflow:hidden}
     grid-column:auto
   }
 }
+
+
+/* Profit/loss semantic states */
+.accounting-profit-card.is-negative{
+  border-color:#f2b8b5;
+  background:#fff5f5
+}
+.accounting-profit-card.is-negative>span,
+.accounting-profit-card.is-negative>strong,
+.accounting-profit-card.is-negative>small{
+  color:#b42318
+}
+.accounting-profit-card.is-positive{
+  border-color:#b7dfc7;
+  background:#f0fdf4
+}
+.accounting-profit-card.is-positive>span,
+.accounting-profit-card.is-positive>strong,
+.accounting-profit-card.is-positive>small{
+  color:#15803d
+}
+.accounting-profit-card.is-neutral{
+  background:#fff
+}
+.pnl-total.is-negative span,
+.pnl-total.is-negative strong{
+  color:#b42318
+}
+.pnl-total.is-positive span,
+.pnl-total.is-positive strong{
+  color:#15803d
+}
+.pnl-bottom-line.is-negative{
+  background:#fff1f1
+}
+.pnl-bottom-line.is-negative span,
+.pnl-bottom-line.is-negative strong{
+  color:#b42318
+}
+.pnl-bottom-line.is-negative small{
+  color:#9f3a33
+}
+.pnl-bottom-line.is-positive{
+  background:#f0fdf4
+}
+.pnl-bottom-line.is-positive span,
+.pnl-bottom-line.is-positive strong{
+  color:#15803d
+}
+.pnl-bottom-line.is-positive small{
+  color:#4f7e61
+}
+.pnl-bottom-line.is-neutral{
+  background:#f8fafc
+}
+.pnl-bottom-line.is-neutral span,
+.pnl-bottom-line.is-neutral strong{
+  color:#475467
+}
+.pnl-bottom-line.is-neutral small{
+  color:var(--muted)
+}
+.report-source-total{
+  margin-top:4px;
+  padding-top:11px!important;
+  border-top:2px solid var(--line)!important
+}
+.report-source-total span,
+.report-source-total strong{
+  color:var(--text)!important;
+  font-weight:900
+}
+.report-finance-separator{
+  height:1px;
+  margin:12px 0;
+  background:var(--line)
+}
+.report-finance-block{
+  display:grid;
+  gap:4px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fafbfd
+}
+.report-finance-block+.report-finance-block{
+  margin-top:9px
+}
+.report-finance-block>span{
+  color:var(--muted);
+  font-size:8px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em
+}
+.report-finance-block>strong{
+  font-size:15px
+}
+.report-finance-block>small{
+  color:var(--muted);
+  font-size:8px;
+  line-height:1.45
+}
+.report-finance-block.capital{
+  border-color:#f3d5a7;
+  background:#fffaf1
+}
