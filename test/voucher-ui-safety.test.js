@@ -81,7 +81,10 @@ test('cashier Handlebars templates compile', () => {
     'views/admin/cashier-receipt.hbs',
     'views/admin/cashiers.hbs',
     'views/admin/vouchers.hbs',
-    'views/admin/dashboard.hbs'
+    'views/admin/dashboard.hbs',
+    'views/admin/reports.hbs',
+    'views/admin/expenses.hbs',
+    'views/admin/assets.hbs'
   ]) {
     assert.doesNotThrow(
       () => Handlebars.precompile(read(file)),
@@ -204,4 +207,62 @@ test('dashboard compares payment gateway and voucher sales while voucher reports
 
   assert.match(voucherService, /collected_period/);
   assert.match(voucherService, /Africa\/Dar_es_Salaam/);
+});
+
+test('finance routes are tenant-scoped and do not modify access control paths', () => {
+  const routes = read('src/routes/admin.js');
+  const service = read('src/services/accounting-service.js');
+  const migration = read('src/db/migrations/023_accounting_reports.sql');
+  const layout = read('views/layouts/admin.hbs');
+
+  assert.match(routes, /router\.get\('\/reports', requireOwnerOrSuperAdmin/);
+  assert.match(routes, /router\.get\('\/expenses', requireOwnerOrSuperAdmin/);
+  assert.match(routes, /router\.get\('\/assets', requireOwnerOrSuperAdmin/);
+  assert.match(routes, /organizationId: selectedOrg\.id/);
+
+  assert.match(service, /WHERE organization_id = \$1/);
+  assert.match(service, /payment_transactions/);
+  assert.match(service, /voucher_sales/);
+  assert.match(service, /accounting_expenses/);
+  assert.match(service, /accounting_assets/);
+
+  assert.match(migration, /organization_id BIGINT NOT NULL/);
+  assert.match(migration, /enforce_accounting_expense_scope/);
+  assert.match(migration, /enforce_accounting_asset_scope/);
+  assert.match(migration, /prevent_audit_hard_delete/);
+
+  assert.match(layout, /data-nav-path="\/admin\/reports"/);
+  assert.match(layout, /data-nav-path="\/admin\/expenses"/);
+  assert.match(layout, /data-nav-path="\/admin\/assets"/);
+
+  assert.doesNotMatch(service, /authorizeExternalPortalClient/);
+  assert.doesNotMatch(service, /listHotspotAuthedClients/);
+  assert.doesNotMatch(service, /radcheck|radreply|radacct/i);
+});
+
+test('management P&L keeps capital assets separate and gateway fees automatic', () => {
+  const reports = read('views/admin/reports.hbs');
+  const expenses = read('views/admin/expenses.hbs');
+  const service = read('src/services/accounting-service.js');
+
+  assert.match(reports, /reports\.tab\.profit/);
+  assert.match(reports, /reports\.beforeDepreciationTax/);
+  assert.match(reports, /report\.summary\.capital_investment/);
+  assert.match(reports, /report\.summary\.gateway_fees/);
+
+  assert.match(expenses, /expenses\.gatewayFeeReminderHint/);
+  assert.match(expenses, /expenses\.assetReminderHint/);
+
+  assert.match(service, /gateway_fee_tzs/);
+  assert.match(service, /category = 'bandwidth'/);
+  assert.match(service, /category = 'voucher_commission'/);
+});
+
+test('platform usernames remain globally unique under the existing shared login', () => {
+  const migration = read('src/db/migrations/007_platform_users.sql');
+  const auth = read('src/services/auth-service.js');
+
+  assert.match(migration, /username VARCHAR\(120\) NOT NULL UNIQUE/);
+  assert.match(auth, /WHERE username = \$1/);
+  assert.doesNotMatch(auth, /WHERE username = \$1[\s\S]{0,120}organization_id =/);
 });
