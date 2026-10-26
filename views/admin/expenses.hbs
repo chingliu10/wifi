@@ -182,18 +182,18 @@
             <td data-label="{{t 'expenses.description'}}">
               <strong>{{description}}</strong>
               <small>{{#if vendor}}{{vendor}}{{/if}}{{#if reference}} · {{reference}}{{/if}}</small>
-              {{#if cashier_name}}<small>{{../t 'expenses.cashier'}}: {{cashier_name}}</small>{{/if}}
+              {{#if cashier_name}}<small>{{t 'expenses.cashier'}}: {{cashier_name}}</small>{{/if}}
             </td>
-            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{../t 'expenses.businessWide'}}{{/if}}</td>
+            <td data-label="{{t 'common.site'}}">{{#if site_name}}{{site_name}}{{else}}{{t 'expenses.businessWide'}}{{/if}}</td>
             <td data-label="{{t 'expenses.amount'}}"><strong>{{formatTzs amount_tzs}} TZS</strong><small>{{payment_method_label}}</small></td>
             <td data-label="{{t 'common.status'}}"><span class="status-pill status-{{status}}">{{status}}</span></td>
             <td class="voucher-row-action">
               {{#if is_active}}
                 <details class="accounting-row-menu">
-                  <summary>{{../t 'expenses.voidAction'}}</summary>
+                  <summary>{{t 'expenses.voidAction'}}</summary>
                   <form method="POST" action="/admin/expenses/{{id}}/void">
-                    <input name="reason" maxlength="250" required placeholder="{{../t 'expenses.voidReason'}}">
-                    <button type="submit" class="secondary-button">{{../t 'expenses.confirmVoid'}}</button>
+                    <input name="reason" maxlength="250" required placeholder="{{t 'expenses.voidReason'}}">
+                    <button type="submit" class="secondary-button">{{t 'expenses.confirmVoid'}}</button>
                   </form>
                 </details>
               {{/if}}
