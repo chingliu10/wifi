@@ -16,8 +16,8 @@
 
 <section class="stats-grid cashier-stats">
   <article class="stat-card">
-    <span>{{t 'cashier.soldToday'}}</span>
-    <strong>{{stats.sold_today}}</strong>
+    <span>{{t 'sales.issuedToday'}}</span>
+    <strong>{{stats.issued_today}}</strong>
     <small>{{t 'cashier.vouchersIssued'}}</small>
   </article>
 
@@ -85,6 +85,7 @@
       <h3>{{t 'cashier.todaySales'}}</h3>
       <p>{{t 'cashier.todaySalesHint'}}</p>
     </div>
+    <a class="sales-record-link" href="/admin/cashier/vouchers">{{t 'sales.myVouchers'}}</a>
   </div>
 
   <div class="table-wrap">

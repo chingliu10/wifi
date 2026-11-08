@@ -1,0 +1,23 @@
+<section class="page-head sales-page-head"><div><h2>{{t 'sales.myVouchers'}}</h2><p>{{t 'sales.voucherHistoryHint'}}</p></div></section>
+<form method="GET" action="/admin/cashier/vouchers" class="sales-filters panel">
+  <label><span>{{t 'common.status'}}</span><select name="status">{{#each statusOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+  <label><span>{{t 'common.search'}}</span><input type="search" name="search" value="{{filters.search}}" placeholder="{{t 'sales.voucherSearchHint'}}"></label>
+  <button type="submit" class="primary-action-button">{{t 'sales.apply'}}</button>
+</form>
+<section class="panel sales-record-panel">
+  <ol class="sales-records">
+    {{#each vouchers}}
+      <li class="sales-record">
+        <div class="sales-record-main">
+          <strong>{{package_name}}</strong>
+          <span class="sales-record-meta">•••• {{code_last4}} · V-{{id}}</span>
+          <span class="sales-record-meta">{{t 'sales.issued'}}: {{formatDate issued_at}}</span>
+          {{#if redeemed_at}}<span class="sales-record-meta">{{t 'sales.firstUsed'}}: {{formatDate redeemed_at}}</span>{{/if}}
+          <a class="sales-record-link" href="/admin/cashier/sales/{{id}}">{{t 'cashier.viewVoucher'}}</a>
+        </div>
+        <div class="sales-record-side"><strong>{{formatTzs amount_tzs}} TZS</strong><span class="status-pill status-{{status}}">{{statusLabel status}}</span></div>
+      </li>
+    {{else}}<li class="empty">{{t 'sales.noVouchers'}}</li>{{/each}}
+  </ol>
+  {{> admin-pagination pagination}}
+</section>

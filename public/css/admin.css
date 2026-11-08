@@ -1314,6 +1314,59 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px 14px
   }
 }
 
+/* Sales reporting is read-only and has its own mobile record layout. */
+.sales-page-head p{max-width:720px}
+.sales-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;padding:16px;margin-bottom:10px}
+.sales-filters label{display:grid;gap:6px;flex:1 1 145px;min-width:0}
+.sales-filters label>span{font-size:12px;font-weight:700;color:var(--muted)}
+.sales-filters input,.sales-filters select{width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text);font:inherit}
+.sales-filters button{min-height:44px}
+.sales-custom-date[hidden]{display:none}
+.sales-period-note{margin:10px 2px 16px;color:var(--muted);font-size:12px;line-height:1.5}
+.sales-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.sales-summary article{padding:18px;min-width:0}
+.sales-summary article>span{font-size:13px;color:var(--muted)}
+.sales-summary strong{display:block;margin:8px 0;font-size:22px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.sales-primary-total>strong{font-size:30px}
+.sales-primary-total strong small{font-size:14px;color:var(--muted)}
+.sales-summary p{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}
+.sales-records{list-style:none;margin:0;padding:0}
+.sales-record{display:flex;justify-content:space-between;align-items:start;gap:16px;padding:16px 18px;border-top:1px solid var(--line)}
+.sales-record-main{display:grid;gap:6px;min-width:0}
+.sales-record-main>strong{font-size:14px}
+.sales-record-meta{font-size:12px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.sales-record-main code{overflow-wrap:anywhere}
+.sales-record-amount,.sales-record-side>strong{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sales-record-side{display:grid;justify-items:end;gap:9px}
+.sales-record-link{display:inline-flex;align-items:center;min-height:36px;color:var(--accent);font-size:12px;overflow-wrap:anywhere}
+@media(max-width:760px){
+  .mobile-bottom-nav.cashier-bottom-nav{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cashier-bottom-nav small{font-size:11px}
+  .cashier-layout .cashier-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .cashier-layout .cashier-stats .stat-card{padding:13px;min-width:0}
+  .cashier-layout .cashier-stats .stat-card>span{font-size:12px}
+  .cashier-layout .cashier-stats .stat-card>strong{font-size:19px;overflow-wrap:anywhere}
+  .cashier-layout .cashier-stats .stat-card>small{font-size:11px;line-height:1.5}
+  .cashier-layout .cashier-package-card{grid-template-columns:minmax(0,1fr) minmax(115px,140px);gap:8px 12px;padding:14px}
+  .cashier-layout .cashier-package-price{grid-column:1;font-size:21px}
+  .cashier-layout .cashier-issue-button{grid-column:2;grid-row:1 / span 2;min-height:48px;font-size:12px;line-height:1.5}
+  .sales-filters{padding:13px;gap:10px}
+  .sales-filters label{flex-basis:100%}
+  .sales-filters input,.sales-filters select{font-size:16px}
+  .sales-filters button{width:100%;font-size:14px}
+  .sales-summary{grid-template-columns:1fr;gap:10px}
+  .sales-summary article{padding:16px}
+  .sales-summary strong{font-size:22px}
+  .sales-primary-total>strong{font-size:30px}
+  .sales-record-panel{background:transparent;border:0;box-shadow:none}
+  .sales-record-panel .panel-head{padding-left:0;padding-right:0}
+  .sales-records{display:grid;gap:10px}
+  .sales-record{padding:14px 12px;gap:10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .sales-record-main>strong{font-size:14px}
+  .sales-record-amount,.sales-record-side>strong{font-size:13px}
+  .sales-record-link{min-height:44px;font-size:13px}
+}
+
 
 /* Voucher activity control center */
 .voucher-overview-stats{

@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { REDEEMED_VOUCHER_SALES_SQL } = require('./sales-service');
 
 const EXPENSE_CATEGORIES = new Set([
   'bandwidth',
@@ -477,17 +478,17 @@ const getAccountingReport = async ({
           SELECT
             COUNT(*)::INTEGER AS sales,
             COALESCE(SUM(sale_price_tzs), 0)::BIGINT AS gross
-          FROM voucher_sales
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
           WHERE organization_id = $1
             AND sale_status = 'issued'
             AND ($2::bigint IS NULL OR site_id = $2)
             AND (
               $3::date IS NULL
-              OR (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $3::date
+              OR (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $3::date
             )
             AND (
               $4::date IS NULL
-              OR (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $4::date
+              OR (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $4::date
             )
         ),
         expense AS (
@@ -585,13 +586,13 @@ const getAccountingReport = async ({
         ),
         voucher AS (
           SELECT
-            (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
+            (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
             SUM(sale_price_tzs)::BIGINT AS amount
-          FROM voucher_sales
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
           WHERE organization_id = $1
             AND sale_status = 'issued'
             AND ($2::bigint IS NULL OR site_id = $2)
-            AND (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+            AND (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
               BETWEEN (SELECT start_day FROM bounds)
                   AND (SELECT end_day FROM bounds)
           GROUP BY 1
@@ -653,17 +654,17 @@ const getAccountingReport = async ({
           SELECT
             site_id,
             SUM(sale_price_tzs)::BIGINT AS amount
-          FROM voucher_sales
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
           WHERE organization_id = $1
             AND sale_status = 'issued'
             AND ($2::bigint IS NULL OR site_id = $2)
             AND (
               $3::date IS NULL
-              OR (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $3::date
+              OR (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date >= $3::date
             )
             AND (
               $4::date IS NULL
-              OR (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $4::date
+              OR (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date <= $4::date
             )
           GROUP BY site_id
         ),

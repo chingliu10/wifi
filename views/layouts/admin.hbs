@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body
+  {{#if isCashier}}class="cashier-layout"{{/if}}
   data-show-password-label="{{t 'account.showPassword'}}"
   data-hide-password-label="{{t 'account.hidePassword'}}"
 >
@@ -74,6 +75,8 @@
               </span>
               <span>{{t 'cashier.sellVoucher'}}</span>
             </a>
+            <a data-nav-path="/admin/cashier/vouchers" href="/admin/cashier/vouchers"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M8 9h8M8 15h8"></path></svg></span><span>{{t 'sales.myVouchers'}}</span></a>
+            <a data-nav-path="/admin/cashier/report" href="/admin/cashier/report"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M21 19H2"></path></svg></span><span>{{t 'sales.myReport'}}</span></a>
           </div>
         {{else}}
 
@@ -103,6 +106,7 @@
 
         <div class="nav-group">
           <span class="nav-group-label">{{t 'nav.finance'}}</span>
+          <a data-nav-path="/admin/sales" href="/admin/sales{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M21 19H2"></path></svg></span><span>{{t 'sales.allSales'}}</span></a>
           <a data-nav-path="/admin/reports" href="/admin/reports{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path></svg>
@@ -230,15 +234,19 @@
     </main>
   </div>
 
-  <nav class="mobile-bottom-nav" aria-label="{{t 'nav.navigation'}}">
+  <nav class="mobile-bottom-nav {{#if isCashier}}cashier-bottom-nav{{/if}}" aria-label="{{t 'nav.navigation'}}">
     {{#if isCashier}}
-      <a class="active" data-mobile-nav-path="/admin/cashier" href="/admin/cashier">
+      <a data-mobile-nav-path="/admin/cashier" href="/admin/cashier">
         <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span>
         <small>{{t 'cashier.sellVoucher'}}</small>
       </a>
-      <a data-mobile-nav-path="/admin/account/password" href="/admin/account/password">
-        <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"></circle><path d="M5 19c1-4 3-6 7-6s6 2 7 6"></path></svg></span>
-        <small>{{t 'account.account'}}</small>
+      <a data-mobile-nav-path="/admin/cashier/vouchers" href="/admin/cashier/vouchers">
+        <span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M8 9h8M8 15h8"></path></svg></span>
+        <small>{{t 'sales.myVouchers'}}</small>
+      </a>
+      <a data-mobile-nav-path="/admin/cashier/report" href="/admin/cashier/report">
+        <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M21 19H2"></path></svg></span>
+        <small>{{t 'sales.myReport'}}</small>
       </a>
     {{else}}
 
@@ -300,6 +308,9 @@
       const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
       const pathMatches = (navPath) => {
         const normalizedNavPath = navPath.replace(/\/$/, '');
+        if (normalizedNavPath === '/admin/cashier') {
+          return currentPath === normalizedNavPath || currentPath.startsWith('/admin/cashier/sales/');
+        }
         return normalizedNavPath === '/admin'
           ? currentPath === '/admin'
           : currentPath === normalizedNavPath ||

@@ -1,0 +1,73 @@
+<section class="page-head sales-page-head">
+  <div>
+    <h2>{{#if ownOnly}}{{t 'sales.myReport'}}{{else}}{{t 'sales.allSales'}}{{/if}}</h2>
+    <p>{{#if ownOnly}}{{t 'sales.ownHint'}}{{else}}{{t 'sales.allHint'}}{{/if}}</p>
+  </div>
+</section>
+
+<form method="GET" action="{{basePath}}" class="sales-filters panel">
+  {{#unless ownOnly}}<input type="hidden" name="org" value="{{selectedOrg.id}}">{{/unless}}
+  <label><span>{{t 'sales.period'}}</span><select name="range" id="sales-range">
+    {{#each rangeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+  </select></label>
+  <label class="sales-custom-date" {{#unless range.isCustom}}hidden{{/unless}}><span>{{t 'common.from'}}</span><input type="date" name="from" value="{{range.startDate}}"></label>
+  <label class="sales-custom-date" {{#unless range.isCustom}}hidden{{/unless}}><span>{{t 'common.to'}}</span><input type="date" name="to" value="{{range.endDate}}"></label>
+  {{#unless ownOnly}}
+    <label><span>{{t 'sales.source'}}</span><select name="source">{{#each sourceOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+    <label><span>{{t 'common.site'}}</span><select name="siteId"><option value="">{{t 'common.allSites'}}</option>{{#each sites}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+    <label><span>{{t 'vouchers.cashier'}}</span><select name="cashierId"><option value="">{{t 'sales.allCashiers'}}</option>{{#each cashiers}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{full_name}}</option>{{/each}}</select></label>
+  {{/unless}}
+  <label><span>{{t 'common.search'}}</span><input type="search" name="search" value="{{filters.search}}" placeholder="{{t 'sales.searchHint'}}"></label>
+  <button type="submit" class="primary-action-button">{{t 'sales.apply'}}</button>
+</form>
+<p class="sales-period-note">
+  {{#if range.isAll}}{{t 'sales.range.all'}}{{else}}{{range.startDate}} — {{range.endDate}}{{/if}} · {{t 'sales.timezone'}}
+  {{#if filters.cashierId}}<br>{{t 'sales.cashierFilterHint'}}{{/if}}
+</p>
+
+<section class="sales-summary {{#if ownOnly}}sales-summary-own{{/if}}">
+  <article class="panel sales-primary-total">
+    <span>{{#if ownOnly}}{{t 'sales.usedSales'}}{{else}}{{t 'sales.totalSales'}}{{/if}}</span>
+    <strong>{{formatTzs report.total_sales_tzs}} <small>TZS</small></strong>
+    <p>{{report.total}} {{t 'sales.completedSales'}}</p>
+  </article>
+  {{#if ownOnly}}
+    <article class="panel sales-secondary-total"><span>{{t 'cashier.expectedCash'}}</span><strong>{{formatTzs activity.expected_cash_period}} TZS</strong><p>{{activity.issued_period}} {{t 'sales.cashIssuedHint'}}</p></article>
+    <article class="panel sales-secondary-total"><span>{{t 'cashier.waitingToday'}}</span><strong>{{activity.waiting_today}} · {{formatTzs activity.unused_value_tzs}} TZS</strong><p>{{t 'sales.outstandingHint'}}</p></article>
+  {{else}}
+    <article class="panel sales-secondary-total"><span>{{t 'sales.source.voucher'}}</span><strong>{{formatTzs report.voucher_sales_tzs}} TZS</strong><p>{{t 'sales.firstUseHint'}}</p></article>
+    <article class="panel sales-secondary-total"><span>{{t 'sales.source.gateway'}}</span><strong>{{formatTzs report.gateway_sales_tzs}} TZS</strong><p>{{t 'sales.gatewayHint'}}</p></article>
+  {{/if}}
+</section>
+{{#if report.unreconciled_count}}<div class="notice">{{t 'sales.unreconciledHint'}}</div>{{/if}}
+
+<section class="panel sales-record-panel">
+  <div class="panel-head"><div><h3>{{t 'sales.history'}}</h3><p>{{t 'sales.firstUseHint'}}</p></div></div>
+  <ol class="sales-records">
+    {{#each sales}}
+      <li class="sales-record">
+        <div class="sales-record-main">
+          <strong>{{package_name}}</strong>
+          <span class="sales-record-meta">{{formatDate sold_at}} · {{site_name}}</span>
+          <span class="sales-record-meta">{{#if isVoucher}}{{t 'sales.source.voucher'}} · {{cashier_name}} · •••• {{code_last4}}{{else}}{{t 'sales.source.gateway'}} · {{t 'sales.online'}}{{#if customer_name}} · {{customer_name}}{{/if}}{{/if}}</span>
+          {{#unless isVoucher}}<span class="sales-record-meta">{{t 'sales.fee'}}: {{#if hasFee}}{{formatTzs gateway_fee_tzs}} TZS{{else}}—{{/if}} · {{t 'sales.net'}}: {{#if hasNet}}{{formatTzs net_amount_tzs}} TZS{{else}}—{{/if}}</span>{{/unless}}
+          {{#if receiptUrl}}<a class="sales-record-link" href="{{receiptUrl}}">{{reference}} · {{t 'cashier.viewVoucher'}}</a>{{else}}<code>{{reference}}</code>{{/if}}
+        </div>
+        <strong class="sales-record-amount">{{formatTzs amount_tzs}} TZS</strong>
+      </li>
+    {{else}}
+      <li class="empty">{{t 'sales.noSales'}}</li>
+    {{/each}}
+  </ol>
+  {{> admin-pagination pagination}}
+</section>
+<script>
+  (() => {
+    const range = document.getElementById('sales-range');
+    range?.addEventListener('change', () => {
+      document.querySelectorAll('.sales-custom-date').forEach(field => {
+        field.hidden = range.value !== 'custom';
+      });
+    });
+  })();
+</script>
