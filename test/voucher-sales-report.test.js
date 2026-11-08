@@ -33,7 +33,7 @@ test('sales permissions derive cashier and tenant scope from the authenticated a
 });
 
 test('new reporting templates compile and have English and Swahili labels', () => {
-  for (const file of ['sales.hbs', 'cashier-vouchers.hbs']) {
+  for (const file of ['sales.hbs', 'cashier-vouchers.hbs', 'cashier.hbs']) {
     const source = fs.readFileSync(path.join(__dirname, '../views/admin', file), 'utf8');
     assert.doesNotThrow(() => Handlebars.precompile(source));
     for (const match of source.matchAll(/\{\{t '([^']+)'/g)) {
@@ -164,6 +164,26 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(accounting.summary.gateway_gross, 2000);
     assert.equal(accounting.summary.total_revenue, 4000);
     assert.equal(Number((await pool.query('SELECT COUNT(*) AS total FROM wallet_entries WHERE organization_id = $1', [a.org.id])).rows[0].total), 0);
+  });
+
+  await t.test('cashier dashboard separates 3500 used sales from 4500 issued cash and excludes gateway payments', async () => {
+    const business = await tenant('dashboard-cash');
+    const user = await cashier(business, 'dashboard-cashier');
+    const smallPackage = (await pool.query(`INSERT INTO packages (site_id, name, price_tzs, duration_seconds)
+      VALUES ($1, 'Small package', 500, 3600) RETURNING *`, [business.site.id])).rows[0];
+    const small = { ...business, pkg: smallPackage };
+    const now = new Date().toISOString();
+    await makeVoucher(business, user, now, now);
+    for (let i = 0; i < 5; i++) await makeVoucher(small, user, now, now);
+    for (let i = 0; i < 2; i++) await makeVoucher(small, user, now);
+    const reference = await gateway(business, 'paid', true);
+    await pool.query('UPDATE payment_transactions SET paid_at = NOW() WHERE reference = $1', [reference]);
+    const stats = await getCashierActivity({ user });
+    assert.equal(Number(stats.issued_today), 8);
+    assert.equal(Number(stats.expected_cash_today), 4500);
+    assert.equal(Number(stats.redeemed_today), 6);
+    assert.equal(Number(stats.used_sales_today_tzs), 3500);
+    assert.equal(Number(stats.waiting_today), 2);
   });
 
   await t.test('authenticated routes keep forged tenant and cashier parameters inside the session scope', async () => {

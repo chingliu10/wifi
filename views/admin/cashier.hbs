@@ -16,6 +16,12 @@
 
 <section class="stats-grid cashier-stats">
   <article class="stat-card">
+    <span>{{t 'sales.soldToday'}}</span>
+    <strong>{{formatTzs stats.used_sales_today_tzs}} TZS</strong>
+    <small>{{stats.redeemed_today}} {{t 'sales.firstUsedTodayCount'}}</small>
+  </article>
+
+  <article class="stat-card">
     <span>{{t 'sales.issuedToday'}}</span>
     <strong>{{stats.issued_today}}</strong>
     <small>{{t 'cashier.vouchersIssued'}}</small>
@@ -24,13 +30,7 @@
   <article class="stat-card">
     <span>{{t 'cashier.expectedCash'}}</span>
     <strong>{{formatTzs stats.expected_cash_today}} TZS</strong>
-    <small>{{t 'cashier.cashToAccount'}}</small>
-  </article>
-
-  <article class="stat-card">
-    <span>{{t 'cashier.redeemedToday'}}</span>
-    <strong>{{stats.redeemed_today}}</strong>
-    <small>{{t 'cashier.customersConnected'}}</small>
+    <small>{{stats.issued_today}} {{t 'sales.expectedCashTodayHint'}}</small>
   </article>
 
   <article class="stat-card">
