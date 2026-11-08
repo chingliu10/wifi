@@ -44,6 +44,42 @@ test('new reporting templates compile and have English and Swahili labels', () =
   }
 });
 
+test('cashier report labels separate used sales and issued cash without owner payment controls', () => {
+  for (const language of ['en', 'sw']) {
+    const handlebars = Handlebars.create();
+    handlebars.registerHelper('t', key => translate(language, key));
+    handlebars.registerHelper('formatTzs', value => Number(value || 0).toLocaleString('en-US'));
+    handlebars.registerHelper('formatDate', value => String(value || ''));
+    handlebars.registerPartial('admin-pagination', '');
+    const render = handlebars.compile(fs.readFileSync(path.join(__dirname, '../views/admin/sales.hbs'), 'utf8'));
+    const context = {
+      ownOnly: true, basePath: '/admin/cashier/report', filters: {},
+      range: { startDate: '2026-11-08', endDate: '2026-11-08' },
+      report: { total: 6, total_sales_tzs: 3500, voucher_sales_tzs: 3500, gateway_sales_tzs: 0 },
+      activity: { issued_period: 8, expected_cash_period: 4500, waiting_today: 2, unused_value_tzs: 1000 },
+      sales: [{ isVoucher: true, reference: 'V-121', code_last4: '7281', amount_tzs: 500,
+        cashier_name: 'Test cashier', package_name: 'Voucher package', receiptUrl: '/admin/cashier/sales/121' }]
+    };
+    const cashierHtml = render(context);
+    assert.ok(cashierHtml.includes(translate(language, 'sales.usedSales')));
+    assert.ok(cashierHtml.includes('6 ' + translate(language, 'sales.firstUsedInPeriod')));
+    assert.ok(cashierHtml.includes(translate(language, 'sales.expectedVoucherCash')));
+    assert.ok(cashierHtml.includes('8 ' + translate(language, 'sales.cashIssuedHint')));
+    assert.ok(cashierHtml.includes('3,500'));
+    assert.ok(cashierHtml.includes('4,500'));
+    assert.ok(!cashierHtml.includes(translate(language, 'sales.source.gateway')));
+    assert.doesNotMatch(cashierHtml, /name="(?:source|siteId|cashierId|org)"/);
+
+    const ownerHtml = render({ ...context, ownOnly: false, basePath: '/admin/sales',
+      report: { total: 7, total_sales_tzs: 4500, voucher_sales_tzs: 3500, gateway_sales_tzs: 1000 } });
+    assert.ok(ownerHtml.includes(translate(language, 'sales.totalSales')));
+    assert.ok(ownerHtml.includes(translate(language, 'sales.source.gateway')));
+    assert.ok(ownerHtml.includes(translate(language, 'sales.source.voucher')));
+    assert.match(ownerHtml, /name="source"/);
+    assert.match(ownerHtml, /name="cashierId"/);
+  }
+});
+
 test('sales reports isolate accounts and use first-redemption dates without changing issuance or wallet flows', {
   skip: testDatabaseUrl ? false : 'TEST_DATABASE_URL is required; no integration queries run against production'
 }, async t => {
@@ -122,6 +158,8 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(Number(result.total_sales_tzs), 1000);
     assert.equal(Number(result.sales[0].id), Number(first.sale.id));
     assert.equal(result.sales[0].source, 'voucher');
+    assert.equal(Number(result.voucher_sales_tzs), 1000);
+    assert.equal(Number(result.gateway_sales_tzs), 0);
     assert.equal('code' in result.sales[0], false);
     assert.equal('code_enc' in result.sales[0], false);
     const activity = await getCashierActivity({ user: ca, ...period });
@@ -131,6 +169,15 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(Number(activity.unused_value_tzs), 1000);
     const cashSummary = await getCashierVoucherSalesSummary({ organizationId: a.org.id, ...period });
     assert.equal(Number(cashSummary.totals.redeemed_period), 2);
+  });
+
+  await t.test('cashier with no voucher sales gets zero even when gateway payments exist', async () => {
+    const user = await cashier(a, 'cashier-empty');
+    const result = await listSales({ user, source: 'gateway', ...period });
+    assert.equal(result.total, 0);
+    assert.equal(Number(result.total_sales_tzs), 0);
+    assert.equal(Number(result.gateway_sales_tzs), 0);
+    assert.deepEqual(result.sales, []);
   });
 
   await t.test('voucher history includes unused and voided records but no other cashier', async () => {
@@ -166,7 +213,7 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(Number((await pool.query('SELECT COUNT(*) AS total FROM wallet_entries WHERE organization_id = $1', [a.org.id])).rows[0].total), 0);
   });
 
-  await t.test('cashier dashboard separates 3500 used sales from 4500 issued cash and excludes gateway payments', async () => {
+  await t.test('cashier dashboard and report separate 3500 used sales from 4500 issued cash and exclude gateway payments', async () => {
     const business = await tenant('dashboard-cash');
     const user = await cashier(business, 'dashboard-cashier');
     const smallPackage = (await pool.query(`INSERT INTO packages (site_id, name, price_tzs, duration_seconds)
@@ -184,6 +231,15 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(Number(stats.redeemed_today), 6);
     assert.equal(Number(stats.used_sales_today_tzs), 3500);
     assert.equal(Number(stats.waiting_today), 2);
+    const today = (await pool.query("SELECT (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date::text AS today")).rows[0].today;
+    const report = await listSales({ user, organizationId: a.org.id, cashierUserId: ca.id,
+      source: 'gateway', startDate: today, endDate: today });
+    assert.equal(report.total, 6);
+    assert.equal(Number(report.total_sales_tzs), 3500);
+    assert.equal(Number(report.voucher_sales_tzs), 3500);
+    assert.equal(Number(report.gateway_sales_tzs), 0);
+    assert.equal(report.sales.length, 6);
+    assert.ok(report.sales.every(sale => sale.source === 'voucher' && Number(sale.cashier_user_id) === Number(user.id)));
   });
 
   await t.test('authenticated routes keep forged tenant and cashier parameters inside the session scope', async () => {
@@ -191,7 +247,7 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     const app = express();
     app.use((req, res, next) => {
       res.render = (view, data) => res.json({ view, sales: data.sales, vouchers: data.vouchers,
-        total: data.report?.total });
+        total: data.report?.total, ownOnly: data.ownOnly, report: data.report, activity: data.activity });
       next();
     });
     app.use('/admin', require('../src/routes/admin'));
@@ -205,6 +261,10 @@ test('sales reports isolate accounts and use first-redemption dates without chan
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.total, 1);
+    assert.equal(body.ownOnly, true);
+    assert.equal(Number(body.report.total_sales_tzs), 1000);
+    assert.equal(Number(body.report.gateway_sales_tzs), 0);
+    assert.equal(Number(body.activity.expected_cash_period), 2000);
     assert.equal(Number(body.sales[0].id), Number(first.sale.id));
     const forbidden = await fetch(origin + '/admin/sales', { headers, redirect: 'manual' });
     assert.equal(forbidden.status, 302);
