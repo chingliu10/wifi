@@ -70,8 +70,10 @@ const listSales = async ({ user, organizationId, source = '', siteId, cashierUse
   const safePage = normalizePage(page);
   const safePageSize = normalizePageSize(pageSize);
   const safeSource = scope.cashierUserId ? 'voucher' : ['gateway', 'voucher'].includes(source) ? source : '';
+  // Cashier reports never query gateway records; owners retain the combined report.
   const result = await pool.query(`
     WITH sales AS (
+      ${scope.cashierUserId ? '' : `
       SELECT 'gateway'::text AS source, pt.id, pt.reference,
         pt.site_id, COALESCE(pt.site_name_snapshot, s.name) AS site_name,
         NULL::bigint AS cashier_user_id, NULL::text AS cashier_name,
@@ -86,12 +88,14 @@ const listSales = async ({ user, organizationId, source = '', siteId, cashierUse
         AND $2::bigint IS NULL
 
       UNION ALL
+      `}
 
-      SELECT 'voucher'::text, vs.id, 'V-' || vs.id::text,
-        vs.site_id, s.name, vs.cashier_user_id, u.full_name,
-        vs.package_name_snapshot, vs.sale_price_tzs::numeric, NULL::numeric, NULL::numeric,
-        NULL::text, NULL::text, vs.sold_at, vs.issued_at, vs.code_last4::text,
-        'redeemed'::text
+      SELECT 'voucher'::text AS source, vs.id, 'V-' || vs.id::text AS reference,
+        vs.site_id, s.name AS site_name, vs.cashier_user_id, u.full_name AS cashier_name,
+        vs.package_name_snapshot AS package_name, vs.sale_price_tzs::numeric AS amount_tzs,
+        NULL::numeric AS gateway_fee_tzs, NULL::numeric AS net_amount_tzs,
+        NULL::text AS customer_name, NULL::text AS phone, vs.sold_at, vs.issued_at,
+        vs.code_last4::text AS code_last4, 'redeemed'::text AS access_status
       FROM ${REDEEMED_VOUCHER_SALES_SQL} vs
       JOIN sites s ON s.id = vs.site_id
       JOIN platform_users u ON u.id = vs.cashier_user_id
