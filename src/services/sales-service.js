@@ -144,6 +144,9 @@ const getCashierActivity = async ({ user, startDate, endDate }) => {
         (NOW() AT TIME ZONE '${REPORT_TIMEZONE}')::date), 0) AS expected_cash_today,
       COUNT(*) FILTER (WHERE v.status = 'redeemed' AND (v.redeemed_at AT TIME ZONE '${REPORT_TIMEZONE}')::date =
         (NOW() AT TIME ZONE '${REPORT_TIMEZONE}')::date)::integer AS redeemed_today,
+      COALESCE(SUM(vs.sale_price_tzs) FILTER (WHERE v.status = 'redeemed'
+        AND (v.redeemed_at AT TIME ZONE '${REPORT_TIMEZONE}')::date =
+        (NOW() AT TIME ZONE '${REPORT_TIMEZONE}')::date), 0) AS used_sales_today_tzs,
       COUNT(*) FILTER (WHERE v.status = 'unused' AND vb.active
         AND (vb.redeemable_until IS NULL OR vb.redeemable_until >= NOW()))::integer AS waiting_today,
       COALESCE(SUM(vs.sale_price_tzs) FILTER (WHERE v.status = 'unused' AND vb.active
