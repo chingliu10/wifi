@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/database');
+const { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, listSales, getCashierActivity, listCashierVouchers } = require('../services/sales-service');
 const { normalizeMacAddress } = require('../utils/mac-address');
 const {
   authenticateUser,
@@ -574,28 +575,28 @@ const loadDashboardBusinessData = async (organizationId) => {
             FROM payment_transactions
             WHERE organization_id = $1
               AND status = 'paid'
-              AND paid_at::date = CURRENT_DATE
+              AND (paid_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
           )::INTEGER AS payments_today,
           (
             SELECT COALESCE(SUM(amount_tzs), 0)
             FROM payment_transactions
             WHERE organization_id = $1
               AND status = 'paid'
-              AND paid_at::date = CURRENT_DATE
+              AND (paid_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
           )::BIGINT AS gateway_sales_today,
           (
             SELECT COUNT(*)
-            FROM voucher_sales
+            FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
             WHERE organization_id = $1
               AND sale_status = 'issued'
-              AND issued_at::date = CURRENT_DATE
+              AND (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
           )::INTEGER AS cashier_sales_today,
           (
             SELECT COALESCE(SUM(sale_price_tzs), 0)
-            FROM voucher_sales
+            FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
             WHERE organization_id = $1
               AND sale_status = 'issued'
-              AND issued_at::date = CURRENT_DATE
+              AND (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
           )::BIGINT AS cashier_cash_today,
           (
             SELECT COALESCE(SUM(amount_tzs), 0)
@@ -605,7 +606,7 @@ const loadDashboardBusinessData = async (organizationId) => {
           )::NUMERIC(18,2) AS gateway_collected_total,
           (
             SELECT COALESCE(SUM(sale_price_tzs), 0)
-            FROM voucher_sales
+            FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
             WHERE organization_id = $1
               AND sale_status = 'issued'
           )::NUMERIC(18,2) AS cashier_collected_total,
@@ -674,15 +675,15 @@ const loadDashboardBusinessData = async (organizationId) => {
         ),
         voucher_sales_by_day AS (
           SELECT
-            (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
+            (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date AS day,
             SUM(sale_price_tzs)::BIGINT AS amount
-          FROM voucher_sales
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} voucher_sales
           WHERE organization_id = $1
             AND sale_status = 'issued'
-            AND (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+            AND (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
               >= (SELECT day FROM local_today) - 6
           GROUP BY
-            (issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
+            (sold_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date
         )
         SELECT
           days.day,
@@ -720,10 +721,10 @@ const loadDashboardBusinessData = async (organizationId) => {
             vs.package_name_snapshot AS package_name,
             COUNT(*)::INTEGER AS sales_count,
             SUM(vs.sale_price_tzs)::BIGINT AS revenue
-          FROM voucher_sales vs
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} vs
           WHERE vs.organization_id = $1
             AND vs.sale_status = 'issued'
-            AND vs.issued_at >= NOW() - INTERVAL '30 days'
+            AND vs.sold_at >= NOW() - INTERVAL '30 days'
           GROUP BY vs.package_name_snapshot
         )
         SELECT
@@ -763,9 +764,9 @@ const loadDashboardBusinessData = async (organizationId) => {
             COALESCE(u.full_name, u.username, 'Cashier') AS title,
             vs.package_name_snapshot AS package_name,
             vs.sale_price_tzs::BIGINT AS amount_tzs,
-            vs.issued_at AS happened_at,
+            vs.sold_at AS happened_at,
             s.name AS site_name
-          FROM voucher_sales vs
+          FROM ${REDEEMED_VOUCHER_SALES_SQL} vs
           JOIN sites s ON s.id = vs.site_id
           LEFT JOIN platform_users u ON u.id = vs.cashier_user_id
           WHERE vs.organization_id = $1
@@ -1233,8 +1234,12 @@ const csvCell = (value) => {
   return '"' + text.replace(/"/g, '""') + '"';
 };
 
-const isIsoDate = (value) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const isIsoDate = (value) => {
+  const text = String(value || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const date = new Date(text + 'T00:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === text;
+};
 
 const getDarEsSalaamToday = () => {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -1267,6 +1272,7 @@ const resolveVoucherSalesRange = ({
   const today = getDarEsSalaamToday();
   const safeRange = [
     'today',
+    'yesterday',
     'last7',
     'last30',
     'this_month',
@@ -1280,7 +1286,10 @@ const resolveVoucherSalesRange = ({
   let startDate = today;
   let endDate = today;
 
-  if (safeRange === 'last7') {
+  if (safeRange === 'yesterday') {
+    startDate = shiftIsoDate(today, -1);
+    endDate = startDate;
+  } else if (safeRange === 'last7') {
     startDate = shiftIsoDate(today, -6);
   } else if (safeRange === 'last30') {
     startDate = shiftIsoDate(today, -29);
@@ -1330,6 +1339,7 @@ const resolveAccountingRange = ({
 const buildAccountingRangeView = (range) => ({
   ...range,
   isToday: range.range === 'today',
+  isYesterday: range.range === 'yesterday',
   isLast7: range.range === 'last7',
   isLast30: range.range === 'last30',
   isThisMonth: range.range === 'this_month',
@@ -1358,6 +1368,54 @@ const buildAssetTypeOptions = (req, selected = '') =>
     label: req.t('assets.type.' + value),
     selected: value === selected
   }));
+
+const renderSalesReport = async (req, res, ownOnly) => {
+  try {
+    if (!hasSalesPermission(req.authUser, ownOnly ? 'sales.view_own' : 'sales.view_organization')) {
+      return res.status(403).send('Sales access is not permitted.');
+    }
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    if (!selectedOrg) return res.status(404).send('Business not found.');
+    const range = resolveVoucherSalesRange({ range: req.query.range, from: req.query.from, to: req.query.to });
+    const filters = {
+      source: ownOnly ? 'voucher' : ['gateway', 'voucher'].includes(req.query.source) ? req.query.source : '',
+      siteId: ownOnly ? null : Number(req.query.siteId) || null,
+      cashierId: ownOnly ? null : Number(req.query.cashierId) || null,
+      search: String(req.query.search || '').trim().slice(0, 100)
+    };
+    const [report, activity, sitesResult, cashiersResult] = await Promise.all([
+      listSales({ user: req.authUser, organizationId: selectedOrg.id,
+        ...filters, cashierUserId: filters.cashierId, startDate: range.startDate,
+        endDate: range.endDate, page: getPage(req.query.page), pageSize: ADMIN_PAGE_SIZE }),
+      ownOnly ? getCashierActivity({ user: req.authUser, startDate: range.startDate, endDate: range.endDate }) : null,
+      ownOnly ? { rows: [] } : pool.query('SELECT id, name FROM sites WHERE organization_id = $1 ORDER BY name', [selectedOrg.id]),
+      ownOnly ? { rows: [] } : pool.query("SELECT id, full_name FROM platform_users WHERE organization_id = $1 AND role = 'cashier' ORDER BY full_name", [selectedOrg.id])
+    ]);
+    const basePath = ownOnly ? '/admin/cashier/report' : '/admin/sales';
+    return renderAdmin(req, res, 'admin/sales', {
+      titleKey: ownOnly ? 'sales.myReport' : 'sales.allSales', organizations, selectedOrg,
+      ownOnly, report, activity, basePath, filters,
+      range: buildAccountingRangeView(range),
+      rangeOptions: ['today', 'yesterday', 'last7', 'last30', 'this_month', 'last_month', 'all', 'custom']
+        .map(value => ({ value, label: req.t('sales.range.' + value), selected: value === range.range })),
+      sourceOptions: ['', 'voucher', 'gateway'].map(value => ({ value,
+        label: req.t('sales.source.' + (value || 'all')), selected: value === filters.source })),
+      sites: sitesResult.rows.map(site => ({ ...site, selected: Number(site.id) === filters.siteId })),
+      cashiers: cashiersResult.rows.map(cashier => ({ ...cashier, selected: Number(cashier.id) === filters.cashierId })),
+      sales: report.sales.map(sale => ({ ...sale, isVoucher: sale.source === 'voucher',
+        hasFee: sale.gateway_fee_tzs !== null, hasNet: sale.net_amount_tzs !== null,
+        receiptUrl: ownOnly ? '/admin/cashier/sales/' + sale.id : null })),
+      pagination: buildPagination({ page: report.page, total: report.total, basePath,
+        query: { org: ownOnly ? '' : selectedOrg.id, range: range.range,
+          from: range.range === 'custom' ? range.startDate : '', to: range.range === 'custom' ? range.endDate : '',
+          source: ownOnly ? '' : filters.source, siteId: filters.siteId || '',
+          cashierId: filters.cashierId || '', search: filters.search } })
+    });
+  } catch (error) {
+    console.error('SALES REPORT ERROR:', error);
+    return res.status(error.statusCode || 500).send('Unable to load sales report.');
+  }
+};
 
 const renderVoucherAdmin = async ({
   req,
@@ -1777,36 +1835,7 @@ router.get('/cashier', async (req, res) => {
         ).rows
       : [];
 
-    const statsResult = await pool.query(
-      `
-        SELECT
-          COUNT(*) FILTER (
-            WHERE vs.issued_at::date = CURRENT_DATE
-              AND vs.sale_status = 'issued'
-          )::INTEGER AS sold_today,
-          COALESCE(
-            SUM(vs.sale_price_tzs) FILTER (
-              WHERE vs.issued_at::date = CURRENT_DATE
-                AND vs.sale_status = 'issued'
-            ),
-            0
-          )::BIGINT AS expected_cash_today,
-          COUNT(*) FILTER (
-            WHERE vs.issued_at::date = CURRENT_DATE
-              AND vs.sale_status = 'issued'
-              AND v.status = 'redeemed'
-          )::INTEGER AS redeemed_today,
-          COUNT(*) FILTER (
-            WHERE vs.issued_at::date = CURRENT_DATE
-              AND vs.sale_status = 'issued'
-              AND v.status = 'unused'
-          )::INTEGER AS waiting_today
-        FROM voucher_sales vs
-        JOIN vouchers v ON v.id = vs.voucher_id
-        WHERE vs.cashier_user_id = $1
-      `,
-      [req.authUser.id]
-    );
+    const stats = await getCashierActivity({ user: req.authUser });
 
     const recentSales = (
       await pool.query(
@@ -1836,7 +1865,7 @@ router.get('/cashier', async (req, res) => {
       site,
       packages,
       canSell,
-      stats: statsResult.rows[0] || {},
+      stats,
       recentSales,
       saleRequestKey: crypto.randomUUID(),
       voided: String(req.query.voided || '') === '1',
@@ -1854,6 +1883,34 @@ router.get('/cashier', async (req, res) => {
     return res.status(500).send('Unable to load cashier.');
   }
 });
+
+router.get('/cashier/report', (req, res) => renderSalesReport(req, res, true));
+
+router.get('/cashier/vouchers', async (req, res) => {
+  try {
+    if (!hasSalesPermission(req.authUser, 'vouchers.view_own')) {
+      return res.status(403).send('Cashier access is required.');
+    }
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    const status = ['unused', 'redeemed', 'voided', 'cancelled', 'expired'].includes(req.query.status) ? req.query.status : '';
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const result = await listCashierVouchers({ user: req.authUser, status, search,
+      page: getPage(req.query.page), pageSize: ADMIN_PAGE_SIZE });
+    return renderAdmin(req, res, 'admin/cashier-vouchers', {
+      titleKey: 'sales.myVouchers', organizations, selectedOrg, vouchers: result.vouchers,
+      filters: { status, search },
+      statusOptions: ['', 'unused', 'redeemed', 'voided', 'cancelled', 'expired'].map(value => ({ value,
+        label: value ? req.t('status.' + value) : req.t('common.allStatuses'), selected: value === status })),
+      pagination: buildPagination({ page: result.page, total: result.total,
+        basePath: '/admin/cashier/vouchers', query: { status, search } })
+    });
+  } catch (error) {
+    console.error('CASHIER VOUCHER HISTORY ERROR:', error);
+    return res.status(error.statusCode || 500).send('Unable to load voucher history.');
+  }
+});
+
+router.get('/sales', requireOwnerOrSuperAdmin, (req, res) => renderSalesReport(req, res, false));
 
 router.post('/cashier/sales', async (req, res) => {
   try {
@@ -1964,12 +2021,12 @@ router.get('/cashiers', requireOwnerOrSuperAdmin, async (req, res) => {
             u.created_at,
             s.name AS site_name,
             COUNT(vs.id) FILTER (
-              WHERE vs.issued_at::date = CURRENT_DATE
+              WHERE (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
                 AND vs.sale_status = 'issued'
             )::INTEGER AS sold_today,
             COALESCE(
               SUM(vs.sale_price_tzs) FILTER (
-                WHERE vs.issued_at::date = CURRENT_DATE
+                WHERE (vs.issued_at AT TIME ZONE 'Africa/Dar_es_Salaam')::date = (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')::date
                   AND vs.sale_status = 'issued'
               ),
               0
