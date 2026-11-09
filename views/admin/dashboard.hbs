@@ -453,7 +453,7 @@
           {{#each dashboard.business.recentActivity}}
             <div>
               <span>
-                <strong>{{title}}</strong>
+                <strong>{{#if title}}{{title}}{{else}}{{t 'vouchers.adminBatch'}}{{/if}}</strong>
                 <small>{{package_name}} · {{site_name}}</small>
               </span>
               <span>
@@ -540,7 +540,8 @@
       free: '{{t 'dashboard.freeAccess'}}',
       unknown: '{{t 'dashboard.unknownAccess'}}',
       payment: '{{t 'dashboard.payment'}}',
-      cashier: '{{t 'dashboard.cashier'}}',
+      voucher: '{{t 'dashboard.cashVouchers'}}',
+      adminVoucher: '{{t 'vouchers.adminBatch'}}',
       sales: '{{t 'dashboard.salesCount'}}',
       noClients: '{{t 'dashboard.noLiveClients'}}',
       noSales: '{{t 'dashboard.noSalesActivity'}}'
@@ -633,9 +634,9 @@
 
       document.querySelectorAll('[data-activity-source]').forEach((element) => {
         element.textContent =
-          element.dataset.activitySource === 'cashier'
-            ? labels.cashier
-            : labels.payment;
+          element.dataset.activitySource === 'payment'
+            ? labels.payment
+            : labels.voucher;
       });
 
       renderSalesChart();
@@ -688,7 +689,7 @@
               ? Math.max(8, (voucherSales / max) * 100)
               : 2) + '%';
           voucherBar.title =
-            labels.cashier + ': ' + formatTzs(voucherSales);
+            labels.voucher + ': ' + formatTzs(voucherSales);
         }
 
         if (amountLabel) {
@@ -778,10 +779,10 @@
       container.innerHTML = rows.length
         ? rows.map((row) =>
             '<div>' +
-              '<span><strong>' + escapeHtml(row.title || '—') + '</strong>' +
+              '<span><strong>' + escapeHtml(row.title || labels.adminVoucher) + '</strong>' +
               '<small>' + escapeHtml((row.package_name || '—') + ' · ' + (row.site_name || '—')) + '</small></span>' +
               '<span><strong>' + escapeHtml(formatTzs(row.amount_tzs)) + '</strong>' +
-              '<small>' + escapeHtml(row.source === 'cashier' ? labels.cashier : labels.payment) + '</small></span>' +
+              '<small>' + escapeHtml(row.source === 'payment' ? labels.payment : labels.voucher) + '</small></span>' +
             '</div>'
           ).join('')
         : '<div class="empty-state"><p>' + escapeHtml(labels.noSales) + '</p></div>';
