@@ -3,10 +3,23 @@ const pool = require('../config/database');
 const REPORT_TIMEZONE = 'Africa/Dar_es_Salaam';
 // Reporting only: issuing/redeeming/voiding vouchers never calls this query.
 // Keep the same first-use rule in the sales list, dashboard and P&L.
+// Admin batches have no cashier sale row, so use their saved package terms.
 const REDEEMED_VOUCHER_SALES_SQL = `(
-  SELECT vs.*, v.redeemed_at AS sold_at, v.code_last4
-  FROM voucher_sales vs JOIN vouchers v ON v.id = vs.voucher_id
-  WHERE vs.sale_status = 'issued' AND v.status = 'redeemed' AND v.redeemed_at IS NOT NULL
+  SELECT vs.id, v.id AS voucher_id, v.organization_id, v.site_id, vb.package_id,
+    vs.cashier_user_id,
+    COALESCE(vs.cashier_user_id, vb.created_by_user_id) AS issued_by_user_id,
+    CASE WHEN vs.id IS NULL THEN 'AV-' || v.id::text ELSE 'V-' || vs.id::text END AS sale_reference,
+    COALESCE(vs.package_name_snapshot, vb.package_name_snapshot) AS package_name_snapshot,
+    COALESCE(vs.package_duration_seconds_snapshot, vb.package_duration_seconds_snapshot) AS package_duration_seconds_snapshot,
+    COALESCE(vs.sale_price_tzs, vb.package_price_tzs_snapshot) AS sale_price_tzs,
+    COALESCE(vs.sale_status, 'issued') AS sale_status,
+    COALESCE(vs.issued_at, v.created_at) AS issued_at,
+    v.redeemed_at AS sold_at, v.code_last4
+  FROM vouchers v
+  JOIN voucher_batches vb ON vb.id = v.batch_id
+  LEFT JOIN voucher_sales vs ON vs.voucher_id = v.id
+  WHERE v.status = 'redeemed' AND v.redeemed_at IS NOT NULL
+    AND (vs.sale_status = 'issued' OR (vs.id IS NULL AND vb.batch_type = 'admin'))
 )`;
 const ROLE_PERMISSIONS = Object.freeze({
   cashier: ['sales.view_own', 'vouchers.view_own'],
@@ -64,7 +77,7 @@ const pageResult = (row, page, pageSize, key) => {
   };
 };
 
-const listSales = async ({ user, organizationId, source = '', siteId, cashierUserId,
+const listSales = async ({ user, organizationId, source = '', siteId, cashierUserId, issuerUserId,
   search = '', startDate, endDate, page = 1, pageSize = 25 }) => {
   const scope = getSalesScope(user, organizationId);
   const safePage = normalizePage(page);
@@ -80,7 +93,8 @@ const listSales = async ({ user, organizationId, source = '', siteId, cashierUse
         COALESCE(pt.package_name_snapshot, p.name) AS package_name,
         pt.amount_tzs::numeric AS amount_tzs, pt.gateway_fee_tzs, pt.net_amount_tzs,
         pt.customer_name, pt.phone, pt.paid_at AS sold_at, pt.created_at AS issued_at,
-        NULL::text AS code_last4, pt.provisioning_status AS access_status
+        NULL::text AS code_last4, pt.provisioning_status AS access_status,
+        NULL::bigint AS voucher_id, NULL::bigint AS issued_by_user_id, NULL::text AS issued_by_name
       FROM payment_transactions pt
       JOIN packages p ON p.id = pt.package_id
       JOIN sites s ON s.id = pt.site_id
@@ -90,25 +104,27 @@ const listSales = async ({ user, organizationId, source = '', siteId, cashierUse
       UNION ALL
       `}
 
-      SELECT 'voucher'::text AS source, vs.id, 'V-' || vs.id::text AS reference,
-        vs.site_id, s.name AS site_name, vs.cashier_user_id, u.full_name AS cashier_name,
+      SELECT 'voucher'::text AS source, COALESCE(vs.id, vs.voucher_id) AS id, vs.sale_reference AS reference,
+        vs.site_id, s.name AS site_name, vs.cashier_user_id,
+        CASE WHEN vs.cashier_user_id IS NOT NULL THEN u.full_name END AS cashier_name,
         vs.package_name_snapshot AS package_name, vs.sale_price_tzs::numeric AS amount_tzs,
         NULL::numeric AS gateway_fee_tzs, NULL::numeric AS net_amount_tzs,
         NULL::text AS customer_name, NULL::text AS phone, vs.sold_at, vs.issued_at,
-        vs.code_last4::text AS code_last4, 'redeemed'::text AS access_status
+        vs.code_last4::text AS code_last4, 'redeemed'::text AS access_status,
+        vs.voucher_id, vs.issued_by_user_id, u.full_name AS issued_by_name
       FROM ${REDEEMED_VOUCHER_SALES_SQL} vs
       JOIN sites s ON s.id = vs.site_id
-      JOIN platform_users u ON u.id = vs.cashier_user_id
+      LEFT JOIN platform_users u ON u.id = vs.issued_by_user_id
       WHERE vs.organization_id = $1 AND vs.sale_status = 'issued'
         AND ($2::bigint IS NULL OR vs.cashier_user_id = $2)
     ), filtered AS (
       SELECT * FROM sales
       WHERE ($3::text = '' OR source = $3)
         AND ($4::bigint IS NULL OR site_id = $4)
-        AND ($5::bigint IS NULL OR cashier_user_id = $5)
+        AND ($5::bigint IS NULL OR issued_by_user_id = $5)
         AND ($6::text = '' OR reference ILIKE '%' || $6 || '%'
           OR package_name ILIKE '%' || $6 || '%'
-          OR COALESCE(cashier_name, '') ILIKE '%' || $6 || '%'
+          OR COALESCE(issued_by_name, '') ILIKE '%' || $6 || '%'
           OR COALESCE(customer_name, '') ILIKE '%' || $6 || '%'
           OR COALESCE(phone, '') ILIKE '%' || $6 || '%'
           OR COALESCE(code_last4, '') ILIKE '%' || $6 || '%')
@@ -124,17 +140,32 @@ const listSales = async ({ user, organizationId, source = '', siteId, cashierUse
           (gateway_fee_tzs IS NULL OR net_amount_tzs IS NULL))::integer AS unreconciled_count
       FROM filtered
     ), paged AS (
-      SELECT * FROM filtered ORDER BY sold_at DESC NULLS LAST, source, id DESC
+      SELECT * FROM filtered ORDER BY sold_at DESC NULLS LAST, source, id DESC, voucher_id DESC NULLS LAST
       LIMIT $9::integer OFFSET (
         LEAST($10::integer, GREATEST(1, CEIL((SELECT total FROM summary)::numeric / $9)::integer)) - 1
       ) * $9
     )
-    SELECT summary.*, COALESCE((SELECT json_agg(paged ORDER BY sold_at DESC NULLS LAST, source, id DESC)
+    SELECT summary.*, COALESCE((SELECT json_agg(paged ORDER BY sold_at DESC NULLS LAST, source, id DESC, voucher_id DESC NULLS LAST)
       FROM paged), '[]'::json) AS sales FROM summary
   `, [scope.organizationId, scope.cashierUserId, safeSource, positiveId(siteId),
-    scope.cashierUserId || positiveId(cashierUserId), String(search || '').trim().slice(0, 100),
+    scope.cashierUserId || positiveId(issuerUserId) || positiveId(cashierUserId), String(search || '').trim().slice(0, 100),
     validDate(startDate), validDate(endDate), safePageSize, safePage]);
   return pageResult(result.rows[0], safePage, safePageSize, 'sales');
+};
+
+const listVoucherIssuers = async ({ user, organizationId }) => {
+  if (!hasSalesPermission(user, 'sales.view_organization')) throw accessError();
+  const scope = getSalesScope(user, organizationId);
+  const result = await pool.query(`
+    SELECT id, full_name FROM platform_users
+    WHERE id IN (
+      SELECT cashier_user_id FROM voucher_sales WHERE organization_id = $1
+      UNION
+      SELECT created_by_user_id FROM voucher_batches WHERE organization_id = $1
+    )
+    ORDER BY full_name, id
+  `, [scope.organizationId]);
+  return result.rows;
 };
 
 const getCashierActivity = async ({ user, startDate, endDate }) => {
@@ -203,4 +234,4 @@ const listCashierVouchers = async ({ user, status = '', search = '', page = 1, p
   return pageResult(result.rows[0], safePage, safePageSize, 'vouchers');
 };
 
-module.exports = { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, getSalesScope, listSales, getCashierActivity, listCashierVouchers };
+module.exports = { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, getSalesScope, listSales, listVoucherIssuers, getCashierActivity, listCashierVouchers };

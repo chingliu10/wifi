@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/database');
-const { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, listSales, getCashierActivity, listCashierVouchers } = require('../services/sales-service');
+const { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, listSales, listVoucherIssuers, getCashierActivity, listCashierVouchers } = require('../services/sales-service');
 const { normalizeMacAddress } = require('../utils/mac-address');
 const {
   authenticateUser,
@@ -759,16 +759,16 @@ const loadDashboardBusinessData = async (organizationId) => {
           UNION ALL
 
           SELECT
-            'cashier'::text AS source,
-            vs.id,
-            COALESCE(u.full_name, u.username, 'Cashier') AS title,
+            'voucher'::text AS source,
+            vs.voucher_id AS id,
+            COALESCE(u.full_name, u.username) AS title,
             vs.package_name_snapshot AS package_name,
             vs.sale_price_tzs::BIGINT AS amount_tzs,
             vs.sold_at AS happened_at,
             s.name AS site_name
           FROM ${REDEEMED_VOUCHER_SALES_SQL} vs
           JOIN sites s ON s.id = vs.site_id
-          LEFT JOIN platform_users u ON u.id = vs.cashier_user_id
+          LEFT JOIN platform_users u ON u.id = vs.issued_by_user_id
           WHERE vs.organization_id = $1
             AND vs.sale_status = 'issued'
         ) activity
@@ -1380,16 +1380,16 @@ const renderSalesReport = async (req, res, ownOnly) => {
     const filters = {
       source: ownOnly ? 'voucher' : ['gateway', 'voucher'].includes(req.query.source) ? req.query.source : '',
       siteId: ownOnly ? null : Number(req.query.siteId) || null,
-      cashierId: ownOnly ? null : Number(req.query.cashierId) || null,
+      issuerId: ownOnly ? null : Number(req.query.issuerId || req.query.cashierId) || null,
       search: String(req.query.search || '').trim().slice(0, 100)
     };
-    const [report, activity, sitesResult, cashiersResult] = await Promise.all([
+    const [report, activity, sitesResult, issuers] = await Promise.all([
       listSales({ user: req.authUser, organizationId: selectedOrg.id,
-        ...filters, cashierUserId: filters.cashierId, startDate: range.startDate,
+        ...filters, issuerUserId: filters.issuerId, startDate: range.startDate,
         endDate: range.endDate, page: getPage(req.query.page), pageSize: ADMIN_PAGE_SIZE }),
       ownOnly ? getCashierActivity({ user: req.authUser, startDate: range.startDate, endDate: range.endDate }) : null,
       ownOnly ? { rows: [] } : pool.query('SELECT id, name FROM sites WHERE organization_id = $1 ORDER BY name', [selectedOrg.id]),
-      ownOnly ? { rows: [] } : pool.query("SELECT id, full_name FROM platform_users WHERE organization_id = $1 AND role = 'cashier' ORDER BY full_name", [selectedOrg.id])
+      ownOnly ? [] : listVoucherIssuers({ user: req.authUser, organizationId: selectedOrg.id })
     ]);
     const basePath = ownOnly ? '/admin/cashier/report' : '/admin/sales';
     return renderAdmin(req, res, 'admin/sales', {
@@ -1401,7 +1401,7 @@ const renderSalesReport = async (req, res, ownOnly) => {
       sourceOptions: ['', 'voucher', 'gateway'].map(value => ({ value,
         label: req.t('sales.source.' + (value || 'all')), selected: value === filters.source })),
       sites: sitesResult.rows.map(site => ({ ...site, selected: Number(site.id) === filters.siteId })),
-      cashiers: cashiersResult.rows.map(cashier => ({ ...cashier, selected: Number(cashier.id) === filters.cashierId })),
+      issuers: issuers.map(issuer => ({ ...issuer, selected: Number(issuer.id) === filters.issuerId })),
       sales: report.sales.map(sale => ({ ...sale, isVoucher: sale.source === 'voucher',
         hasFee: sale.gateway_fee_tzs !== null, hasNet: sale.net_amount_tzs !== null,
         receiptUrl: ownOnly ? '/admin/cashier/sales/' + sale.id : null })),
@@ -1409,7 +1409,7 @@ const renderSalesReport = async (req, res, ownOnly) => {
         query: { org: ownOnly ? '' : selectedOrg.id, range: range.range,
           from: range.range === 'custom' ? range.startDate : '', to: range.range === 'custom' ? range.endDate : '',
           source: ownOnly ? '' : filters.source, siteId: filters.siteId || '',
-          cashierId: filters.cashierId || '', search: filters.search } })
+          issuerId: filters.issuerId || '', search: filters.search } })
     });
   } catch (error) {
     console.error('SALES REPORT ERROR:', error);
