@@ -1,6 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/database');
+const usage = require('../services/usage/usage-service');
+const { formatBytes: formatUsageBytes, normalizeMac: normalizeUsageMac } = require('../services/usage/usage-counters');
 const { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, listSales, listVoucherIssuers, getCashierActivity, listCashierVouchers } = require('../services/sales-service');
 const { normalizeMacAddress } = require('../utils/mac-address');
 const {
@@ -1911,6 +1913,55 @@ router.get('/cashier/vouchers', async (req, res) => {
 });
 
 router.get('/sales', requireOwnerOrSuperAdmin, (req, res) => renderSalesReport(req, res, false));
+
+router.get('/usage', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { organizations, selectedOrg } = await getSelectedOrganization(req);
+    if (!selectedOrg) return res.status(404).send('Business not found.');
+    const installed = await usage.isInstalled();
+    const range = resolveVoucherSalesRange({ range: req.query.range || 'today', from: req.query.from, to: req.query.to });
+    if (!range.startDate || !range.endDate) return res.status(400).send('Choose a date range.');
+    const siteId = Number(req.query.siteId) || null;
+    const mac = req.query.mac ? normalizeUsageMac(req.query.mac) : null;
+    if (req.query.mac && !mac) return res.status(400).send('Invalid device.');
+    const search = String(req.query.search || '').trim().slice(0, 100);
+    const report = installed ? await usage.getReport({ user: req.authUser, organizationId: selectedOrg.id,
+      siteId, mac, search, startDate: range.startDate, endDate: range.endDate }) : null;
+    const baseQuery = new URLSearchParams({ org: String(selectedOrg.id), range: 'custom', from: range.startDate, to: range.endDate });
+    const formatRow = row => ({ ...row, downloadLabel: formatUsageBytes(row.download ?? row.download_total),
+      uploadLabel: formatUsageBytes(row.upload ?? row.upload_total),
+      totalLabel: formatUsageBytes(BigInt(row.download ?? row.download_total ?? 0) + BigInt(row.upload ?? row.upload_total ?? 0)) });
+    return renderAdmin(req, res, 'admin/usage', { titleKey: 'usage.title', organizations, selectedOrg, installed,
+      range: buildAccountingRangeView(range), siteId, search, mac,
+      rangeOptions: ['today','yesterday','last7','last30','this_month','last_month','custom']
+        .map(value => ({ value, label: req.t('sales.range.' + value), selected: value === range.range })),
+      sites: report?.sites.map(site => ({ ...site, selected: Number(site.id) === siteId,
+        configured: Boolean(site.external_portal_site_id), status: !site.enabled ? req.t('usage.paused')
+          : site.last_error_code ? req.t('usage.needsAttention') : !site.last_success_at ? req.t('usage.waiting')
+            : Date.now() - new Date(site.last_success_at).getTime() > 180000 ? req.t('usage.stale') : req.t('usage.collecting') })) || [],
+      totals: report ? formatRow(report.totals) : null,
+      partial: report?.sites.some(site => (!siteId || Number(site.id) === siteId) &&
+        (!site.enabled || site.last_error_code || !site.last_success_at || Date.now() - new Date(site.last_success_at).getTime() > 180000)),
+      clients: report?.clients.map(row => ({ ...formatRow(row),
+        detailUrl: '/admin/usage?' + baseQuery + '&siteId=' + row.site_id + '&mac=' + encodeURIComponent(row.client_mac),
+        canReward: report.sites.some(site => Number(site.id) === Number(row.site_id) && site.active && site.external_portal_site_id) })) || [],
+      days: report?.days.map(formatRow) || [], sessions: report?.sessions.map(formatRow) || [],
+      backUrl: '/admin/usage?' + baseQuery, rewarded: String(req.query.rewarded || '') === '1' });
+  } catch (error) {
+    console.error('USAGE REPORT UNAVAILABLE:', { code: error.code || 'usage_report' });
+    return res.status(error.statusCode || 500).send('Unable to load usage history.');
+  }
+});
+
+router.post('/usage/sites/:siteId/collection', requireOwnerOrSuperAdmin, async (req, res) => {
+  try {
+    const { selectedOrg } = await getSelectedOrganization(req);
+    if (!selectedOrg || !await usage.isInstalled()) return res.status(400).send('Usage history setup is incomplete.');
+    await usage.setCollection({ user: req.authUser, organizationId: selectedOrg.id,
+      siteId: Number(req.params.siteId), enabled: req.body.enabled === 'true' });
+    return res.redirect('/admin/usage?org=' + selectedOrg.id);
+  } catch (error) { return res.status(error.statusCode || 500).send('Unable to change usage collection.'); }
+});
 
 router.post('/cashier/sales', async (req, res) => {
   try {

@@ -89,6 +89,10 @@
         </div>
 
         <div class="nav-group">
+          <span class="nav-group-label">{{t 'usage.title'}}</span>
+          <a data-nav-path="/admin/usage" href="/admin/usage{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M21 19H2"></path></svg></span><span>{{t 'usage.history'}}</span></a>
+        </div>
+        <div class="nav-group">
           <span class="nav-group-label">{{t 'nav.manage'}}</span>
           <a data-nav-path="/admin/packages" href="/admin/packages{{#if selectedOrg}}?org={{selectedOrg.id}}{{/if}}"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"></path><path d="M4 7v10l8 4 8-4V7"></path><path d="M12 11v10"></path></svg></span><span>{{t 'nav.packages'}}</span></a>
           {{#if selectedOrg.vouchers_enabled}}
