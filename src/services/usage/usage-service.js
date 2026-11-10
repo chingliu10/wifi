@@ -57,7 +57,7 @@ const recordReading = async ({ organizationId, siteId, reading, db = pool }) => 
       down = reading.down > oldDown ? reading.down - oldDown : 0n;
       up = reading.up > oldUp ? reading.up - oldUp : 0n;
     }
-    const correction = previous && reading.observedAt <= from && (down > 0n || up > 0n);
+    const correction = Boolean(previous && reading.observedAt <= from && (down > 0n || up > 0n));
     if (correction) from = reading.startedAt;
     let sessionId = previous?.id;
     if (!sessionId) {
