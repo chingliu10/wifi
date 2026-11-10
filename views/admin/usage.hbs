@@ -1,0 +1,67 @@
+<section class="page-head"><div><h2>{{t 'usage.title'}}</h2><p>{{t 'usage.subtitle'}}</p></div></section>
+{{#unless installed}}
+  <div class="notice">{{t 'usage.notInstalled'}}</div>
+{{else}}
+<form method="GET" action="/admin/usage" class="sales-filters panel">
+  <input type="hidden" name="org" value="{{selectedOrg.id}}">
+  {{#if mac}}<input type="hidden" name="mac" value="{{mac}}">{{/if}}
+  <label><span>{{t 'sales.period'}}</span><select name="range">{{#each rangeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+  <label><span>{{t 'common.from'}}</span><input type="date" name="from" value="{{range.startDate}}" onchange="this.form.elements.range.value='custom'"></label>
+  <label><span>{{t 'common.to'}}</span><input type="date" name="to" value="{{range.endDate}}" onchange="this.form.elements.range.value='custom'"></label>
+  <label><span>{{t 'common.site'}}</span><select name="siteId"><option value="">{{t 'common.allSites'}}</option>{{#each sites}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select></label>
+  <label><span>{{t 'common.search'}}</span><input name="search" value="{{search}}" placeholder="{{t 'usage.search'}}"></label>
+  <button class="primary-action-button" type="submit">{{t 'sales.apply'}}</button>
+</form>
+<p class="sales-period-note">{{range.startDate}} — {{range.endDate}} · {{t 'sales.timezone'}} · {{t 'usage.units'}}</p>
+<div class="notice">{{t 'usage.accuracy'}}</div>
+{{#if partial}}<div class="notice">{{t 'usage.coverage'}}</div>{{/if}}
+<section class="sales-summary">
+  <article class="panel sales-primary-total"><span>{{t 'usage.total'}}</span><strong>{{totals.totalLabel}}</strong><p>{{totals.devices}} {{t 'usage.devices'}}</p>{{#if totals.estimated}}<small>{{t 'usage.estimated'}}</small>{{/if}}</article>
+  <article class="panel sales-secondary-total"><span>{{t 'dashboard.download'}}</span><strong>{{totals.downloadLabel}}</strong></article>
+  <article class="panel sales-secondary-total"><span>{{t 'dashboard.upload'}}</span><strong>{{totals.uploadLabel}}</strong></article>
+</section>
+<section class="panel usage-panel">
+  <div class="panel-head"><div><h3>{{t 'usage.collection'}}</h3><p>{{t 'usage.collectionHint'}}</p></div></div>
+  <div class="usage-site-list">{{#each sites}}
+    <article class="usage-site"><div><strong>{{name}}</strong><p>{{status}}{{#if last_success_at}} · {{formatDate last_success_at}}{{/if}}</p>
+      {{#if last_error_code}}<small>{{t 'usage.partial'}}</small>{{/if}}
+      {{#if enabled}}{{#unless last_success_at}}<small>{{t 'usage.waitHint'}}</small>{{/unless}}{{/if}}
+    </div>
+    {{#if configured}}<form method="POST" action="/admin/usage/sites/{{id}}/collection">
+      <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}">
+      <input type="hidden" name="enabled" value="{{#if enabled}}false{{else}}true{{/if}}">
+      <button class="secondary-button" type="submit">{{#if enabled}}{{t 'usage.pause'}}{{else}}{{t 'usage.enable'}}{{/if}}</button>
+    </form>{{else}}<span>{{t 'usage.noController'}}</span>{{/if}}</article>
+  {{else}}<p>{{t 'usage.noSites'}}</p>{{/each}}</div>
+</section>
+{{#if mac}}<p><a href="{{backUrl}}">{{t 'usage.back'}}</a> · <strong>{{mac}}</strong></p>{{/if}}
+<section class="panel usage-panel">
+  <div class="panel-head"><div><h3>{{t 'usage.topDevices'}}</h3><p>{{t 'usage.deviceHint'}}</p></div></div>
+  <ol class="usage-clients">{{#each clients}}<li>
+    <div class="usage-client-main"><a href="{{detailUrl}}"><strong>{{name}}</strong></a><p><code>{{client_mac}}</code> · {{site_name}}{{#if phone}} · {{phone}}{{/if}}</p>
+      <small>{{visits}} {{t 'usage.visits'}} · {{#if is_online}}{{t 'usage.online'}}{{else}}{{t 'usage.offline'}}{{/if}}
+        {{#if estimated}} · {{t 'usage.estimated'}}{{/if}}{{#if provisional}} · {{t 'usage.provisional'}}{{/if}}</small>
+    </div>
+    <div class="usage-client-totals"><strong>{{totalLabel}}</strong><small>↓ {{downloadLabel}} · ↑ {{uploadLabel}}</small></div>
+    {{#if canReward}}<details class="usage-reward"><summary>{{t 'usage.reward'}}</summary>
+      <form method="POST" action="/admin/live-clients/complimentary-access">
+        <input type="hidden" name="organizationId" value="{{../selectedOrg.id}}"><input type="hidden" name="siteId" value="{{site_id}}"><input type="hidden" name="clientMac" value="{{client_mac}}">
+        <input type="hidden" name="grantNote" value="{{t 'usage.rewardNote'}}">
+        <label>{{t 'usage.duration'}}<select name="durationSeconds"><option value="3600">{{t 'usage.hour'}}</option><option value="86400">{{t 'usage.day'}}</option></select></label>
+        <button type="submit" class="primary-action-button">{{t 'usage.confirmReward'}}</button>
+      </form>
+    </details>{{/if}}
+  </li>{{else}}<li class="empty">{{t 'usage.empty'}}</li>{{/each}}</ol>
+</section>
+<div class="usage-history-grid">
+<section class="panel usage-panel"><div class="panel-head"><h3>{{t 'usage.daily'}}</h3></div>
+  <div class="usage-table-scroll"><table><thead><tr><th>{{t 'usage.date'}}</th><th>{{t 'dashboard.download'}}</th><th>{{t 'dashboard.upload'}}</th></tr></thead>
+  <tbody>{{#each days}}<tr><td>{{day}}{{#if estimated}} *{{/if}}</td><td>{{downloadLabel}}</td><td>{{uploadLabel}}</td></tr>{{else}}<tr><td colspan="3">{{t 'usage.empty'}}</td></tr>{{/each}}</tbody></table></div>
+</section>
+{{#if mac}}<section class="panel usage-panel"><div class="panel-head"><div><h3>{{t 'usage.visitsTitle'}}</h3><p>{{t 'usage.visitsHint'}}</p></div></div>
+  <ol class="usage-visits">{{#each sessions}}<li><strong>{{formatDate started_at}}</strong><p>{{#if ended_at}}{{formatDate ended_at}}{{else}}{{t 'usage.provisional'}}{{/if}} · {{site_name}}</p>
+    <span>↓ {{downloadLabel}} · ↑ {{uploadLabel}} · {{totalLabel}}</span><small>{{#if history_confirmed}}{{t 'usage.confirmed'}}{{else}}{{t 'usage.provisional'}}{{/if}}{{#if has_gap}} · {{t 'usage.partial'}}{{/if}}</small></li>
+  {{else}}<li>{{t 'usage.empty'}}</li>{{/each}}</ol>
+</section>{{/if}}
+</div>
+{{/unless}}

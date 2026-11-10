@@ -609,6 +609,25 @@ const listHotspotAuthedClients = async ({
   return data.result?.data || [];
 };
 
+// Reporting-only endpoints from the manufacturer's OpenAPI. Existing client/auth calls are unchanged.
+const getUsagePage = async ({ siteId, clientMac, known = false, page = 1, start, end }) => {
+  const suffix = clientMac ? `/clients/${encodeURIComponent(clientMac.replace(/:/g, '-'))}/client-history`
+    : known ? '/insight/clients' : '/clients';
+  const data = await openApi({
+    path: `/openapi/v1/{omadacId}/sites/${encodeURIComponent(siteId)}` + suffix,
+    query: { page, pageSize: 25, ...(known ? { 'filters.timeStart': start, 'filters.timeEnd': end } : {}),
+      ...(clientMac ? { 'sorts.start': 'desc' } : {}) }
+  });
+  if (!Array.isArray(data.result?.data)) throw Object.assign(new Error('Unrecognized usage response'), { code: 'usage_format' });
+  const total = Number(data.result.totalRows);
+  if (!Number.isSafeInteger(total) || total < 0) throw Object.assign(new Error('Usage pagination unavailable'), { code: 'usage_format' });
+  return { rows: data.result.data, total, pageSize: 25 };
+};
+const getUsageHistorySetting = async () => {
+  const data = await openApi({ path: '/openapi/v1/{omadacId}/controller/client/history-enable' });
+  return data.result?.clientsDataEnable;
+};
+
 const authClient = async ({ siteId, clientMac }) => {
   const normalizedMac = String(clientMac || '')
     .trim()
@@ -684,6 +703,8 @@ module.exports = {
   updateMacAuthSetting,
   listClients,
   listHotspotAuthedClients,
+  getUsagePage,
+  getUsageHistorySetting,
   authClient,
   cancelAuthClient,
   getPortalCandidates,

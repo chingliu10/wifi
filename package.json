@@ -23,7 +23,11 @@
     "splashpay:payout-proof": "node src/scripts/prove-splashpay-disbursement.js",
     "wallet:audit": "node src/scripts/audit-tenant-wallets.js",
     "wallet:reconcile-payout": "node src/scripts/reconcile-historical-payout.js",
-    "test:vouchers": "node --test test/voucher-*.test.js"
+    "test:vouchers": "node --test test/voucher-*.test.js",
+    "test:usage": "node --test test/voucher-usage-history.test.js",
+    "usage:migrate": "node src/scripts/usage-history.js migrate",
+    "usage:check": "node src/scripts/usage-history.js check",
+    "usage:sync": "node src/scripts/usage-history.js sync"
   },
   "keywords": [],
   "author": "",
