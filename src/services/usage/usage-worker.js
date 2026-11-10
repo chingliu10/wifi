@@ -105,7 +105,8 @@ const collectOnce = async ({ api = omada, now = Date.now() } = {}) => {
     if (!acquired) return { sites: 0 };
     const sites = (await pool.query(`SELECT u.*, s.external_portal_site_id FROM usage_sites u
       JOIN sites s ON s.id = u.site_id JOIN organizations o ON o.id = u.organization_id
-      WHERE u.enabled AND s.active AND o.active AND s.external_portal_site_id IS NOT NULL ORDER BY u.site_id`)).rows;
+      WHERE u.enabled AND s.active AND o.active AND s.external_portal_site_id IS NOT NULL
+      ORDER BY u.last_success_at ASC NULLS FIRST, u.site_id`)).rows;
     let requests = 0;
     const boundedApi = { ...api, getUsagePage: async args => {
       if (++requests > 200) throw Object.assign(new Error('Usage request budget exceeded'), { code: 'usage_pagination' });
