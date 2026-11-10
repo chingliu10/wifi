@@ -37,12 +37,8 @@ const recordReading = async ({ organizationId, siteId, reading, db = pool }) => 
       [siteId, reading.mac, new Date(reading.observedAt)]);
     const previous = (await client.query(`SELECT * FROM usage_sessions
       WHERE organization_id = $1 AND site_id = $2 AND client_mac = $3
-        AND ABS(EXTRACT(EPOCH FROM (started_at - $5::timestamptz))) <= 5
-        AND (started_at = $5::timestamptz OR last_counter_at >= $5::timestamptz)
-      ORDER BY (controller_id = $4) DESC NULLS LAST,
-        ABS(EXTRACT(EPOCH FROM (started_at - $5::timestamptz))), id
-      LIMIT 1 FOR UPDATE`, [organizationId, siteId, reading.mac, reading.controllerId,
-      new Date(reading.startedAt)])).rows[0];
+        AND started_at = $4::timestamptz
+      LIMIT 1 FOR UPDATE`, [organizationId, siteId, reading.mac, new Date(reading.startedAt)])).rows[0];
     if (previous && ((!reading.history && previous.history_confirmed) ||
       reading.observedAt < new Date(previous.last_counter_at).getTime() && !reading.final)) {
       await client.query('COMMIT');
@@ -81,10 +77,11 @@ const recordReading = async ({ organizationId, siteId, reading, db = pool }) => 
     await client.query(`UPDATE usage_sessions SET controller_id = COALESCE($2, controller_id),
       last_counter_at = GREATEST(last_counter_at, $3), download_counter = $4, upload_counter = $5,
       download_total = download_total + $6, upload_total = upload_total + $7,
-      history_confirmed = history_confirmed OR $8, ended_at = CASE WHEN $8 THEN $3 ELSE ended_at END,
+      history_confirmed = CASE WHEN $10 THEN $8 ELSE history_confirmed END,
+      ended_at = CASE WHEN $10 AND $8 THEN $3 WHEN $10 THEN NULL ELSE ended_at END,
       has_gap = has_gap OR $9 WHERE id = $1`,
     [sessionId, reading.controllerId, new Date(reading.observedAt), reading.down.toString(), reading.up.toString(),
-      down.toString(), up.toString(), reading.final, gap]);
+      down.toString(), up.toString(), reading.final, gap, reading.history]);
     await client.query('COMMIT');
     return sessionId;
   } catch (error) {

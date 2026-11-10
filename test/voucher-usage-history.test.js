@@ -122,9 +122,9 @@ test('usage history persists across reconnects, reconciles final counters and is
   const save = reading => usage.recordReading({ organizationId: a.org.id, siteId: a.site.id, reading });
 
   await t.test('7 MB from the first visit survives a zero reset and a later 20 MB visit', async () => {
-    await save(live(at('08:00:00'), at('08:10:00'), 7000000, 1000000));
-    await save(live(at('11:00:00'), at('11:00:00'), 0, 0));
-    await save(live(at('11:00:00'), at('11:10:00'), 20000000, 3000000));
+    await save({ ...history('first-visit',at('08:00:00'),at('08:10:00'),7000000,1000000),final:false });
+    await save({ ...history('second-visit',at('11:00:00'),at('11:00:00'),0,0),final:false });
+    await save({ ...history('second-visit',at('11:00:00'),at('11:10:00'),20000000,3000000),final:false });
     const report = await usage.getReport({ user: a.owner, organizationId: b.org.id, ...dates });
     assert.equal(report.totals.download, '27000000'); assert.equal(report.totals.upload, '4000000');
     assert.equal(report.clients.length, 1); assert.equal(report.clients[0].visits, '2');
@@ -157,18 +157,26 @@ test('usage history persists across reconnects, reconciles final counters and is
     const api = { configured: () => true, getUsageHistorySetting: async () => true,
       getUsagePage: async options => {
         calls.push(options);
-        const rows = options.clientMac ? [] : raws;
+        const rows = options.clientMac ? options.clientMac === mac ? [] : [{
+          id: 'history-' + options.clientMac, mac: options.clientMac, associated: now - 600000,
+          lastSeen: now, download: 100, upload: 50 }] : raws;
         return { total: rows.length, rows: rows.slice((options.page - 1) * 25, options.page * 25) };
       } };
-    await worker.collectOnce({ api, now });
+    for (let cycle = 0; cycle < 6; cycle++) await worker.collectOnce({ api, now });
     assert.ok(calls.some(row => !row.known && !row.clientMac && row.page === 3));
     assert.ok(calls.some(row => row.clientMac));
     const report = await usage.getReport({ user: a.owner, ...dates });
     assert.equal(report.clients.length, 54);
-    assert.equal(report.clients.filter(row => row.is_online).length, 53);
+    assert.equal((await pool.query('SELECT COUNT(*) AS count FROM usage_clients WHERE site_id=$1 AND is_online', [a.site.id])).rows[0].count, '53');
     assert.equal(report.totals.download, String(32000000 + 5300));
     await worker.collectOnce({ api, now });
     assert.equal((await usage.getReport({ user: a.owner, ...dates })).totals.download, String(32000000 + 5300));
+    const offlineApi = { ...api, getUsagePage: async options => !options.known && !options.clientMac
+      ? { rows:[],total:0 } : api.getUsagePage(options) };
+    for (let cycle = 0; cycle < 6; cycle++) await worker.collectOnce({ api:offlineApi,now });
+    const closed = await usage.getReport({ user:a.owner,...dates });
+    assert.equal(closed.totals.download,String(32000000 + 5300));
+    assert.ok(closed.clients.every(row => !row.provisional));
     await worker.collectOnce({ api: { ...api, getUsagePage: async () => { throw new Error('Controller offline'); } }, now });
     assert.equal((await usage.getReport({ user: a.owner, ...dates })).totals.download, String(32000000 + 5300));
     assert.equal((await pool.query('SELECT last_error_code FROM usage_sites WHERE site_id=$1', [a.site.id])).rows[0].last_error_code, 'usage_controller');
@@ -186,6 +194,11 @@ test('usage history persists across reconnects, reconciles final counters and is
     await saveB(history('reused-id',at('11:00:00'),at('11:20:00'),200));
     result = await usage.getReport({ user:b.owner,mac,...dates });
     assert.equal(result.sessions.length,2); assert.equal(result.totals.download,'310');
+    const fastMac = '02:11:22:33:44:66';
+    await saveB({ ...history('fast',at('12:00:00') + 100,at('12:00:00') + 200,7), mac:fastMac });
+    await saveB({ ...history('fast',at('12:00:00') + 300,at('12:00:00') + 400,20), mac:fastMac });
+    const fast = await usage.getReport({ user:b.owner,mac:fastMac,...dates });
+    assert.equal(fast.sessions.length,2); assert.equal(fast.totals.download,'27');
   });
   await t.test('owner routes, manual rewards and cashier blocks preserve existing access behavior', async () => {
     const express = require('express');

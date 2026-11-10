@@ -29,11 +29,11 @@ The current client/auth API methods retain their existing behavior. All addition
 
 ## Reconciliation and accuracy
 
-- A visit is identified by site, device MAC and connection start time, with a small timestamp tolerance for live uptime rounding. Controller IDs alone are not assumed to identify unique visits.
-- Only increases are added to saved daily buckets. Final controller history fills the unrecorded tail instead of adding an entire visit twice. Repeated or concurrent imports are idempotent.
+- A visit is identified by site, device MAC and the recorded connection start timestamp, preserving millisecond precision. Controller IDs alone are not assumed to identify unique visits. Live uptime is never used to create guessed visit records.
+- Only increases in recorded connection-history counters are added to saved daily buckets. Final controller history fills the unrecorded tail instead of adding an entire visit twice. Repeated or concurrent imports are idempotent. Live client counters supply connection status only; they are not added as independently guessed visits. If history is unsupported/disabled, new usage totals remain unavailable instead of being fabricated from resettable live counters.
 - Saved daily totals survive reconnects, app restarts and later counter resets. Unexplained decreases within one connection are marked incomplete; saved bytes are not removed.
 - Days use Africa/Dar_es_Salaam. Observed interval bytes crossing midnight are divided by interval duration, preserving every byte, and explicitly marked as estimated. This is not a claim to measure the exact second each byte crossed midnight.
-- Live readings are provisional until retained history confirms the visit. Outages, unsupported history, missing fields, pagination problems and delayed collection are shown. Usage before tracking can only be imported if the controller retained it.
+- Ongoing visits are provisional until retained history confirms their completion. Outages, unsupported history, missing fields, pagination problems and delayed collection are shown. Usage before tracking can only be imported if the controller retained it. In the UI, “Live readings / awaiting history” labels these ongoing connection-history measurements.
 - These are device traffic counters, which may include local traffic. They are not an ISP WAN billing measurement.
 - Tracking is per device/site. A person with multiple devices or changed private MAC addresses appears separately. Known paid customer names/phones are looked up within the same business; anonymous voucher users retain their device identity.
 - Report summaries cover all matching saved records; the ranking displays the top 100 devices. Device drill-down displays the latest 100 whole visits. Daily totals cover the selected dates.

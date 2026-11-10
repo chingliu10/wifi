@@ -12,7 +12,7 @@ const timestamp = (value) => {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return null;
   const result = number < 100000000000 ? number * 1000 : number;
-  return result >= Date.UTC(2000, 0, 1) && result < Date.UTC(2100, 0, 1) ? Math.floor(result / 1000) * 1000 : null;
+  return result >= Date.UTC(2000, 0, 1) && result < Date.UTC(2100, 0, 1) ? Math.trunc(result) : null;
 };
 const normalizeReading = (raw, { history = false, now = Date.now(), activeStart = null } = {}) => {
   if (!raw || typeof raw !== 'object') return null;

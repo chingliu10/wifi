@@ -27,9 +27,9 @@ const collectSite = async (site, api, now) => {
   await pool.query('UPDATE usage_sites SET last_attempt_at = NOW() WHERE site_id = $1', [siteId]);
   let warning = null;
   const live = await pageAll(page => api.getUsagePage({ siteId: site.external_portal_site_id, page }));
-  const readings = live.filter(row => row.active !== false).map(row => normalizeReading(row, { now })).filter(Boolean);
-  if (live.some(row => row.active !== false && !normalizeReading(row, { now }))) warning = 'usage_format';
-  const activeStarts = new Map(readings.map(row => [row.mac, row.startedAt]));
+  const online = live.filter(row => row.active !== false && normalizeMac(row.mac));
+  if (live.some(row => !normalizeMac(row.mac))) warning = 'usage_format';
+  const activeStarts = new Map(online.map(row => [normalizeMac(row.mac), normalizeReading(row, { now })?.startedAt ?? null]));
 
   if (!site.discovered_at || now - new Date(site.discovered_at).getTime() > 21600000) {
     try {
@@ -44,10 +44,11 @@ const collectSite = async (site, api, now) => {
   }
   // Mark offline only after a complete successful client-list fetch.
   await pool.query('UPDATE usage_clients SET is_online = FALSE WHERE site_id = $1', [siteId]);
-  for (const reading of readings) {
-    await recordReading({ organizationId: org, siteId, reading });
+  for (const row of online) {
+    const mac = normalizeMac(row.mac);
+    await rememberClient(pool, org, siteId, mac, String(row.name || row.hostName || '').slice(0, 120));
     await pool.query(`UPDATE usage_clients SET is_online = TRUE, last_seen_at = $3
-      WHERE site_id = $1 AND client_mac = $2`, [siteId, reading.mac, new Date(now)]);
+      WHERE site_id = $1 AND client_mac = $2`, [siteId, mac, new Date(now)]);
   }
   let historyEnabled = site.history_supported !== false;
   if (site.history_supported === null && api.getUsageHistorySetting) {
@@ -66,8 +67,14 @@ const collectSite = async (site, api, now) => {
       try {
         const history = await pageAll(page => api.getUsagePage({ siteId: site.external_portal_site_id,
           clientMac: client.client_mac, page }));
-        const normalized = history.map(row => normalizeReading({ ...row, mac: row.mac || client.client_mac },
-          { history: true, now, activeStart: activeStarts.get(client.client_mac) ?? null }));
+        const normalized = history.map(row => {
+          const reading = normalizeReading({ ...row, mac: row.mac || client.client_mac }, { history: true, now });
+          if (reading && activeStarts.has(client.client_mac)) {
+            const activeStart = activeStarts.get(client.client_mac);
+            if (!activeStart || reading.observedAt >= activeStart - 5000) reading.final = false;
+          }
+          return reading;
+        });
         if (normalized.some(row => !row)) warning = 'usage_format';
         for (const reading of normalized.filter(Boolean).filter(row => row.observedAt >= now - historyDays() * 86400000)
           .sort((a, b) => a.startedAt - b.startedAt)) {
