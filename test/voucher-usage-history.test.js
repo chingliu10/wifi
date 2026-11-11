@@ -11,6 +11,7 @@ if (testUrl) process.env.DATABASE_URL = testUrl;
 const pool = require('../src/config/database');
 const counters = require('../src/services/usage/usage-counters');
 const usage = require('../src/services/usage/usage-service');
+const usageView = require('../src/services/usage/usage-view');
 const worker = require('../src/services/usage/usage-worker');
 const { translate } = require('../src/i18n/admin');
 const at = time => Date.parse('2026-11-10T' + time + '+03:00');
@@ -50,6 +51,57 @@ test('usage collection reads all pages beyond 25 clients and rejects repeated or
   await assert.rejects(worker.pageAll(async () => ({ rows: [{ mac }], total: 3 })), error => error.code === 'usage_pagination');
   await assert.rejects(worker.pageAll(async () => ({ rows: [], total: 10 })), error => error.code === 'usage_pagination');
   assert.deepEqual(await worker.collectOnce({ api: { configured: () => false } }), { sites: 0 });
+});
+
+test('live usage distinguishes reset connection counters from saved totals and unknown measurements', async () => {
+  assert.deepEqual(usageView.connectionUsage({ trafficDown: 7000000, trafficUp: 1000000 }),
+    { downloadLabel: '7 MB', uploadLabel: '1 MB', totalLabel: '8 MB' });
+  assert.equal(usageView.connectionUsage({ trafficDown: 0, trafficUp: 0 }).totalLabel, '0 B');
+  assert.equal(usageView.connectionUsage({ trafficDown: null, trafficUp: 0 }).totalLabel, '—');
+  assert.equal(usageView.connectionUsage({ downloadActivity: 9000, uploadActivity: 9000 }).downloadLabel, '—');
+  assert.equal(usageView.connectionUsage({ trafficDown: Number.MAX_SAFE_INTEGER + 1, trafficUp: 0 }).totalLabel, '—');
+  const t = key => translate('en', key);
+  const beforeSetup = usageView.liveUsageView({ clients: [{ mac }], summary: { installed:false }, organizationId:7,siteId:8,t,now });
+  assert.equal(beforeSetup.clients[0].recordedUsage.totalLabel, '—');
+  assert.equal(beforeSetup.usageSummary.statusLabel,t('usage.notInstalled'));
+  assert.match(beforeSetup.clients[0].historyUrl,/org=7&siteId=8&range=last30&mac=02%3A11/);
+  const result = await usage.getSummary({ user: { role:'client_owner',organization_id:7 },siteId:8,
+    db:{ query: async () => ({ rows:[{ ready:false }] }) } });
+  assert.equal(result.installed,false);
+});
+
+test('live usage renders both languages and refreshes rows and site totals with escaped device names', async () => {
+  const source = fs.readFileSync(path.join(__dirname,'../views/admin/live-clients.hbs'),'utf8');
+  const vm = require('vm');
+  for (const language of ['en','sw']) {
+    const hbs = Handlebars.create();
+    hbs.registerHelper('t', key => translate(language,key));
+    hbs.registerHelper('formatDate', value => String(value || ''));
+    hbs.registerPartial('admin-pagination','');
+    for (const match of source.matchAll(/\{\{t '([^']+)'/g)) assert.notEqual(translate(language,match[1]),match[1]);
+    const model = usageView.liveUsageView({ clients: [{ name:'<img src=x onerror=alert(1)>',mac,
+      connectionUsage:usageView.connectionUsage({ trafficDown:0,trafficUp:0 }) }],
+      summary: { installed:true,site:{ enabled:false },totals:{ download:'7000000',upload:'1000000',visits:'1',devices:'1' },
+        today:{ download:'7000000',upload:'1000000' },clients:[{ client_mac:mac,download:'7000000',upload:'1000000',visits:'1' }] },
+      organizationId:7,siteId:8,t:key=>translate(language,key),now });
+    const html = hbs.compile(source)({ ...model,selectedOrg:{ id:7 },selectedSite:{ id:8 },siteOptions:[{ id:8 }],isSwahili:language==='sw' });
+    assert.ok(html.includes('8 MB')); assert.ok(!html.includes('<img src=x'));
+    assert.ok(html.includes(translate(language,'usage.currentConnection')));
+    const elements = new Map();
+    const element = id => { if (!elements.has(id)) elements.set(id,{ innerHTML:'',textContent:'',hidden:false,
+      classList:{ add(){},remove(){} },addEventListener(){} }); return elements.get(id); };
+    let refresh;
+    const context = vm.createContext({ URLSearchParams,window:{ location:{ search:'?org=7&siteId=8' } },
+      document:{ getElementById:element,querySelectorAll:()=>[] },
+      setInterval:fn=>{refresh=fn;},fetch:async()=>({ ok:true,json:async()=>({ success:true,...model }) }) });
+    new vm.Script(html.match(/<script>([\s\S]*?)<\/script>/)[1]).runInContext(context);
+    await refresh();
+    assert.match(element('live-client-body').innerHTML,/8 MB/);
+    assert.match(element('live-client-body').innerHTML,/0 B/);
+    assert.ok(!element('live-client-body').innerHTML.includes('<img src=x'));
+    assert.match(element('live-client-body').innerHTML,/mac=02%3A11/);
+    assert.equal(element('live-usage-recorded').textContent,'8 MB');
+  }
 });
 
 test('usage access excludes cashiers and both languages render setup, history and reward controls', () => {
@@ -200,10 +252,30 @@ test('usage history persists across reconnects, reconciles final counters and is
     const fast = await usage.getReport({ user:b.owner,mac:fastMac,...dates });
     assert.equal(fast.sessions.length,2); assert.equal(fast.totals.download,'27');
   });
+  await t.test('saved site and device totals span reconnects, include offline devices and enforce site scope', async () => {
+    const summary = await usage.getSummary({ user:a.owner,organizationId:b.org.id,siteId:a.site.id,macs:[mac.toLowerCase(),mac],now });
+    const report = await usage.getReport({ user:a.owner,...dates });
+    assert.equal(summary.totals.download,String(BigInt(report.totals.download) + 3000000n));
+    assert.equal(summary.today.download,report.totals.download);
+    assert.equal(summary.totals.devices,'54');
+    assert.equal(summary.clients.length,1);
+    assert.equal(summary.clients[0].download,'35000000');
+    assert.equal(summary.clients[0].today_download,'32000000');
+    assert.equal(summary.clients[0].visits,'3');
+    assert.equal(summary.clients[0].provisional,false);
+    assert.equal(summary.site.enabled,false);
+    assert.equal((await usage.getSummary({ user:a.owner,siteId:a.site.id,macs:[],now })).totals.download,summary.totals.download);
+    const nextDay = await usage.getSummary({ user:a.owner,siteId:a.site.id,macs:[mac],now:Date.parse('2026-11-10T21:00:00Z') });
+    assert.equal(nextDay.day,'2026-11-11'); assert.equal(nextDay.today.download,null);
+    assert.equal(nextDay.totals.download,summary.totals.download);
+    await assert.rejects(usage.getSummary({ user:a.owner,siteId:b.site.id,now }),error=>error.statusCode===404);
+    await assert.rejects(usage.getSummary({ user:cashier,siteId:a.site.id,now }),error=>error.statusCode===403);
+  });
   await t.test('owner routes, manual rewards and cashier blocks preserve existing access behavior', async () => {
     const express = require('express');
     const app = express(); app.use(express.urlencoded({ extended: false }));
-    app.use((req,res,next) => { res.render = (view,data) => res.json({ view, installed:data.installed, clients:data.clients, sites:data.sites, totals:data.totals }); next(); });
+    app.use((req,res,next) => { res.render = (view,data) => res.json({ view, installed:data.installed, clients:data.clients, sites:data.sites, totals:data.totals,
+      deviceRecorded:data.deviceRecorded,usageSummary:data.usageSummary }); next(); });
     app.use('/admin', require('../src/routes/admin'));
     const server = app.listen(0,'127.0.0.1'); await once(server,'listening');
     t.after(() => new Promise(resolve => server.close(resolve)));
@@ -216,6 +288,39 @@ test('usage history persists across reconnects, reconciles final counters and is
     assert.ok(body.sites.every(row => Number(row.id) !== Number(b.site.id)));
     const blocked = await fetch(origin + '/admin/usage' + query, { headers:cashierHeaders,redirect:'manual' });
     assert.equal(blocked.status,302); assert.equal(blocked.headers.get('location'),'/admin/cashier');
+    const detail = await fetch(origin + '/admin/usage' + query + '&siteId=' + a.site.id + '&mac=' + mac, { headers:ownerHeaders });
+    assert.equal(detail.status,200);
+    assert.equal((await detail.json()).deviceRecorded.totalLabel,'40 MB');
+    const api = require('../src/services/omada/open-api-client');
+    const originalList = api.listClients, originalAuth = api.listHotspotAuthedClients;
+    const originalSummary = usage.getSummary;
+    t.after(()=>{ api.listClients=originalList; api.listHotspotAuthedClients=originalAuth; usage.getSummary=originalSummary; });
+    let controllerReads = 0;
+    api.listClients = async () => { controllerReads++; return { total:1,rows:[{ mac,trafficDown:0,trafficUp:0,name:'Customer phone' }] }; };
+    api.listHotspotAuthedClients = async () => { controllerReads++; return []; };
+    const liveQuery = '?org=' + b.org.id + '&siteId=' + a.site.id;
+    const live = await fetch(origin + '/admin/live-clients' + liveQuery,{ headers:ownerHeaders });
+    assert.equal(live.status,200);
+    const liveBody = await live.json();
+    assert.equal(liveBody.clients[0].connectionUsage.totalLabel,'0 B');
+    assert.equal(liveBody.clients[0].recordedUsage.totalLabel,'40 MB');
+    assert.match(liveBody.clients[0].historyUrl,new RegExp('org=' + a.org.id + '&siteId=' + a.site.id));
+    const polling = await fetch(origin + '/admin/live-clients/data' + liveQuery,{ headers:ownerHeaders });
+    assert.equal(polling.status,200);
+    assert.equal((await polling.json()).clients[0].recordedUsage.totalLabel,'40 MB');
+    assert.equal(controllerReads,4); // No extra controller requests for saved totals or history links.
+    const foreign = await fetch(origin + '/admin/live-clients/data?siteId=' + b.site.id,{ headers:ownerHeaders });
+    assert.equal(foreign.status,404);
+    const cashierLive = await fetch(origin + '/admin/live-clients/data' + liveQuery,{ headers:cashierHeaders,redirect:'manual' });
+    assert.equal(cashierLive.status,302);
+    usage.getSummary = async () => { throw Object.assign(new Error('Reporting unavailable'),{ code:'test_reporting_unavailable' }); };
+    const fallback = await fetch(origin + '/admin/live-clients/data' + liveQuery,{ headers:ownerHeaders });
+    assert.equal(fallback.status,200);
+    const fallbackBody = await fallback.json();
+    assert.equal(fallbackBody.clients[0].connectionUsage.totalLabel,'0 B');
+    assert.equal(fallbackBody.clients[0].recordedUsage.totalLabel,'—');
+    assert.equal(fallbackBody.usageSummary.statusLabel,translate('en','usage.unavailable'));
+    usage.getSummary = originalSummary;
     const settings = await fetch(origin + '/admin/usage/sites/' + b.site.id + '/collection', { method:'POST',headers:ownerHeaders,
       body:new URLSearchParams({ enabled:'true' }),redirect:'manual' }); assert.equal(settings.status,404);
     const reward = await fetch(origin + '/admin/live-clients/complimentary-access', { method:'POST', headers:ownerHeaders,

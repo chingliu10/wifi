@@ -1,4 +1,4 @@
-<section class="page-head"><div><h2>{{t 'usage.title'}}</h2><p>{{t 'usage.subtitle'}}</p></div></section>
+<section class="page-head"><div><h2>{{#if mac}}{{t 'usage.deviceHistory'}}{{else}}{{t 'usage.title'}}{{/if}}</h2><p>{{t 'usage.subtitle'}}</p></div></section>
 {{#unless installed}}
   <div class="notice">{{t 'usage.notInstalled'}}</div>
 {{else}}
@@ -15,12 +15,21 @@
 <p class="sales-period-note">{{range.startDate}} — {{range.endDate}} · {{t 'sales.timezone'}} · {{t 'usage.units'}}</p>
 <div class="notice">{{t 'usage.accuracy'}}</div>
 {{#if partial}}<div class="notice">{{t 'usage.coverage'}}</div>{{/if}}
+{{#if deviceRecorded}}
+<section class="panel usage-device-summary">
+  <h3>{{mac}} · {{t 'usage.recordedTotal'}}</h3>
+  <strong>{{deviceRecorded.totalLabel}}</strong>
+  <p>↓ {{deviceRecorded.downloadLabel}} · ↑ {{deviceRecorded.uploadLabel}} · {{deviceRecorded.visits}} {{t 'usage.visits'}}</p>
+  <p>{{t 'usage.recordedPeriod'}} {{#if deviceRecorded.periodLabel}}{{deviceRecorded.periodLabel}}{{else}}{{t 'usage.notSaved'}}{{/if}}</p>
+  <p>{{t 'usage.savedOnly'}}</p>
+</section>
+{{/if}}
 <section class="sales-summary">
   <article class="panel sales-primary-total"><span>{{t 'usage.total'}}</span><strong>{{totals.totalLabel}}</strong><p>{{totals.devices}} {{t 'usage.devices'}}</p>{{#if totals.estimated}}<small>{{t 'usage.estimated'}}</small>{{/if}}</article>
   <article class="panel sales-secondary-total"><span>{{t 'dashboard.download'}}</span><strong>{{totals.downloadLabel}}</strong></article>
   <article class="panel sales-secondary-total"><span>{{t 'dashboard.upload'}}</span><strong>{{totals.uploadLabel}}</strong></article>
 </section>
-<section class="panel usage-panel">
+{{#unless mac}}<section class="panel usage-panel">
   <div class="panel-head"><div><h3>{{t 'usage.collection'}}</h3><p>{{t 'usage.collectionHint'}}</p></div></div>
   <div class="usage-site-list">{{#each sites}}
     <article class="usage-site"><div><strong>{{name}}</strong><p>{{status}}{{#if last_success_at}} · {{formatDate last_success_at}}{{/if}}</p>
@@ -33,10 +42,10 @@
       <button class="secondary-button" type="submit">{{#if enabled}}{{t 'usage.pause'}}{{else}}{{t 'usage.enable'}}{{/if}}</button>
     </form>{{else}}<span>{{t 'usage.noController'}}</span>{{/if}}</article>
   {{else}}<p>{{t 'usage.noSites'}}</p>{{/each}}</div>
-</section>
-{{#if mac}}<p><a href="{{backUrl}}">{{t 'usage.back'}}</a> · <strong>{{mac}}</strong></p>{{/if}}
+</section>{{/unless}}
+{{#if mac}}<p><a href="{{liveClientsUrl}}">{{t 'usage.backLive'}}</a> · <a href="{{backUrl}}">{{t 'usage.back'}}</a> · <strong>{{mac}}</strong></p>{{/if}}
 <section class="panel usage-panel">
-  <div class="panel-head"><div><h3>{{t 'usage.topDevices'}}</h3><p>{{t 'usage.deviceHint'}}</p></div></div>
+  <div class="panel-head"><div><h3>{{#if mac}}{{t 'usage.devicePeriod'}}{{else}}{{t 'usage.topDevices'}}{{/if}}</h3><p>{{t 'usage.deviceHint'}}</p></div></div>
   <ol class="usage-clients">{{#each clients}}<li>
     <div class="usage-client-main"><a href="{{detailUrl}}"><strong>{{name}}</strong></a><p><code>{{client_mac}}</code> · {{site_name}}{{#if phone}} · {{phone}}{{/if}}</p>
       <small>{{visits}} {{t 'usage.visits'}} · {{#if is_online}}{{t 'usage.online'}}{{else}}{{t 'usage.offline'}}{{/if}}
