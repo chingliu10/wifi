@@ -53,6 +53,29 @@
       </div>
     {{/if}}
 
+    {{#if selectedSite}}
+      <section class="live-usage-overview">
+        <p>{{t 'usage.siteTotals'}}</p>
+        <div class="sales-summary">
+          <article class="panel"><span>{{t 'usage.todaySaved'}}</span>
+            <strong id="live-usage-today">{{usageSummary.today.totalLabel}}</strong>
+            <small id="live-usage-today-directions">↓ {{usageSummary.today.downloadLabel}} · ↑ {{usageSummary.today.uploadLabel}}</small>
+          </article>
+          <article class="panel"><span>{{t 'usage.recordedTotal'}}</span>
+            <strong id="live-usage-recorded">{{usageSummary.recorded.totalLabel}}</strong>
+            <small id="live-usage-recorded-directions">↓ {{usageSummary.recorded.downloadLabel}} · ↑ {{usageSummary.recorded.uploadLabel}}</small>
+          </article>
+          <article class="panel"><span>{{t 'usage.savedDevices'}}</span>
+            <strong id="live-usage-devices">{{usageSummary.devices}}</strong>
+            <a href="{{usageSummary.historyUrl}}">{{t 'usage.history'}}</a>
+          </article>
+        </div>
+        <p>{{t 'usage.recordedPeriod'}} <span id="live-usage-period">{{#if usageSummary.recorded.periodLabel}}{{usageSummary.recorded.periodLabel}}{{else}}{{t 'usage.notSaved'}}{{/if}}</span> · {{t 'sales.timezone'}}</p>
+        <p id="live-usage-status">{{usageSummary.statusLabel}}</p>
+        <p>{{t 'usage.liveHint'}}</p>
+      </section>
+    {{/if}}
+
     <section class="panel table-panel">
       <div class="table-wrap">
         <table class="responsive-table">
@@ -64,6 +87,8 @@
               <th>{{t 'live.ssid'}}</th>
               <th>{{t 'live.access'}}</th>
               <th>{{t 'live.activity'}}</th>
+              <th>{{t 'usage.currentConnection'}}</th>
+              <th>{{t 'usage.recordedTotal'}}</th>
               <th>{{t 'live.ap'}}</th>
               <th>{{t 'live.signal'}}</th>
               <th>{{t 'live.uptime'}}</th>
@@ -77,7 +102,7 @@
                 data-download-bytes="{{download_bytes}}"
                 data-upload-bytes="{{upload_bytes}}"
               >
-                <td data-label="{{t 'live.deviceName'}}"><strong>{{name}}</strong></td>
+                <td data-label="{{t 'live.deviceName'}}">{{#if historyUrl}}<a href="{{historyUrl}}"><strong>{{name}}</strong></a>{{else}}<strong>{{name}}</strong>{{/if}}</td>
                 <td data-label="{{t 'live.mac'}}"><code>{{mac}}</code></td>
                 <td data-label="{{t 'live.ip'}}">{{ip}}</td>
                 <td data-label="{{t 'live.ssid'}}">{{ssid}}</td>
@@ -136,6 +161,15 @@
                     {{/if}}
                   {{/if}}
                 </td>
+                <td data-label="{{t 'usage.currentConnection'}}"><div class="live-usage-cell">
+                  <strong>{{connectionUsage.totalLabel}}</strong>
+                  <small>↓ {{connectionUsage.downloadLabel}} · ↑ {{connectionUsage.uploadLabel}}</small>
+                </div></td>
+                <td data-label="{{t 'usage.recordedTotal'}}"><div class="live-usage-cell">
+                  <strong>{{recordedUsage.totalLabel}}</strong>
+                  <small>{{t 'usage.todaySaved'}}: {{todayUsageLabel}}</small>
+                  {{#if historyUrl}}<a href="{{historyUrl}}">{{t 'usage.viewDevice'}}</a>{{/if}}
+                </div></td>
                 <td data-label="{{t 'live.ap'}}">{{ap}}</td>
                 <td data-label="{{t 'live.signal'}}">{{signal}}</td>
                 <td data-label="{{t 'live.uptime'}}">{{uptime}}</td>
@@ -190,7 +224,7 @@
                 </td>
               </tr>
             {{else}}
-              <tr><td colspan="10" class="empty">{{t 'live.noClients'}}</td></tr>
+              <tr><td colspan="12" class="empty">{{t 'live.noClients'}}</td></tr>
             {{/each}}
           </tbody>
         </table>
@@ -222,6 +256,11 @@
       ssid: 'SSID',
       access: '{{#if isSwahili}}Ufikiaji{{else}}Access{{/if}}',
       activity: '{{#if isSwahili}}Matumizi{{else}}Activity{{/if}}',
+      connection: '{{t 'usage.currentConnection'}}',
+      recorded: '{{t 'usage.recordedTotal'}}',
+      todaySaved: '{{t 'usage.todaySaved'}}',
+      history: '{{t 'usage.viewDevice'}}',
+      notSaved: '{{t 'usage.notSaved'}}',
       ap: 'Access point',
       signal: 'Signal',
       uptime: '{{#if isSwahili}}Muda uliounganishwa{{else}}Uptime{{/if}}',
@@ -422,10 +461,35 @@
       return '<span class="status-pill live-activity-waiting">' + labels.measuring + '</span>';
     };
 
+    const usageHtml = (client, recorded) => {
+      const usage = (recorded ? client.recordedUsage : client.connectionUsage) || {};
+      return '<div class="live-usage-cell"><strong>' + escapeHtml(usage.totalLabel || '—') + '</strong>' +
+        (recorded ? '<small>' + escapeHtml(labels.todaySaved) + ': ' + escapeHtml(client.todayUsageLabel || '—') + '</small>' +
+          (client.historyUrl ? '<a href="' + escapeHtml(client.historyUrl) + '">' + escapeHtml(labels.history) + '</a>' : '')
+          : '<small>↓ ' + escapeHtml(usage.downloadLabel || '—') + ' · ↑ ' + escapeHtml(usage.uploadLabel || '—') + '</small>') + '</div>';
+    };
+
+    const renderUsageSummary = (summary) => {
+      if (!summary) return;
+      const values = {
+        'live-usage-today': summary.today.totalLabel,
+        'live-usage-today-directions': '↓ ' + summary.today.downloadLabel + ' · ↑ ' + summary.today.uploadLabel,
+        'live-usage-recorded': summary.recorded.totalLabel,
+        'live-usage-recorded-directions': '↓ ' + summary.recorded.downloadLabel + ' · ↑ ' + summary.recorded.uploadLabel,
+        'live-usage-devices': summary.devices,
+        'live-usage-period': summary.recorded.periodLabel || labels.notSaved,
+        'live-usage-status': summary.statusLabel
+      };
+      Object.entries(values).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+      });
+    };
+
     const renderRows = (clients) => {
       if (!clients.length) {
         tbody.innerHTML =
-          '<tr><td colspan="10" class="empty">' +
+          '<tr><td colspan="12" class="empty">' +
           escapeHtml(labels.noClients) +
           '</td></tr>';
         previousTraffic.clear();
@@ -445,12 +509,14 @@
 
         return (
           '<tr data-live-mac="' + escapeHtml(client.mac) + '">' +
-            '<td data-label="' + labels.device + '"><strong>' + escapeHtml(client.name) + '</strong></td>' +
+            '<td data-label="' + labels.device + '">' + (client.historyUrl ? '<a href="' + escapeHtml(client.historyUrl) + '">' : '') + '<strong>' + escapeHtml(client.name) + '</strong>' + (client.historyUrl ? '</a>' : '') + '</td>' +
             '<td data-label="' + labels.mac + '"><code>' + escapeHtml(client.mac) + '</code></td>' +
             '<td data-label="' + labels.ip + '">' + escapeHtml(client.ip) + '</td>' +
             '<td data-label="' + labels.ssid + '">' + escapeHtml(client.ssid) + '</td>' +
             '<td data-label="' + labels.access + '">' + accessHtml(client) + '</td>' +
             '<td data-label="' + labels.activity + '">' + activityHtml(activity) + '</td>' +
+            '<td data-label="' + labels.connection + '">' + usageHtml(client, false) + '</td>' +
+            '<td data-label="' + labels.recorded + '">' + usageHtml(client, true) + '</td>' +
             '<td data-label="' + labels.ap + '">' + escapeHtml(client.ap) + '</td>' +
             '<td data-label="' + labels.signal + '">' + escapeHtml(client.signal) + '</td>' +
             '<td data-label="' + labels.uptime + '">' + escapeHtml(client.uptime) + '</td>' +
@@ -514,6 +580,7 @@
         }
 
         renderRows(data.clients);
+        renderUsageSummary(data.usageSummary);
 
         if (updated) {
           updated.textContent = labels.updated;

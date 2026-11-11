@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../config/database');
 const usage = require('../services/usage/usage-service');
 const { formatBytes: formatUsageBytes, normalizeMac: normalizeUsageMac } = require('../services/usage/usage-counters');
+const { connectionUsage, savedUsage, liveUsageView } = require('../services/usage/usage-view');
 const { REDEEMED_VOUCHER_SALES_SQL, hasSalesPermission, listSales, listVoucherIssuers, getCashierActivity, listCashierVouchers } = require('../services/sales-service');
 const { normalizeMacAddress } = require('../utils/mac-address');
 const {
@@ -318,6 +319,7 @@ const normalizeLiveClient = (client) => {
           ? String(signalValue)
           : String(signalValue) + ' dBm',
     uptime: formatLiveClientDuration(durationValue),
+    connectionUsage: connectionUsage(client),
     download_bytes: downloadBytes,
     upload_bytes: uploadBytes,
     download_activity: downloadActivity,
@@ -461,6 +463,19 @@ const loadLiveClientSnapshot = async ({
     clients,
     total: clientResult.total
   };
+};
+
+const loadSavedLiveUsage = async ({ req, selectedOrg, selectedSite, clients }) => {
+  let summary;
+  try {
+    summary = await usage.getSummary({ user: req.authUser, organizationId: selectedOrg.id,
+      siteId: selectedSite.id, macs: clients.map(client => client.mac) });
+  } catch (error) {
+    // Optional history must never prevent the existing live-client screen from loading.
+    console.error('LIVE CLIENT USAGE UNAVAILABLE:', { code: error.code || 'usage_summary' });
+    summary = { installed: false, unavailable: true, clients: [] };
+  }
+  return liveUsageView({ clients, summary, organizationId: selectedOrg.id, siteId: selectedSite.id, t: req.t });
 };
 
 
@@ -1927,12 +1942,16 @@ router.get('/usage', requireOwnerOrSuperAdmin, async (req, res) => {
     const search = String(req.query.search || '').trim().slice(0, 100);
     const report = installed ? await usage.getReport({ user: req.authUser, organizationId: selectedOrg.id,
       siteId, mac, search, startDate: range.startDate, endDate: range.endDate }) : null;
+    const deviceSummary = installed && mac && siteId ? await usage.getSummary({ user: req.authUser,
+      organizationId: selectedOrg.id, siteId, macs: [mac] }) : null;
     const baseQuery = new URLSearchParams({ org: String(selectedOrg.id), range: 'custom', from: range.startDate, to: range.endDate });
     const formatRow = row => ({ ...row, downloadLabel: formatUsageBytes(row.download ?? row.download_total),
       uploadLabel: formatUsageBytes(row.upload ?? row.upload_total),
       totalLabel: formatUsageBytes(BigInt(row.download ?? row.download_total ?? 0) + BigInt(row.upload ?? row.upload_total ?? 0)) });
-    return renderAdmin(req, res, 'admin/usage', { titleKey: 'usage.title', organizations, selectedOrg, installed,
+    return renderAdmin(req, res, 'admin/usage', { titleKey: mac ? 'usage.deviceHistory' : 'usage.title', organizations, selectedOrg, installed,
       range: buildAccountingRangeView(range), siteId, search, mac,
+      deviceRecorded: deviceSummary ? savedUsage(deviceSummary.clients[0]) : null,
+      liveClientsUrl: '/admin/live-clients?org=' + selectedOrg.id + (siteId ? '&siteId=' + siteId : ''),
       rangeOptions: ['today','yesterday','last7','last30','this_month','last_month','custom']
         .map(value => ({ value, label: req.t('sales.range.' + value), selected: value === range.range })),
       sites: report?.sites.map(site => ({ ...site, selected: Number(site.id) === siteId,
@@ -4621,9 +4640,12 @@ router.get('/live-clients/data', async (req, res) => {
       page
     });
 
+    const usageView = await loadSavedLiveUsage({ req, selectedOrg, selectedSite, clients: snapshot.clients });
+
     return res.json({
       success: true,
-      clients: snapshot.clients,
+      clients: usageView.clients,
+      usageSummary: usageView.usageSummary,
       total: snapshot.total,
       updatedAt: new Date().toISOString()
     });
@@ -4716,13 +4738,17 @@ router.get('/live-clients', async (req, res) => {
       }
     }
 
+    const usageView = selectedSite
+      ? await loadSavedLiveUsage({ req, selectedOrg, selectedSite, clients }) : null;
+
     return renderAdmin(req, res, 'admin/live-clients', {
       titleKey: 'live.title',
       organizations,
       selectedOrg,
       selectedSite,
       siteOptions,
-      clients,
+      clients: usageView?.clients || clients,
+      usageSummary: usageView?.usageSummary,
       pagination,
       freeAccessGranted:
         String(req.query.freeAccess || '') === 'granted',

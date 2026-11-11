@@ -1,6 +1,6 @@
 const pool = require('../../config/database');
 const { getSalesScope, hasSalesPermission } = require('../sales-service');
-const { normalizeMac, allocateDays } = require('./usage-counters');
+const { normalizeMac, allocateDays, localDay } = require('./usage-counters');
 
 const scopeFor = (user, organizationId) => {
   if (!hasSalesPermission(user, 'sales.view_organization')) {
@@ -143,4 +143,44 @@ const getReport = async ({ user, organizationId, siteId = null, mac = null, star
   ]);
   return { sites, totals: totals.rows[0], clients: rows.rows, days: days.rows, sessions: sessions.rows, mac: cleanMac };
 };
-module.exports = { scopeFor, isInstalled, setCollection, rememberClient, recordReading, getReport };
+
+// Read saved totals independently of the controller's current connection counters.
+// Only the current page's devices are returned; site totals include offline devices too.
+const getSummary = async ({ user, organizationId, siteId, macs = [], now = Date.now(), db = pool }) => {
+  const org = scopeFor(user, organizationId);
+  if (!await isInstalled(db)) return { installed: false, clients: [] };
+  const site = (await db.query(`SELECT s.id, COALESCE(u.enabled, FALSE) AS enabled,
+    u.last_success_at, u.last_error_code, u.history_supported
+    FROM sites s LEFT JOIN usage_sites u ON u.site_id = s.id
+    WHERE s.organization_id = $1 AND s.id = $2`, [org, siteId])).rows[0];
+  if (!site) throw Object.assign(new Error('Site not found.'), { statusCode: 404 });
+  const cleanMacs = [...new Set(macs.map(normalizeMac).filter(Boolean))].slice(0, 100);
+  const day = localDay(now);
+  const [totals, today, clients] = await Promise.all([
+    db.query(`SELECT SUM(download_total) AS download, SUM(upload_total) AS upload,
+      COUNT(*) AS visits, COUNT(DISTINCT client_mac) AS devices,
+      MIN(started_at) AS first_seen, MAX(last_counter_at) AS last_seen,
+      BOOL_OR(has_gap) AS estimated, BOOL_OR(NOT history_confirmed) AS provisional
+      FROM usage_sessions WHERE organization_id = $1 AND site_id = $2`, [org, siteId]),
+    db.query(`SELECT SUM(download_bytes) AS download, SUM(upload_bytes) AS upload,
+      COUNT(*) AS visits, BOOL_OR(d.estimated OR se.has_gap) AS estimated,
+      BOOL_OR(NOT se.history_confirmed) AS provisional
+      FROM usage_days d JOIN usage_sessions se ON se.id = d.session_id
+      WHERE d.organization_id = $1 AND d.site_id = $2 AND d.usage_date = $3::date`, [org, siteId, day]),
+    cleanMacs.length ? db.query(`WITH saved AS (
+      SELECT client_mac, SUM(download_total) AS download, SUM(upload_total) AS upload,
+        COUNT(*) AS visits, MIN(started_at) AS first_seen, MAX(last_counter_at) AS last_seen,
+        BOOL_OR(has_gap) AS estimated, BOOL_OR(NOT history_confirmed) AS provisional
+      FROM usage_sessions WHERE organization_id = $1 AND site_id = $2 AND client_mac = ANY($3::text[])
+      GROUP BY client_mac
+    ), today AS (
+      SELECT se.client_mac, SUM(d.download_bytes) AS today_download, SUM(d.upload_bytes) AS today_upload
+      FROM usage_days d JOIN usage_sessions se ON se.id = d.session_id
+      WHERE d.organization_id = $1 AND d.site_id = $2 AND d.usage_date = $4::date
+        AND se.client_mac = ANY($3::text[]) GROUP BY se.client_mac
+    ) SELECT saved.*, today.today_download, today.today_upload FROM saved
+      LEFT JOIN today USING (client_mac)`, [org, siteId, cleanMacs, day]) : { rows: [] }
+  ]);
+  return { installed: true, site, day, totals: totals.rows[0], today: today.rows[0], clients: clients.rows };
+};
+module.exports = { scopeFor, isInstalled, setCollection, rememberClient, recordReading, getReport, getSummary };

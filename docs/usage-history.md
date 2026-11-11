@@ -39,6 +39,12 @@ The current client/auth API methods retain their existing behavior. All addition
 - Report summaries cover all matching saved records; the ranking displays the top 100 devices. Device drill-down displays the latest 100 whole visits. Daily totals cover the selected dates.
 - Granting free access is a manual owner/admin action, stored as complimentary access, separate from voucher sales and wallet money.
 
+## Live clients and device details
+
+`/admin/live-clients` shows download/upload for the current connection separately from saved totals. Current counters are never added to saved history, because the same visit may already be partially imported. Each device name and its “View usage history” link open the device report, initially for the last 30 days, with selectable dates, daily download/upload, and the latest 100 visits in that period. The device heading also shows all saved visits at that site, independently of the date filter.
+
+The live page summary covers all saved devices at the selected site, including devices offline or on other pages. “Today” uses Dar es Salaam midnight; “Recorded total” includes all locally retained sessions and shows the recorded date span. Missing measurements show a dash, not a made-up zero. History collection status is shown, and missing reporting tables or a reporting-query failure do not stop live-client viewing. Both the initial page and its 30-second refresh display the same information. No extra controller calls, dependencies, migrations, or changes to access and payment operations are required by this screen update.
+
 ## Operations and rollback
 
 Optional environment settings: `USAGE_HISTORY_POLL_MS` (minimum 60000), `USAGE_HISTORY_DAYS` (1–365, default 30), and `USAGE_HISTORY_CLIENTS_PER_TICK` (1–20, default 10). Set `USAGE_HISTORY_ENABLED=false` and restart to stop the new worker globally, or pause individual sites in the page. Saved history remains available.
